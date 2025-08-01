@@ -1,0 +1,32 @@
+{
+  "source": "/Volumes/C/project/Pomodoro/Pomodoro/ContentView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Item at %@",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 20
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add Item",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 31
+        }
+      },
+      {
+        "comment": "",
+        "key": "Select an item",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 36
+        }
+      }
+    ]
+  },
+  "version": 1
+}

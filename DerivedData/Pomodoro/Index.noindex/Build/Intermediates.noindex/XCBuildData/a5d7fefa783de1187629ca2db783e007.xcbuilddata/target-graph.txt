@@ -1,0 +1,6 @@
+Target dependency graph (3 targets)
+Target 'PomodoroUITests' in project 'Pomodoro'
+➜ Explicit dependency on target 'Pomodoro' in project 'Pomodoro'
+Target 'PomodoroTests' in project 'Pomodoro'
+➜ Explicit dependency on target 'Pomodoro' in project 'Pomodoro'
+Target 'Pomodoro' in project 'Pomodoro' (no dependencies)

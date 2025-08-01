@@ -1,0 +1,48 @@
+{
+  "" : {
+    "diagnostics" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/Pomodoro-master.dia",
+    "emit-module-dependencies" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/Pomodoro-master-emit-module.d",
+    "emit-module-diagnostics" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/Pomodoro-master-emit-module.dia",
+    "swift-dependencies" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/Pomodoro-master.swiftdeps"
+  },
+  "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/GeneratedAssetSymbols~partial.swiftmodule"
+  },
+  "/Volumes/C/project/Pomodoro/Pomodoro/ContentView.swift" : {
+    "const-values" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/ContentView.swiftconstvalues",
+    "dependencies" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/ContentView.d",
+    "diagnostics" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/ContentView.dia",
+    "index-unit-output-path" : "/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/ContentView.o",
+    "llvm-bc" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/ContentView.bc",
+    "object" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/ContentView.o",
+    "swift-dependencies" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/ContentView.swiftdeps",
+    "swiftmodule" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/ContentView~partial.swiftmodule"
+  },
+  "/Volumes/C/project/Pomodoro/Pomodoro/Item.swift" : {
+    "const-values" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/Item.swiftconstvalues",
+    "dependencies" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/Item.d",
+    "diagnostics" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/Item.dia",
+    "index-unit-output-path" : "/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/Item.o",
+    "llvm-bc" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/Item.bc",
+    "object" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/Item.o",
+    "swift-dependencies" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/Item.swiftdeps",
+    "swiftmodule" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/Item~partial.swiftmodule"
+  },
+  "/Volumes/C/project/Pomodoro/Pomodoro/PomodoroApp.swift" : {
+    "const-values" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/PomodoroApp.swiftconstvalues",
+    "dependencies" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/PomodoroApp.d",
+    "diagnostics" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/PomodoroApp.dia",
+    "index-unit-output-path" : "/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/PomodoroApp.o",
+    "llvm-bc" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/PomodoroApp.bc",
+    "object" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/PomodoroApp.o",
+    "swift-dependencies" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/PomodoroApp.swiftdeps",
+    "swiftmodule" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/Objects-normal/arm64/PomodoroApp~partial.swiftmodule"
+  }
+}

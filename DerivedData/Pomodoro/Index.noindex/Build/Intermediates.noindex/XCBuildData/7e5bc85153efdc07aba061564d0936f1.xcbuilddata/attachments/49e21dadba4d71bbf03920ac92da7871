@@ -1,0 +1,15 @@
+{
+  "" : {
+    "dependencies" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Index.noindex/Build/Intermediates.noindex/Pomodoro.build/Debug/PomodoroUITests.build/Objects-normal/arm64/PomodoroUITests-master.d",
+    "diagnostics" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Index.noindex/Build/Intermediates.noindex/Pomodoro.build/Debug/PomodoroUITests.build/Objects-normal/arm64/PomodoroUITests-master.dia",
+    "emit-module-dependencies" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Index.noindex/Build/Intermediates.noindex/Pomodoro.build/Debug/PomodoroUITests.build/Objects-normal/arm64/PomodoroUITests-master-emit-module.d",
+    "emit-module-diagnostics" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Index.noindex/Build/Intermediates.noindex/Pomodoro.build/Debug/PomodoroUITests.build/Objects-normal/arm64/PomodoroUITests-master-emit-module.dia",
+    "swift-dependencies" : "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Index.noindex/Build/Intermediates.noindex/Pomodoro.build/Debug/PomodoroUITests.build/Objects-normal/arm64/PomodoroUITests-master.swiftdeps"
+  },
+  "/Volumes/C/project/Pomodoro/PomodoroUITests/PomodoroUITests.swift" : {
+
+  },
+  "/Volumes/C/project/Pomodoro/PomodoroUITests/PomodoroUITestsLaunchTests.swift" : {
+
+  }
+}

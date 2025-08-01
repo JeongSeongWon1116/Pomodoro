@@ -1,0 +1,17 @@
+version: "Apple Swift version 6.1.2 (swiftlang-6.1.2.1.2 clang-1700.0.13.5)"
+options: "0e78208eca11e6b1b8285a181e310a517aecb0891c73dfc5d8e92b227732a445"
+build_start_time: [1754047450, 946718000]
+build_end_time: [1754047451, 458813000]
+inputs:
+  ? "/Volumes/C/project/Pomodoro/DerivedData/Pomodoro/Index.noindex/Build/Intermediates.noindex/Pomodoro.build/Debug/Pomodoro.build/DerivedSources/GeneratedAssetSymbols.swift"
+  : [1754046980, 225672809]
+  "/Volumes/C/project/Pomodoro/Pomodoro/AppDelegate.swift": [1754047212, 168080962]
+  "/Volumes/C/project/Pomodoro/Pomodoro/ContentView.swift": [1754046975, 770786118]
+  "/Volumes/C/project/Pomodoro/Pomodoro/FocusLogEntry.swift": [1754047239, 351634132]
+  "/Volumes/C/project/Pomodoro/Pomodoro/Item.swift": [1754047237, 776376754]
+  "/Volumes/C/project/Pomodoro/Pomodoro/LogChartView.swift": [1754047245, 104574406]
+  "/Volumes/C/project/Pomodoro/Pomodoro/LogView.swift": [1754047252, 332408537]
+  "/Volumes/C/project/Pomodoro/Pomodoro/PomodoroApp.swift": [1754047265, 941386083]
+  "/Volumes/C/project/Pomodoro/Pomodoro/PomodoroViewModel.swift": [1754047049, 482831356]
+  "/Volumes/C/project/Pomodoro/Pomodoro/SettingsView.swift": [1754047124, 934055298]
+  "/Volumes/C/project/Pomodoro/Pomodoro/StatusBarView.swift": [1754047102, 643640071]
