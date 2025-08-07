@@ -51,7 +51,8 @@ struct LogView: View {
 
 struct FilteredLogListView: View {
     @Query private var logs: [FocusLogEntry]
-
+    @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.modelContext) private var modelContext
     init(period: TimePeriod) {
         _logs = Query(filter: period.predicate, sort: \.startTime, order: .reverse)
     }
@@ -65,13 +66,19 @@ struct FilteredLogListView: View {
     private var sortedDays: [Date] {
         groupedLogs.keys.sorted(by: >)
     }
-
+    
     var body: some View {
         List {
             ForEach(sortedDays, id: \.self) { day in
                 Section {
                     ForEach(groupedLogs[day] ?? []) { log in
                         LogEntryRow(log: log)
+                    }
+                    .onDelete{ indexSet in guard let dayLogs = groupedLogs[day] else {return}
+                        for index in indexSet {
+                            let logToDelete = dayLogs[index]
+                            modelContext.delete(logToDelete)
+                        }
                     }
                 } header: {
                     LogSectionHeader(day: day, logs: groupedLogs[day] ?? [])
