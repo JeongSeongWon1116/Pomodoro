@@ -70,7 +70,6 @@ struct SettingsView: View {
 
             HStack {
                 Button("로그 보기") {
-                    // **FIX**: AppDelegate를 통해 로그 창을 열도록 수정
                     appDelegate?.showLogWindow()
                     // 팝오버를 닫습니다.
                     appDelegate?.togglePopover(nil)

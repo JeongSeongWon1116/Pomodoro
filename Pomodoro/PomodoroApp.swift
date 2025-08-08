@@ -14,9 +14,8 @@ struct PomodoroApp: App {
     private let container = DataController.shared.container
 
     var body: some Scene {
-        // **FIX**: 로그 창을 AppKit에서 수동으로 관리하므로,
-        // 더 이상 SwiftUI 생명주기에 WindowGroup이나 Window를 등록할 필요가 없습니다.
-        // 대신, 앱의 기본 메뉴 등을 제공하기 위해 빈 Settings Scene을 사용합니다.
+        // 로그 창은 AppKit에서 수동으로 관리되므로 WindowGroup이 필요 없습니다.
+        // Settings Scene을 추가하여 앱 메뉴를 유지합니다.
         Settings {
             EmptyView()
         }

@@ -13,15 +13,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     
     var modelContext: ModelContext?
     private var pomodoroViewModel: PomodoroViewModel!
-    private let logWindowManager = LogWindowManager()
+    private var logWindowManager: LogWindowManager?
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         guard let modelContext = modelContext else {
             fatalError("AppDelegate에 ModelContext가 제공되지 않았습니다.")
         }
         
-        // ViewModel에 AppDelegate 참조를 전달하여 팝오버를 제어할 수 있도록 합니다.
+        // ViewModel과 LogWindowManager를 초기화합니다.
         self.pomodoroViewModel = PomodoroViewModel(modelContext: modelContext, appDelegate: self)
+        self.logWindowManager = LogWindowManager(modelContext: modelContext)
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
@@ -55,7 +56,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     }
 
     @objc func showLogWindow() {
-        logWindowManager.showLogWindow()
+        logWindowManager?.showLogWindow()
     }
 
     @objc func togglePopover(_ sender: AnyObject? = nil) {
