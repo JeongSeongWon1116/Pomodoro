@@ -4,31 +4,19 @@
 import SwiftUI
 
 struct StatusBarView: View {
-    let emoji: String
-    let timerState: TimerState
-    let progress: Double
-    let color: Color
-    let timeRemainingString: String
+    @EnvironmentObject var viewModel: PomodoroViewModel
 
     var body: some View {
-        HStack(spacing: 4) {
-            Text(emoji)
-                .font(.title)
-                .frame(width: 22)
+        HStack(spacing: 5) {
+            Text(viewModel.currentState.emoji)
+                .font(.system(size: 18))
             
-            // Show EITHER the time remaining OR the progress bar, but keep them both in the layout.
-            // This creates a stable layout that is less prone to SwiftUI update bugs in MenuBarExtra.
-            ZStack {
-                Text(timeRemainingString)
-                    .font(.system(.body, design: .monospaced))
-                    .opacity(timerState == .idle ? 1 : 0)
-
-                BatteryProgressBar(progress: progress, color: color)
-                    .opacity(timerState == .running || timerState == .paused ? 1 : 0)
+            if viewModel.timerState == .running || viewModel.timerState == .paused {
+                BatteryProgressBar(progress: viewModel.progress, color: viewModel.currentState.color)
             }
-            .frame(width: 50)
         }
         .padding(.horizontal, 8)
+        .fixedSize()
     }
 }
 
@@ -49,6 +37,6 @@ struct BatteryProgressBar: View {
                     .padding(1.5)
             }
         }
-        .frame(height: 14)
+        .frame(width: 35, height: 14)
     }
 }

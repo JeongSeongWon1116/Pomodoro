@@ -5,8 +5,6 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var viewModel: PomodoroViewModel
-    // **FIX**: 'openWindow'를 사용하기 위해 Environment 값을 선언합니다.
-    @Environment(\.openWindow) private var openWindow
     @Environment(\.openURL) private var openURL
 
     var body: some View {
@@ -72,8 +70,8 @@ struct SettingsView: View {
 
             HStack {
                 Button("로그 보기") {
-                    // **FIX**: 순수 SwiftUI 방식으로 로그 창을 엽니다.
-                    openWindow(id: "log-window")
+                    appDelegate?.showLogWindow()
+                    appDelegate?.togglePopover(nil)
                 }
                 Spacer()
                 Button("종료") { NSApplication.shared.terminate(nil) }
@@ -81,12 +79,6 @@ struct SettingsView: View {
         }
         .padding()
         .frame(width: 260, height: 380)
-        .onAppear {
-            // 팝오버가 나타날 때마다 알림 권한 상태를 확인합니다.
-            Task {
-                await viewModel.checkNotificationSettings()
-            }
-        }
     }
     
     private var buttonTitle: String {
@@ -95,6 +87,11 @@ struct SettingsView: View {
         case .paused: "재개"
         case .idle: "시작"
         }
+    }
+
+    // AppDelegate에 접근하기 위한 트릭
+    private var appDelegate: AppDelegate? {
+        NSApp.delegate as? AppDelegate
     }
 }
 

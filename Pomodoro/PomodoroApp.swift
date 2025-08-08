@@ -7,39 +7,22 @@ import SwiftData
 
 @main
 struct PomodoroApp: App {
+    // AppKit의 생명주기를 관리하기 위해 AppDelegate를 사용합니다.
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
+    // DataController 싱글턴으로부터 공유 ModelContainer를 가져옵니다.
     private let container = DataController.shared.container
-    @StateObject private var viewModel: PomodoroViewModel
-    private let notificationDelegate = NotificationDelegate()
 
     var body: some Scene {
-        MenuBarExtra {
-            SettingsView()
-                .environmentObject(viewModel)
-        } label: {
-            StatusBarView(
-                emoji: viewModel.currentState.emoji,
-                timerState: viewModel.timerState,
-                progress: viewModel.progress,
-                color: viewModel.currentState.color,
-                timeRemainingString: viewModel.timeRemainingString
-            )
+        // The log window is now managed by AppKit, so this WindowGroup is no longer needed.
+        // A Settings scene is used to provide a valid, non-windowed scene for the app.
+        Settings {
+            EmptyView()
         }
-        .menuBarExtraStyle(.window)
-        .modelContainer(container)
-
-        Window("집중 기록", id: "log-window") {
-            LogView()
-        }
-        .modelContainer(container)
     }
 
     init() {
-        let modelContext = container.mainContext
-        let viewModel = PomodoroViewModel(modelContext: modelContext)
-        _viewModel = StateObject(wrappedValue: viewModel)
-        UNUserNotificationCenter.current().delegate = notificationDelegate
-        Task {
-            await viewModel.requestNotificationPermission()
-        }
+        // AppDelegate가 초기화된 후, 전체 ModelContainer를 전달합니다.
+        appDelegate.container = container
     }
 }
