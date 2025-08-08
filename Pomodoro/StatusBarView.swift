@@ -4,16 +4,19 @@
 import SwiftUI
 
 struct StatusBarView: View {
-    @EnvironmentObject var viewModel: PomodoroViewModel
+    let emoji: String
+    let timerState: TimerState
+    let progress: Double
+    let color: Color
 
     var body: some View {
         HStack(spacing: 4) {
-            Text(viewModel.currentState.emoji)
+            Text(emoji)
                 .font(.title)
                 .frame(width: 22)
             
-            if viewModel.timerState == .running || viewModel.timerState == .paused {
-                BatteryProgressBar(progress: viewModel.progress, color: viewModel.currentState.color)
+            if timerState == .running || timerState == .paused {
+                BatteryProgressBar(progress: progress, color: color)
                     .frame(width: 35) // 명시적으로 너비 지정
             }
         }

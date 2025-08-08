@@ -19,8 +19,12 @@ struct PomodoroApp: App {
             SettingsView()
                 .environmentObject(viewModel)
         } label: {
-            StatusBarView()
-                .environmentObject(viewModel)
+            StatusBarView(
+                emoji: viewModel.currentState.emoji,
+                timerState: viewModel.timerState,
+                progress: viewModel.progress,
+                color: viewModel.currentState.color
+            )
         }
         .menuBarExtraStyle(.window) // .window 스타일은 popover UI를 제공합니다.
         .modelContainer(container)

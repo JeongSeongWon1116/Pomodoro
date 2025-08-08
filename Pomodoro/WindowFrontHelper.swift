@@ -6,8 +6,11 @@ struct WindowFrontHelper: NSViewRepresentable {
         // Use a dispatch queue to allow the view and window to be set up first.
         DispatchQueue.main.async {
             if let window = view.window {
-                window.makeKeyAndOrderFront(nil)
+                // Deactivating and then reactivating is a more forceful way to
+                // ensure the application and its window come to the front.
+                NSApp.deactivate()
                 NSApp.activate(ignoringOtherApps: true)
+                window.makeKeyAndOrderFront(nil)
             }
         }
         return view
