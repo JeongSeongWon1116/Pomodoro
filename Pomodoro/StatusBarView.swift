@@ -8,6 +8,7 @@ struct StatusBarView: View {
     let timerState: TimerState
     let progress: Double
     let color: Color
+    let timeRemainingString: String
 
     var body: some View {
         HStack(spacing: 4) {
@@ -15,12 +16,19 @@ struct StatusBarView: View {
                 .font(.title)
                 .frame(width: 22)
             
-            if timerState == .running || timerState == .paused {
+            // Show EITHER the time remaining OR the progress bar, but keep them both in the layout.
+            // This creates a stable layout that is less prone to SwiftUI update bugs in MenuBarExtra.
+            ZStack {
+                Text(timeRemainingString)
+                    .font(.system(.body, design: .monospaced))
+                    .opacity(timerState == .idle ? 1 : 0)
+
                 BatteryProgressBar(progress: progress, color: color)
-                    .frame(width: 35) // 명시적으로 너비 지정
+                    .opacity(timerState == .running || timerState == .paused ? 1 : 0)
             }
+            .frame(width: 50)
         }
-        .padding(.horizontal, 6)
+        .padding(.horizontal, 8)
     }
 }
 
@@ -41,6 +49,6 @@ struct BatteryProgressBar: View {
                     .padding(1.5)
             }
         }
-        .frame(width: 35, height: 14)
+        .frame(height: 14)
     }
 }

@@ -7,14 +7,11 @@ import SwiftData
 
 @main
 struct PomodoroApp: App {
-    // DataController 싱글턴으로부터 공유 ModelContainer를 가져옵니다.
     private let container = DataController.shared.container
-    // ViewModel을 앱 생명주기에 맞게 상태로 관리합니다.
     @StateObject private var viewModel: PomodoroViewModel
+    private let notificationDelegate = NotificationDelegate()
 
     var body: some Scene {
-        // **FIX**: AppDelegate 대신 MenuBarExtra를 사용하여 앱의 UI를 구성합니다.
-        // 이는 순수 SwiftUI 접근 방식으로, 더 안정적이고 예측 가능합니다.
         MenuBarExtra {
             SettingsView()
                 .environmentObject(viewModel)
@@ -23,33 +20,24 @@ struct PomodoroApp: App {
                 emoji: viewModel.currentState.emoji,
                 timerState: viewModel.timerState,
                 progress: viewModel.progress,
-                color: viewModel.currentState.color
+                color: viewModel.currentState.color,
+                timeRemainingString: viewModel.timeRemainingString
             )
         }
-        .menuBarExtraStyle(.window) // .window 스타일은 popover UI를 제공합니다.
+        .menuBarExtraStyle(.window)
         .modelContainer(container)
 
-        // **FIX**: 로그 창을 위해 WindowGroup 대신 Window를 사용합니다.
-        // 이렇게 하면 한 번에 하나의 로그 창만 열 수 있습니다.
         Window("집중 기록", id: "log-window") {
             LogView()
         }
         .modelContainer(container)
     }
 
-    // 알림을 앱이 활성화된 상태에서도 표시하기 위한 델리게이트입니다.
-    private let notificationDelegate = NotificationDelegate()
-
     init() {
-        // ViewModel을 초기화합니다.
         let modelContext = container.mainContext
         let viewModel = PomodoroViewModel(modelContext: modelContext)
         _viewModel = StateObject(wrappedValue: viewModel)
-
-        // 알림 센터의 델리게이트를 설정합니다.
         UNUserNotificationCenter.current().delegate = notificationDelegate
-
-        // 앱 시작 시 알림 권한을 요청합니다.
         Task {
             await viewModel.requestNotificationPermission()
         }
