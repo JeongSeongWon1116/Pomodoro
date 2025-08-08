@@ -30,11 +30,18 @@ struct PomodoroApp: App {
         Window("집중 기록", id: "log-window") {
             LogView()
         }
+        .modelContainer(container)
     }
 
+    // 알림을 앱이 활성화된 상태에서도 표시하기 위한 델리게이트입니다.
+    private let notificationDelegate = NotificationDelegate()
+
     init() {
-        // ViewModel을 초기화합니다. AppDelegate가 없으므로 여기서 직접 생성합니다.
+        // ViewModel을 초기화합니다.
         let modelContext = container.mainContext
         _viewModel = State(initialValue: PomodoroViewModel(modelContext: modelContext))
+
+        // 알림 센터의 델리게이트를 설정합니다.
+        UNUserNotificationCenter.current().delegate = notificationDelegate
     }
 }

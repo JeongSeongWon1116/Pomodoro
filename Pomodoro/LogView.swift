@@ -42,6 +42,7 @@ struct LogView: View {
         } detail: {
             LogChartView(period: selectedPeriod)
         }
+        .background(BringToFront())
     }
     
     private func deleteAllLogs() {
