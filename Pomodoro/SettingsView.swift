@@ -71,8 +71,7 @@ struct SettingsView: View {
             HStack {
                 Button("로그 보기") {
                     appDelegate?.showLogWindow()
-                    // DIAGNOSTIC: Temporarily disable popover closing to avoid interference.
-                    // appDelegate?.togglePopover(nil)
+                    appDelegate?.togglePopover(nil)
                 }
                 Spacer()
                 Button("종료") { NSApplication.shared.terminate(nil) }

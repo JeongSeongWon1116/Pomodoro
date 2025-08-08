@@ -13,7 +13,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     
     var container: ModelContainer?
     private var pomodoroViewModel: PomodoroViewModel!
-    private var logWindowManager: LogWindowManager?
+    private var logWindowController: LogWindowController?
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         guard let container = container else {
@@ -22,7 +22,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         let modelContext = container.mainContext
         
         self.pomodoroViewModel = PomodoroViewModel(modelContext: modelContext, appDelegate: self)
-        self.logWindowManager = LogWindowManager(container: container)
+        self.logWindowController = LogWindowController(container: container)
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
@@ -56,7 +56,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     }
 
     @objc func showLogWindow() {
-        logWindowManager?.showLogWindow()
+        logWindowController?.showWindow(nil)
     }
 
     @objc func togglePopover(_ sender: AnyObject? = nil) {
