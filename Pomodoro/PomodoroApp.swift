@@ -14,14 +14,16 @@ struct PomodoroApp: App {
     private let container = DataController.shared.container
 
     var body: some Scene {
-        // Settings Scene to keep the app menu valid.
-        Settings {
+        // **FIX**: 이 WindowGroup은 앱의 창 관리 시스템을 초기화하기 위해 필요합니다.
+        // 직접 사용되지는 않지만, 이 Scene이 없으면 프로그래밍 방식으로 생성된 AppKit 창이
+        // 표시되지 않는 문제가 발생합니다.
+        WindowGroup {
             EmptyView()
         }
     }
 
     init() {
-        // Pass the ModelContainer to the AppDelegate.
+        // AppDelegate에 ModelContainer를 전달합니다.
         appDelegate.container = container
     }
 }
