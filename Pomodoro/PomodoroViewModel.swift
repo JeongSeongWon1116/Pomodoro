@@ -40,11 +40,9 @@ class PomodoroViewModel: ObservableObject {
     private var lastResumeTime: Date?
     private var accumulatedActiveTime: TimeInterval = 0
     private var modelContext: ModelContext
-    private weak var appDelegate: AppDelegate?
 
-    init(modelContext: ModelContext, appDelegate: AppDelegate) {
+    init(modelContext: ModelContext) {
         self.modelContext = modelContext
-        self.appDelegate = appDelegate
         self.timeRemaining = TimeInterval(focusDurationInMinutes * 60)
     }
 
@@ -131,7 +129,6 @@ class PomodoroViewModel: ObservableObject {
         if !skipped {
             playSound()
             scheduleNotification(duration: 0.1)
-            appDelegate?.bringPopoverToFront()
         }
         
         logSession()
