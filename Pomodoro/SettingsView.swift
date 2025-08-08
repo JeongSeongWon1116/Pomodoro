@@ -81,6 +81,12 @@ struct SettingsView: View {
         }
         .padding()
         .frame(width: 260, height: 380)
+        .onAppear {
+            // 팝오버가 나타날 때마다 알림 권한 상태를 확인합니다.
+            Task {
+                await viewModel.checkNotificationSettings()
+            }
+        }
     }
     
     private var buttonTitle: String {

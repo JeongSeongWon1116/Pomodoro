@@ -39,9 +39,15 @@ struct PomodoroApp: App {
     init() {
         // ViewModel을 초기화합니다.
         let modelContext = container.mainContext
-        _viewModel = State(initialValue: PomodoroViewModel(modelContext: modelContext))
+        let viewModel = PomodoroViewModel(modelContext: modelContext)
+        _viewModel = State(initialValue: viewModel)
 
         // 알림 센터의 델리게이트를 설정합니다.
         UNUserNotificationCenter.current().delegate = notificationDelegate
+
+        // 앱 시작 시 알림 권한을 요청합니다.
+        Task {
+            await viewModel.requestNotificationPermission()
+        }
     }
 }
