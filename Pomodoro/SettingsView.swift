@@ -5,8 +5,6 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var viewModel: PomodoroViewModel
-    // **FIX**: 'openWindow'를 사용하기 위해 Environment 값을 선언합니다.
-    @Environment(\.openWindow) private var openWindow
     @Environment(\.openURL) private var openURL
 
     var body: some View {
@@ -72,8 +70,8 @@ struct SettingsView: View {
 
             HStack {
                 Button("로그 보기") {
-                    // **FIX**: SwiftUI의 openWindow를 사용하여 로그 창을 엽니다.
-                    openWindow(id: "log-window")
+                    // **FIX**: AppDelegate를 통해 로그 창을 열도록 수정
+                    appDelegate?.showLogWindow()
                     // 팝오버를 닫습니다.
                     appDelegate?.togglePopover(nil)
                 }

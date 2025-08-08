@@ -14,12 +14,12 @@ struct PomodoroApp: App {
     private let container = DataController.shared.container
 
     var body: some Scene {
-        // **FIX**: 로그 창을 SwiftUI 생명주기가 관리하도록 WindowGroup을 다시 정의합니다.
-        // 이를 통해 창 종료 시 충돌 및 데이터 미업데이트 문제를 해결합니다.
-        WindowGroup("집중 기록", id: "log-window") {
-            LogView()
+        // **FIX**: 로그 창을 AppKit에서 수동으로 관리하므로,
+        // 더 이상 SwiftUI 생명주기에 WindowGroup이나 Window를 등록할 필요가 없습니다.
+        // 대신, 앱의 기본 메뉴 등을 제공하기 위해 빈 Settings Scene을 사용합니다.
+        Settings {
+            EmptyView()
         }
-        .modelContainer(container) // 전체 뷰 계층에 공유 ModelContainer를 주입합니다.
     }
 
     init() {

@@ -13,6 +13,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     
     var modelContext: ModelContext?
     private var pomodoroViewModel: PomodoroViewModel!
+    private let logWindowManager = LogWindowManager()
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         guard let modelContext = modelContext else {
@@ -51,6 +52,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         Task {
             await pomodoroViewModel.requestNotificationPermission()
         }
+    }
+
+    @objc func showLogWindow() {
+        logWindowManager.showLogWindow()
     }
 
     @objc func togglePopover(_ sender: AnyObject? = nil) {
