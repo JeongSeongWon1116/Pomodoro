@@ -4,16 +4,16 @@ import SwiftData
 
 class LogWindowManager {
     private var logWindow: NSWindow?
-    private let modelContext: ModelContext
+    private let container: ModelContainer
 
-    init(modelContext: ModelContext) {
-        self.modelContext = modelContext
+    init(container: ModelContainer) {
+        self.container = container
     }
 
     func showLogWindow() {
         if logWindow == nil {
             let logView = LogView()
-                .environment(\.modelContext, self.modelContext)
+                .modelContainer(container)
 
             let hostingController = NSHostingController(rootView: logView)
 

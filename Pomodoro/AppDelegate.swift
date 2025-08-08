@@ -11,18 +11,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     private var statusItem: NSStatusItem!
     private var popover: NSPopover!
     
-    var modelContext: ModelContext?
+    var container: ModelContainer?
     private var pomodoroViewModel: PomodoroViewModel!
     private var logWindowManager: LogWindowManager?
-    
+
     func applicationDidFinishLaunching(_ aNotification: Notification) {
-        guard let modelContext = modelContext else {
-            fatalError("AppDelegate에 ModelContext가 제공되지 않았습니다.")
+        guard let container = container else {
+            fatalError("AppDelegate에 ModelContainer가 제공되지 않았습니다.")
         }
+        let modelContext = container.mainContext
         
         // ViewModel과 LogWindowManager를 초기화합니다.
         self.pomodoroViewModel = PomodoroViewModel(modelContext: modelContext, appDelegate: self)
-        self.logWindowManager = LogWindowManager(modelContext: modelContext)
+        self.logWindowManager = LogWindowManager(container: container)
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {

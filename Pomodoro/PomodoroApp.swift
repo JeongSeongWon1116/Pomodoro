@@ -22,7 +22,7 @@ struct PomodoroApp: App {
     }
 
     init() {
-        // AppDelegate가 초기화된 후, 앱의 메인 ModelContext를 전달합니다.
-        appDelegate.modelContext = container.mainContext
+        // AppDelegate가 초기화된 후, 전체 ModelContainer를 전달합니다.
+        appDelegate.container = container
     }
 }
