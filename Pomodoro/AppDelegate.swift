@@ -21,7 +21,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         }
         let modelContext = container.mainContext
         
-        // ViewModel과 LogWindowManager를 초기화합니다.
         self.pomodoroViewModel = PomodoroViewModel(modelContext: modelContext, appDelegate: self)
         self.logWindowManager = LogWindowManager(container: container)
 

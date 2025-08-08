@@ -14,15 +14,14 @@ struct PomodoroApp: App {
     private let container = DataController.shared.container
 
     var body: some Scene {
-        // 로그 창은 AppKit에서 수동으로 관리되므로 WindowGroup이 필요 없습니다.
-        // Settings Scene을 추가하여 앱 메뉴를 유지합니다.
+        // Settings Scene to keep the app menu valid.
         Settings {
             EmptyView()
         }
     }
 
     init() {
-        // AppDelegate가 초기화된 후, 전체 ModelContainer를 전달합니다.
+        // Pass the ModelContainer to the AppDelegate.
         appDelegate.container = container
     }
 }

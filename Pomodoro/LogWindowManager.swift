@@ -12,19 +12,19 @@ class LogWindowManager {
 
     func showLogWindow() {
         if logWindow == nil {
-            let logView = LogView()
-                .modelContainer(container)
+            // DIAGNOSTIC: Use a simple Text view instead of LogView
+            let simpleView = Text("Test Window. If you can see this, the windowing logic is working.")
 
-            let hostingController = NSHostingController(rootView: logView)
+            let hostingController = NSHostingController(rootView: simpleView)
 
             let window = NSWindow(
                 contentViewController: hostingController
             )
-            window.title = "집중 기록"
+            window.title = "Diagnostic Window"
             window.isReleasedWhenClosed = false
             window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
 
-            let initialSize = NSSize(width: 800, height: 600)
+            let initialSize = NSSize(width: 400, height: 200)
             window.setContentSize(initialSize)
             window.center()
 
