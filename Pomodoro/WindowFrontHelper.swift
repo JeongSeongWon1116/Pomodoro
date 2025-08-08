@@ -1,11 +1,11 @@
 import SwiftUI
 
-struct BringToFront: NSViewRepresentable {
+struct WindowFrontHelper: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
+        // Use a dispatch queue to allow the view and window to be set up first.
         DispatchQueue.main.async {
-            // A new window opened via SwiftUI will be the key window at this point.
-            if let window = NSApp.keyWindow {
+            if let window = view.window {
                 window.makeKeyAndOrderFront(nil)
                 NSApp.activate(ignoringOtherApps: true)
             }

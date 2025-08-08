@@ -10,7 +10,7 @@ struct PomodoroApp: App {
     // DataController 싱글턴으로부터 공유 ModelContainer를 가져옵니다.
     private let container = DataController.shared.container
     // ViewModel을 앱 생명주기에 맞게 상태로 관리합니다.
-    @State private var viewModel: PomodoroViewModel
+    @StateObject private var viewModel: PomodoroViewModel
 
     var body: some Scene {
         // **FIX**: AppDelegate 대신 MenuBarExtra를 사용하여 앱의 UI를 구성합니다.
@@ -40,7 +40,7 @@ struct PomodoroApp: App {
         // ViewModel을 초기화합니다.
         let modelContext = container.mainContext
         let viewModel = PomodoroViewModel(modelContext: modelContext)
-        _viewModel = State(initialValue: viewModel)
+        _viewModel = StateObject(wrappedValue: viewModel)
 
         // 알림 센터의 델리게이트를 설정합니다.
         UNUserNotificationCenter.current().delegate = notificationDelegate
