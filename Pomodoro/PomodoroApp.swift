@@ -7,23 +7,34 @@ import SwiftData
 
 @main
 struct PomodoroApp: App {
-    // AppKit의 생명주기를 관리하기 위해 AppDelegate를 사용합니다.
-    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-
-    // DataController 싱글턴으로부터 공유 ModelContainer를 가져옵니다.
     private let container = DataController.shared.container
+    @StateObject private var viewModel: PomodoroViewModel
+    private let notificationDelegate = NotificationDelegate()
 
     var body: some Scene {
-        // **FIX**: 로그 창을 SwiftUI 생명주기가 관리하도록 WindowGroup을 다시 정의합니다.
-        // 이를 통해 창 종료 시 충돌 및 데이터 미업데이트 문제를 해결합니다.
-        WindowGroup("집중 기록", id: "log-window") {
+        MenuBarExtra {
+            SettingsView()
+                .environmentObject(viewModel)
+        } label: {
+            StatusBarView(emoji: viewModel.currentState.emoji)
+        }
+        .menuBarExtraStyle(.window)
+        .modelContainer(container)
+
+        Window("집중 기록", id: "log-window") {
             LogView()
         }
-        .modelContainer(container) // 전체 뷰 계층에 공유 ModelContainer를 주입합니다.
+        .modelContainer(container)
+        .handlesExternalEvents(matching: Set(arrayLiteral: "log-window"))
     }
 
     init() {
-        // AppDelegate가 초기화된 후, 전체 ModelContainer를 전달합니다.
-        appDelegate.container = container
+        let modelContext = container.mainContext
+        let viewModel = PomodoroViewModel(modelContext: modelContext)
+        _viewModel = StateObject(wrappedValue: viewModel)
+        UNUserNotificationCenter.current().delegate = notificationDelegate
+        Task {
+            await viewModel.requestNotificationPermission()
+        }
     }
 }
