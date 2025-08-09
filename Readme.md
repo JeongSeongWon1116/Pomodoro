@@ -38,7 +38,8 @@ macOS용으로 제작된 간단한 뽀모도로 타이머 애플리케이션입�
 
 - [ ] 소리 알림 커스텀 기능
 - [ ] log view window 여러개 뜨는 문제
-
+- [ ] version 관리 기능
+- [ ] app으로 release 하기
 
 
 
