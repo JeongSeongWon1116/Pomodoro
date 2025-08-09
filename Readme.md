@@ -14,21 +14,22 @@ macOS용으로 제작된 간단한 뽀모도로 타이머 애플리케이션입�
 ## 💻 사용 기술
 
 - **SwiftUI**: Apple의 최신 UI 프레임워크를 사용하여 앱의 전체 인터페이스를 구축했습니다.
-- **Core Data**: 뽀모도로 세션 로그를 사용자의 기기에 안전하게 저장하고 관리합니다.
+- **SwiftData**: 뽀모도로 세션 로그를 사용자의 기기에 안전하게 저장하고 관리합니다.
+- **AppKit**: 메뉴 막대 아이콘(`NSStatusItem`)과 같은 네이티브 macOS 기능을 통합하여 안정적인 사용자 경험을 제공합니다.
 - **Combine**: 비동기 이벤트를 처리하고 데이터 흐름을 관리하기 위해 사용되었습니다.
 
 ## 🚀 시작하기
 
 ### 요구사항
 
-- macOS 12.0 이상
-- Xcode 13.0 이상
+- macOS 14.0 이상
+- Xcode 15.0 이상
 
 ### 설치 및 실행
 
 1.  이 저장소를 로컬 컴퓨터에 복제(clone)합니다.
     ```bash
-    git clone [https://github.com/jeongseongwon1116/pomodoro.git](https://github.com/jeongseongwon1116/pomodoro.git)
+    git clone https://github.com/jeongseongwon1116/pomodoro.git
     ```
 2.  Xcode에서 `Pomodoro.xcodeproj` 파일을 엽니다.
 3.  빌드하고 실행합니다 (Cmd+R).
@@ -37,7 +38,6 @@ macOS용으로 제작된 간단한 뽀모도로 타이머 애플리케이션입�
 ## 📝 향후 개선 계획
 
 - [ ] 소리 알림 커스텀 기능
-- [ ] log view window 여러개 뜨는 문제
 
 
 
