@@ -14,11 +14,9 @@ struct PomodoroApp: App {
     private let container = DataController.shared.container
 
     var body: some Scene {
-        // **FIX**: The NSWindowController requires a corresponding WindowGroup
-        // to be defined in the SwiftUI scene graph to function correctly.
-        // The button action will use the NSWindowController, not this scene,
-        // but its presence here is essential for the windowing system.
-        WindowGroup("집중 기록", id: "log-window") {
+        // Using a `Window` scene ensures only one instance of the log view
+        // can be created, and it does not open automatically at launch.
+        Window("집중 기록", id: "log-window") {
             LogView()
         }
         .modelContainer(container)

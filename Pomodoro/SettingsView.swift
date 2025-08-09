@@ -5,6 +5,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var viewModel: PomodoroViewModel
+    @Environment(\.openWindow) private var openWindow
     @Environment(\.openURL) private var openURL
 
     var body: some View {
@@ -70,7 +71,7 @@ struct SettingsView: View {
 
             HStack {
                 Button("로그 보기") {
-                    appDelegate?.showLogWindow()
+                    openWindow(id: "log-window")
                     appDelegate?.togglePopover(nil)
                 }
                 Spacer()
