@@ -14,11 +14,14 @@ struct PomodoroApp: App {
     private let container = DataController.shared.container
 
     var body: some Scene {
-        // The log window is now managed by AppKit, so this WindowGroup is no longer needed.
-        // A Settings scene is used to provide a valid, non-windowed scene for the app.
-        Settings {
-            EmptyView()
+        // **FIX**: The NSWindowController requires a corresponding WindowGroup
+        // to be defined in the SwiftUI scene graph to function correctly.
+        // The button action will use the NSWindowController, not this scene,
+        // but its presence here is essential for the windowing system.
+        WindowGroup("집중 기록", id: "log-window") {
+            LogView()
         }
+        .modelContainer(container)
     }
 
     init() {
