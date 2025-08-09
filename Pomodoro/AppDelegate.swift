@@ -13,6 +13,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
 
     var container: ModelContainer?
     private var pomodoroViewModel: PomodoroViewModel!
+    private var logWindowController: LogWindowController?
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         guard let container = container else {
@@ -21,6 +22,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         let modelContext = container.mainContext
 
         self.pomodoroViewModel = PomodoroViewModel(modelContext: modelContext, appDelegate: self)
+        self.logWindowController = LogWindowController(container: container)
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
@@ -80,5 +82,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     // 앱이 활성화된 상태에서도 알림이 보이도록 설정합니다.
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([.banner, .sound, .list])
+    }
+
+    @objc func showLogWindow() {
+        logWindowController?.showWindow(nil)
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        return false
     }
 }
