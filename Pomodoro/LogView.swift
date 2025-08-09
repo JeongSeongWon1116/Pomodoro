@@ -42,7 +42,6 @@ struct LogView: View {
         } detail: {
             LogChartView(period: selectedPeriod)
         }
-        .background(WindowFrontHelper())
     }
     
     private func deleteAllLogs() {

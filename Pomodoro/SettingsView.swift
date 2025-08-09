@@ -5,8 +5,6 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var viewModel: PomodoroViewModel
-    // **FIX**: 'openWindow'를 사용하기 위해 Environment 값을 선언합니다.
-    @Environment(\.openWindow) private var openWindow
     @Environment(\.openURL) private var openURL
 
     var body: some View {
@@ -16,10 +14,7 @@ struct SettingsView: View {
             
             Text("\(viewModel.currentState.description): \(viewModel.timeRemainingString)")
                 .font(.subheadline).foregroundColor(.secondary)
-
-            BatteryProgressBar(progress: viewModel.progress, color: viewModel.currentState.color)
-                .frame(height: 14)
-                .padding(.horizontal)
+                .padding(.bottom, 4)
 
             Button(action: {
                 switch viewModel.timerState {
@@ -75,7 +70,8 @@ struct SettingsView: View {
 
             HStack {
                 Button("로그 보기") {
-                    openWindow(id: "log-window")
+                    appDelegate?.showLogWindow()
+                    appDelegate?.togglePopover(nil)
                 }
                 Spacer()
                 Button("종료") { NSApplication.shared.terminate(nil) }
@@ -92,25 +88,10 @@ struct SettingsView: View {
         case .idle: "시작"
         }
     }
-}
 
-struct BatteryProgressBar: View {
-    var progress: Double
-    var color: Color
-
-    var body: some View {
-        ZStack(alignment: .leading) {
-            RoundedRectangle(cornerRadius: 3.5)
-                .stroke(Color.primary.opacity(0.8), lineWidth: 1.5)
-
-            GeometryReader { geometry in
-                let fillWidth = (geometry.size.width - 3) * CGFloat(progress)
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(color)
-                    .frame(width: fillWidth)
-                    .padding(1.5)
-            }
-        }
+    // AppDelegate에 접근하기 위한 트릭
+    private var appDelegate: AppDelegate? {
+        NSApp.delegate as? AppDelegate
     }
 }
 
