@@ -6,6 +6,8 @@ struct WindowFrontHelper: NSViewRepresentable {
         DispatchQueue.main.async {
             if let window = view.window {
                 window.makeKeyAndOrderFront(nil)
+                // This makes the window behave like a popover, closing when focus is lost.
+                window.hidesOnDeactivate = true
                 NSApp.activate(ignoringOtherApps: true)
             }
         }

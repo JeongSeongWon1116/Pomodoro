@@ -17,11 +17,9 @@ struct SettingsView: View {
             Text("\(viewModel.currentState.description): \(viewModel.timeRemainingString)")
                 .font(.subheadline).foregroundColor(.secondary)
 
-            if viewModel.timerState != .idle {
-                BatteryProgressBar(progress: viewModel.progress, color: viewModel.currentState.color)
-                    .frame(height: 14)
-                    .padding(.horizontal)
-            }
+            BatteryProgressBar(progress: viewModel.progress, color: viewModel.currentState.color)
+                .frame(height: 14)
+                .padding(.horizontal)
 
             Button(action: {
                 switch viewModel.timerState {
