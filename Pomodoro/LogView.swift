@@ -8,6 +8,7 @@ struct LogView: View {
     @State private var selectedPeriod: TimePeriod = .weekly
     @State private var showingDeleteAlert = false
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
         NavigationSplitView {
@@ -42,8 +43,14 @@ struct LogView: View {
         } detail: {
             LogChartView(period: selectedPeriod)
         }
+        // 윈도우가 포커스를 잃으면 자동으로 닫기
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { notification in
+            guard let window = notification.object as? NSWindow,
+                  window.title == "집중 기록" else { return }
+            dismissWindow(id: "log-window")
+        }
     }
-    
+
     private func deleteAllLogs() {
         try? modelContext.delete(model: FocusLogEntry.self)
     }
