@@ -77,7 +77,6 @@ class PomodoroViewModel: ObservableObject {
         lastResumeTime = nil
         timerSubscription?.cancel()
         timerState = .paused
-        cancelPendingNotifications()
     }
 
     func resumeTimer() {
