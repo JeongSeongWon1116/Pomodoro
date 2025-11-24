@@ -95,11 +95,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         completionHandler([.banner, .sound, .list])
     }
 
-    // 알림 클릭 시 기존 앱을 활성화 (새 인스턴스 방지)
+    // 알림 클릭 시 아무 동작도 하지 않음 (새 앱 인스턴스 실행 방지)
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
-        // 앱을 활성화하고 팝오버 표시
-        NSApp.activate(ignoringOtherApps: true)
-        togglePopover()
+        // 아무것도 하지 않고 완료 처리
         completionHandler()
     }
 
