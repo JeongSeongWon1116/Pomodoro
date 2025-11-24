@@ -91,8 +91,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     }
 
     // 앱이 활성화된 상태에서도 알림이 보이도록 설정합니다.
+    // .list 제거: 알림 센터에 저장하지 않아 클릭할 수 없게 함
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        completionHandler([.banner, .sound, .list])
+        completionHandler([.banner, .sound])
     }
 
     // 알림 클릭 시 아무 동작도 하지 않음 (새 앱 인스턴스 실행 방지)
