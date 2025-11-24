@@ -81,9 +81,4 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([.banner, .sound, .list])
     }
-
-    // 마지막 윈도우가 닫혀도 앱이 종료되지 않도록 합니다 (메뉴 바 앱)
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        return false
-    }
 }

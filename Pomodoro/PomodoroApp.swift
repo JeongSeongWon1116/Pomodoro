@@ -14,9 +14,9 @@ struct PomodoroApp: App {
     private let container = DataController.shared.container
 
     var body: some Scene {
-        // **FIX**: Window를 사용하여 단일 윈도우만 열리도록 합니다.
-        // WindowGroup은 여러 윈도우를 허용하지만, Window는 단일 인스턴스만 허용합니다.
-        Window("집중 기록", id: "log-window") {
+        // **FIX**: 로그 창을 SwiftUI 생명주기가 관리하도록 WindowGroup을 다시 정의합니다.
+        // 이를 통해 창 종료 시 충돌 및 데이터 미업데이트 문제를 해결합니다.
+        WindowGroup("집중 기록", id: "log-window") {
             LogView()
         }
         .modelContainer(container) // 전체 뷰 계층에 공유 ModelContainer를 주입합니다.
