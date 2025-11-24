@@ -10,20 +10,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
 
     private var statusItem: NSStatusItem!
     private var popover: NSPopover!
-    
+
     var modelContext: ModelContext?
     private var pomodoroViewModel: PomodoroViewModel!
-    
-    func applicationDidFinishLaunching(_ aNotification: Notification) {
-        // 이미 실행 중인 인스턴스가 있으면 새 인스턴스 종료
+
+    // 앱 실행 초기 단계에서 중복 실행 체크
+    func applicationWillFinishLaunching(_ notification: Notification) {
         let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier ?? "")
         if runningApps.count > 1 {
-            // 기존 앱 활성화
-            runningApps.first { $0 != NSRunningApplication.current }?.activate(options: .activateIgnoringOtherApps)
-            NSApp.terminate(nil)
-            return
+            // 기존 앱 활성화하고 새 인스턴스 즉시 종료
+            for app in runningApps where app != NSRunningApplication.current {
+                app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+            }
+            // 즉시 종료 (exit 사용)
+            exit(0)
         }
+    }
 
+    func applicationDidFinishLaunching(_ aNotification: Notification) {
         guard let modelContext = modelContext else {
             fatalError("AppDelegate에 ModelContext가 제공되지 않았습니다.")
         }
