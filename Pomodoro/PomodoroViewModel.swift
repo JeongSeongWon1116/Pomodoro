@@ -136,18 +136,28 @@ class PomodoroViewModel: ObservableObject {
         // 현재 세션 타입을 저장 (로그 및 알림용)
         let endedSessionType = currentState
 
+        // 다음 세션 타입 미리 계산
+        let nextSessionType = getNextSessionType(from: endedSessionType)
+
         if !skipped {
             playSound()
-            // 세션 종료 알림을 즉시 표시 (별도 identifier 사용)
-            showSessionEndNotification(for: endedSessionType)
+            // 종료 + 시작을 하나의 알림으로 표시
+            showSessionTransitionNotification(ended: endedSessionType, next: nextSessionType)
             appDelegate?.bringPopoverToFront()
         }
 
         logSession()
+        transitionToNextState()
+    }
 
-        // 약간의 딜레이 후 다음 세션으로 전환 (알림 충돌 방지)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            self?.transitionToNextState()
+    /// 다음 세션 타입을 계산 (알림용)
+    private func getNextSessionType(from current: PomodoroState) -> PomodoroState {
+        switch current {
+        case .focus:
+            let nextCount = completedFocusSessions + 1
+            return (nextCount > 0 && nextCount % longBreakInterval == 0) ? .longBreak : .shortBreak
+        case .shortBreak, .longBreak, .idle:
+            return .focus
         }
     }
 
@@ -220,11 +230,11 @@ class PomodoroViewModel: ObservableObject {
         self.hasNotificationPermission = (settings.authorizationStatus == .authorized)
     }
 
-    /// 세션 종료 시 즉시 알림 표시
-    private func showSessionEndNotification(for sessionType: PomodoroState) {
+    /// 세션 전환 알림 (종료 + 시작을 하나로 통합)
+    private func showSessionTransitionNotification(ended: PomodoroState, next: PomodoroState) {
         let content = UNMutableNotificationContent()
-        content.title = "\(sessionType.description) 종료!"
-        content.body = "다음 세션을 시작할 준비가 되었습니다."
+        content.title = "\(ended.description) 종료!"
+        content.body = "\(next.description) 세션을 시작합니다."
         content.sound = .default
 
         // trigger가 nil이면 즉시 표시
