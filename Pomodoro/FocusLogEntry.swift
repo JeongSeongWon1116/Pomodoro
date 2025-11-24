@@ -9,13 +9,17 @@ import SwiftUI
 final class FocusLogEntry {
     var id: UUID
     var startTime: Date
-    var duration: TimeInterval
+    var endTime: Date
+    var duration: TimeInterval // 실제 집중/휴식 시간
+    var pausedDuration: TimeInterval // 정지한 시간
     var sessionType: PomodoroState
 
-    init(id: UUID = UUID(), startTime: Date, duration: TimeInterval, sessionType: PomodoroState) {
+    init(id: UUID = UUID(), startTime: Date, endTime: Date, duration: TimeInterval, pausedDuration: TimeInterval = 0, sessionType: PomodoroState) {
         self.id = id
         self.startTime = startTime
+        self.endTime = endTime
         self.duration = duration
+        self.pausedDuration = pausedDuration
         self.sessionType = sessionType
     }
 }

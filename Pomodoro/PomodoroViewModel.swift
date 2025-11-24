@@ -40,6 +40,8 @@ class PomodoroViewModel: ObservableObject {
     private var lastResumeTime: Date?
     private var accumulatedActiveTime: TimeInterval = 0
     private var sessionStartTime: Date? // 세션의 실제 시작 시간을 저장
+    private var lastPauseTime: Date? // 정지 시작 시간
+    private var accumulatedPausedTime: TimeInterval = 0 // 누적 정지 시간
     private var modelContext: ModelContext
     private weak var appDelegate: AppDelegate?
 
@@ -75,12 +77,18 @@ class PomodoroViewModel: ObservableObject {
         guard timerState == .running, let resumeTime = lastResumeTime else { return }
         accumulatedActiveTime += Date().timeIntervalSince(resumeTime)
         lastResumeTime = nil
+        lastPauseTime = Date() // 정지 시작 시간 기록
         timerSubscription?.cancel()
         timerState = .paused
     }
 
     func resumeTimer() {
         guard timerState == .paused else { return }
+        // 정지 시간 누적
+        if let pauseTime = lastPauseTime {
+            accumulatedPausedTime += Date().timeIntervalSince(pauseTime)
+            lastPauseTime = nil
+        }
         lastResumeTime = Date()
         startTimer(duration: timeRemaining, isResuming: true)
     }
@@ -99,14 +107,18 @@ class PomodoroViewModel: ObservableObject {
         lastResumeTime = nil
         accumulatedActiveTime = 0
         sessionStartTime = nil
+        lastPauseTime = nil
+        accumulatedPausedTime = 0
     }
 
     private func startTimer(duration: TimeInterval, isResuming: Bool = false) {
         if !isResuming {
             accumulatedActiveTime = 0
+            accumulatedPausedTime = 0
             sessionStartTime = Date() // 새 세션 시작 시 실제 시작 시간 저장
         }
         lastResumeTime = Date()
+        lastPauseTime = nil
         timeRemaining = duration
         timerState = .running
 
@@ -184,9 +196,18 @@ class PomodoroViewModel: ObservableObject {
         guard currentState != .idle else { return }
         guard let startTime = sessionStartTime else { return }
 
+        let endTime = Date()
+
+        // 실제 활동 시간 계산
         var totalActiveDuration = accumulatedActiveTime
         if let resumeTime = lastResumeTime {
-            totalActiveDuration += Date().timeIntervalSince(resumeTime)
+            totalActiveDuration += endTime.timeIntervalSince(resumeTime)
+        }
+
+        // 정지 시간 계산 (현재 정지 중이면 그 시간도 포함)
+        var totalPausedDuration = accumulatedPausedTime
+        if let pauseTime = lastPauseTime {
+            totalPausedDuration += endTime.timeIntervalSince(pauseTime)
         }
 
         let maxDuration = getTotalDuration(for: currentState)
@@ -194,14 +215,21 @@ class PomodoroViewModel: ObservableObject {
 
         guard finalDuration >= 1 else { return }
 
-        // 실제 세션 시작 시간을 사용 (pause 시간 포함)
-        let newLog = FocusLogEntry(startTime: startTime, duration: finalDuration, sessionType: currentState)
+        let newLog = FocusLogEntry(
+            startTime: startTime,
+            endTime: endTime,
+            duration: finalDuration,
+            pausedDuration: totalPausedDuration,
+            sessionType: currentState
+        )
 
         modelContext.insert(newLog)
         try? modelContext.save()
 
-        // 세션 시작 시간 초기화
+        // 세션 관련 변수 초기화
         sessionStartTime = nil
+        lastPauseTime = nil
+        accumulatedPausedTime = 0
     }
 
     private func playSound() {

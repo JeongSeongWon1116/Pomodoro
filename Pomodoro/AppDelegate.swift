@@ -82,6 +82,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         completionHandler([.banner, .sound, .list])
     }
 
+    // 알림 클릭 시 기존 앱을 활성화 (새 인스턴스 방지)
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        // 앱을 활성화하고 팝오버 표시
+        NSApp.activate(ignoringOtherApps: true)
+        togglePopover()
+        completionHandler()
+    }
+
     // 마지막 윈도우가 닫혀도 앱이 종료되지 않도록 합니다 (메뉴 바 앱)
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false
