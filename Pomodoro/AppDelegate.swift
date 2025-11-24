@@ -15,10 +15,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     private var pomodoroViewModel: PomodoroViewModel!
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
+        // 이미 실행 중인 인스턴스가 있으면 새 인스턴스 종료
+        let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier ?? "")
+        if runningApps.count > 1 {
+            // 기존 앱 활성화
+            runningApps.first { $0 != NSRunningApplication.current }?.activate(options: .activateIgnoringOtherApps)
+            NSApp.terminate(nil)
+            return
+        }
+
         guard let modelContext = modelContext else {
             fatalError("AppDelegate에 ModelContext가 제공되지 않았습니다.")
         }
-        
+
         // ViewModel에 AppDelegate 참조를 전달하여 팝오버를 제어할 수 있도록 합니다.
         self.pomodoroViewModel = PomodoroViewModel(modelContext: modelContext, appDelegate: self)
 
