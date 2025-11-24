@@ -86,4 +86,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false
     }
+
+    // 앱 종료 시 알림 취소
+    func applicationWillTerminate(_ notification: Notification) {
+        pomodoroViewModel?.cancelAllNotifications()
+    }
 }
