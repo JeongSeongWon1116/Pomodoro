@@ -15,19 +15,20 @@ struct AggregatedLogData: Identifiable {
 
 struct LogChartView: View {
     let period: TimePeriod
+    let offset: Int
     @Query private var logs: [FocusLogEntry]
 
-    init(period: TimePeriod) {
+    init(period: TimePeriod, offset: Int = 0) {
         self.period = period
-        // [수정됨] .ascending을 .forward로 변경하여 SwiftData @Query 문법에 맞게 수정
-        _logs = Query(filter: period.predicate, sort: \.startTime, order: .forward)
+        self.offset = offset
+        _logs = Query(filter: period.predicate(offset: offset), sort: \.startTime, order: .forward)
     }
 
-    private var chartData: [AggregatedLogData] {
+    // 주/월 뷰: 일별 집계
+    private var dailyChartData: [AggregatedLogData] {
         let groupedLogs = Dictionary(grouping: logs) { log in
             DateHelper.startOfDayUTC(for: log.startTime)
         }
-        
         var aggregatedData = [Date: AggregatedLogData]()
         for (date, logsInGroup) in groupedLogs {
             var data = AggregatedLogData(id: date, date: date)
@@ -44,33 +45,74 @@ struct LogChartView: View {
         return aggregatedData.values.sorted { $0.date < $1.date }
     }
 
+    // 전체 기록 뷰: 월별 집계
+    private var monthlyChartData: [AggregatedLogData] {
+        let calendar = Calendar.current
+        let groupedLogs = Dictionary(grouping: logs) { log -> Date in
+            let comps = calendar.dateComponents([.year, .month], from: log.startTime)
+            return calendar.date(from: comps) ?? log.startTime
+        }
+        var aggregatedData = [Date: AggregatedLogData]()
+        for (date, logsInGroup) in groupedLogs {
+            var data = AggregatedLogData(id: date, date: date)
+            for log in logsInGroup {
+                switch log.sessionType {
+                case .focus: data.focusDuration += log.duration
+                case .shortBreak: data.shortBreakDuration += log.duration
+                case .longBreak: data.longBreakDuration += log.duration
+                default: break
+                }
+            }
+            aggregatedData[date] = data
+        }
+        return aggregatedData.values.sorted { $0.date < $1.date }
+    }
+
+    private var chartData: [AggregatedLogData] {
+        period == .all ? monthlyChartData : dailyChartData
+    }
+
     private var totalFocusTimeForPeriod: TimeInterval {
         logs.filter { $0.sessionType == .focus }.reduce(0) { $0 + $1.duration }
     }
 
+    private var chartTitle: String {
+        switch period {
+        case .all: return "전체 집중 기록 (월별)"
+        default: return "\(period.dateRangeLabel(offset: offset)) 집중 시간 분석"
+        }
+    }
+
     var body: some View {
         VStack {
-            Text("\(period.rawValue) 집중 시간 분석").font(.title2).padding()
-            
+            Text(chartTitle)
+                .font(.title2)
+                .padding()
+
             Text("총 집중 시간: \(formatTimeInterval(totalFocusTimeForPeriod))")
-                .font(.headline).foregroundStyle(.secondary).padding(.bottom)
+                .font(.headline)
+                .foregroundStyle(.secondary)
+                .padding(.bottom)
 
             if chartData.isEmpty {
                 ContentUnavailableView("선택된 기간에 기록이 없습니다", systemImage: "chart.bar.xaxis")
             } else {
+                let xUnit: Calendar.Component = period == .all ? .month : .day
+                let xCount = period == .monthly ? 7 : 1
+
                 Chart(chartData) { data in
                     BarMark(
-                        x: .value("Date", data.date, unit: .day),
+                        x: .value("Date", data.date, unit: xUnit),
                         y: .value("Minutes", data.focusDuration / 60)
                     ).foregroundStyle(by: .value("Type", PomodoroState.focus.rawValue))
-                    
+
                     BarMark(
-                        x: .value("Date", data.date, unit: .day),
+                        x: .value("Date", data.date, unit: xUnit),
                         y: .value("Minutes", data.shortBreakDuration / 60)
                     ).foregroundStyle(by: .value("Type", PomodoroState.shortBreak.rawValue))
-                    
+
                     BarMark(
-                        x: .value("Date", data.date, unit: .day),
+                        x: .value("Date", data.date, unit: xUnit),
                         y: .value("Minutes", data.longBreakDuration / 60)
                     ).foregroundStyle(by: .value("Type", PomodoroState.longBreak.rawValue))
                 }
@@ -88,11 +130,15 @@ struct LogChartView: View {
                     }
                 }
                 .chartXAxis {
-                    AxisMarks(values: .stride(by: .day, count: period == .monthly ? 7 : 1 )) { value in
+                    AxisMarks(values: .stride(by: xUnit, count: xCount)) { value in
                         AxisGridLine()
                         AxisTick()
-                        if let date = value.as(Date.self) {
-                            AxisValueLabel(format: .dateTime.month(.abbreviated).day(), centered: true)
+                        if value.as(Date.self) != nil {
+                            if period == .all {
+                                AxisValueLabel(format: .dateTime.month(.abbreviated).year(.twoDigits))
+                            } else {
+                                AxisValueLabel(format: .dateTime.month(.abbreviated).day(), centered: true)
+                            }
                         }
                     }
                 }
@@ -101,7 +147,7 @@ struct LogChartView: View {
         }
         .frame(minWidth: 400, minHeight: 300)
     }
-    
+
     private func formatTimeInterval(_ interval: TimeInterval) -> String {
         let hours = Int(interval) / 3600
         let minutes = (Int(interval) % 3600) / 60
