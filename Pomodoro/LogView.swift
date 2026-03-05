@@ -242,6 +242,27 @@ struct LogEntryRow: View {
         return formatter
     }()
 
+    private var durationText: String {
+        let minutes = Int(log.duration / 60)
+        let seconds = Int(log.duration) % 60
+        var text = "\(minutes)분"
+        if seconds > 0 {
+            text += " \(seconds)초"
+        }
+        return text
+    }
+
+    private var pausedText: String? {
+        guard log.pausedDuration >= 1 else { return nil }
+        let minutes = Int(log.pausedDuration / 60)
+        let seconds = Int(log.pausedDuration) % 60
+        if minutes > 0 {
+            return "\(minutes)분 정지"
+        } else {
+            return "\(seconds)초 정지"
+        }
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             Rectangle()
@@ -258,8 +279,14 @@ struct LogEntryRow: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
-            Text("\(Int(log.duration / 60))분 \(Int(log.duration) % 60)초")
-                .font(.system(.body, design: .monospaced)).foregroundStyle(.primary)
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(durationText)
+                    .font(.system(.body, design: .monospaced)).foregroundStyle(.primary)
+                if let paused = pausedText {
+                    Text(paused)
+                        .font(.caption2).foregroundStyle(.orange)
+                }
+            }
         }
         .padding(.leading, -8)
         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))

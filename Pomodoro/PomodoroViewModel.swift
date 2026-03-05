@@ -36,11 +36,12 @@ class PomodoroViewModel: ObservableObject {
     @Published var completedFocusSessions: Int = 0
 
     private var timerSubscription: AnyCancellable?
-    private let sessionEndNotificationId = "pomodoro_session_end"
-    private let sessionScheduledNotificationId = "pomodoro_session_scheduled"
+    private let sessionNotificationId = "pomodoro_session"
     private var lastResumeTime: Date?
     private var accumulatedActiveTime: TimeInterval = 0
     private var sessionStartTime: Date? // 세션의 실제 시작 시간을 저장
+    private var lastPauseTime: Date? // 정지 시작 시간
+    private var accumulatedPausedTime: TimeInterval = 0 // 누적 정지 시간
     private var modelContext: ModelContext
     private weak var appDelegate: AppDelegate?
 
@@ -76,13 +77,18 @@ class PomodoroViewModel: ObservableObject {
         guard timerState == .running, let resumeTime = lastResumeTime else { return }
         accumulatedActiveTime += Date().timeIntervalSince(resumeTime)
         lastResumeTime = nil
+        lastPauseTime = Date() // 정지 시작 시간 기록
         timerSubscription?.cancel()
         timerState = .paused
-        cancelPendingNotifications()
     }
 
     func resumeTimer() {
         guard timerState == .paused else { return }
+        // 정지 시간 누적
+        if let pauseTime = lastPauseTime {
+            accumulatedPausedTime += Date().timeIntervalSince(pauseTime)
+            lastPauseTime = nil
+        }
         lastResumeTime = Date()
         startTimer(duration: timeRemaining, isResuming: true)
     }
@@ -98,23 +104,23 @@ class PomodoroViewModel: ObservableObject {
         timerState = .idle
         timeRemaining = TimeInterval(focusDurationInMinutes * 60)
         completedFocusSessions = 0
-        cancelPendingNotifications()
         lastResumeTime = nil
         accumulatedActiveTime = 0
         sessionStartTime = nil
+        lastPauseTime = nil
+        accumulatedPausedTime = 0
     }
 
     private func startTimer(duration: TimeInterval, isResuming: Bool = false) {
         if !isResuming {
             accumulatedActiveTime = 0
+            accumulatedPausedTime = 0
             sessionStartTime = Date() // 새 세션 시작 시 실제 시작 시간 저장
         }
         lastResumeTime = Date()
+        lastPauseTime = nil
         timeRemaining = duration
         timerState = .running
-
-        cancelPendingNotifications()
-        scheduleNotification(duration: duration)
 
         timerSubscription = Timer.publish(every: 1, on: .main, in: .common)
             .autoconnect()
@@ -129,25 +135,34 @@ class PomodoroViewModel: ObservableObject {
                 }
             }
     }
-    
+
     private func timerDidEnd(skipped: Bool = false) {
         timerSubscription?.cancel()
 
         // 현재 세션 타입을 저장 (로그 및 알림용)
         let endedSessionType = currentState
 
+        // 다음 세션 타입 미리 계산
+        let nextSessionType = getNextSessionType(from: endedSessionType)
+
         if !skipped {
             playSound()
-            // 세션 종료 알림을 즉시 표시 (별도 identifier 사용)
-            showSessionEndNotification(for: endedSessionType)
-            appDelegate?.bringPopoverToFront()
+            // 종료 + 시작을 하나의 알림으로 표시
+            showSessionTransitionNotification(ended: endedSessionType, next: nextSessionType)
         }
 
         logSession()
+        transitionToNextState()
+    }
 
-        // 약간의 딜레이 후 다음 세션으로 전환 (알림 충돌 방지)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            self?.transitionToNextState()
+    /// 다음 세션 타입을 계산 (알림용)
+    private func getNextSessionType(from current: PomodoroState) -> PomodoroState {
+        switch current {
+        case .focus:
+            let nextCount = completedFocusSessions + 1
+            return (nextCount > 0 && nextCount % longBreakInterval == 0) ? .longBreak : .shortBreak
+        case .shortBreak, .longBreak, .idle:
+            return .focus
         }
     }
 
@@ -181,9 +196,18 @@ class PomodoroViewModel: ObservableObject {
         guard currentState != .idle else { return }
         guard let startTime = sessionStartTime else { return }
 
+        let endTime = Date()
+
+        // 실제 활동 시간 계산
         var totalActiveDuration = accumulatedActiveTime
         if let resumeTime = lastResumeTime {
-            totalActiveDuration += Date().timeIntervalSince(resumeTime)
+            totalActiveDuration += endTime.timeIntervalSince(resumeTime)
+        }
+
+        // 정지 시간 계산 (현재 정지 중이면 그 시간도 포함)
+        var totalPausedDuration = accumulatedPausedTime
+        if let pauseTime = lastPauseTime {
+            totalPausedDuration += endTime.timeIntervalSince(pauseTime)
         }
 
         let maxDuration = getTotalDuration(for: currentState)
@@ -191,14 +215,21 @@ class PomodoroViewModel: ObservableObject {
 
         guard finalDuration >= 1 else { return }
 
-        // 실제 세션 시작 시간을 사용 (pause 시간 포함)
-        let newLog = FocusLogEntry(startTime: startTime, duration: finalDuration, sessionType: currentState)
+        let newLog = FocusLogEntry(
+            startTime: startTime,
+            endTime: endTime,
+            duration: finalDuration,
+            pausedDuration: totalPausedDuration,
+            sessionType: currentState
+        )
 
         modelContext.insert(newLog)
         try? modelContext.save()
 
-        // 세션 시작 시간 초기화
+        // 세션 관련 변수 초기화
         sessionStartTime = nil
+        lastPauseTime = nil
+        accumulatedPausedTime = 0
     }
 
     private func playSound() {
@@ -220,33 +251,20 @@ class PomodoroViewModel: ObservableObject {
         self.hasNotificationPermission = (settings.authorizationStatus == .authorized)
     }
 
-    /// 세션 종료 시 즉시 알림 표시
-    private func showSessionEndNotification(for sessionType: PomodoroState) {
+    /// 세션 전환 알림 (종료 + 시작을 하나로 통합)
+    private func showSessionTransitionNotification(ended: PomodoroState, next: PomodoroState) {
         let content = UNMutableNotificationContent()
-        content.title = "\(sessionType.description) 종료!"
-        content.body = "다음 세션을 시작할 준비가 되었습니다."
+        content.title = "\(ended.description) 종료!"
+        content.body = "\(next.description) 세션을 시작합니다."
         content.sound = .default
 
-        // trigger가 nil이면 즉시 표시
-        let request = UNNotificationRequest(identifier: sessionEndNotificationId, content: content, trigger: nil)
+        let request = UNNotificationRequest(identifier: sessionNotificationId, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request)
     }
 
-    /// 세션 종료 예정 알림 예약 (타이머가 끝날 때)
-    private func scheduleNotification(duration: TimeInterval) {
-        guard duration > 0 else { return }
-
-        let content = UNMutableNotificationContent()
-        content.title = "\(currentState.description) 종료 예정"
-        content.body = "곧 세션이 종료됩니다."
-        content.sound = .default
-
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: duration, repeats: false)
-        let request = UNNotificationRequest(identifier: sessionScheduledNotificationId, content: content, trigger: trigger)
-        UNUserNotificationCenter.current().add(request)
-    }
-
-    private func cancelPendingNotifications() {
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [sessionScheduledNotificationId])
+    /// 앱 종료 시 모든 알림 취소
+    func cancelAllNotifications() {
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
     }
 }

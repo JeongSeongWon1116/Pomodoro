@@ -10,15 +10,28 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
 
     private var statusItem: NSStatusItem!
     private var popover: NSPopover!
-    
+
     var modelContext: ModelContext?
     private var pomodoroViewModel: PomodoroViewModel!
-    
+
+    // 앱 실행 초기 단계에서 중복 실행 체크
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier ?? "")
+        if runningApps.count > 1 {
+            // 기존 앱 활성화하고 새 인스턴스 즉시 종료
+            for app in runningApps where app != NSRunningApplication.current {
+                app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+            }
+            // 즉시 종료 (exit 사용)
+            exit(0)
+        }
+    }
+
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         guard let modelContext = modelContext else {
             fatalError("AppDelegate에 ModelContext가 제공되지 않았습니다.")
         }
-        
+
         // ViewModel에 AppDelegate 참조를 전달하여 팝오버를 제어할 수 있도록 합니다.
         self.pomodoroViewModel = PomodoroViewModel(modelContext: modelContext, appDelegate: self)
 
@@ -78,12 +91,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     }
 
     // 앱이 활성화된 상태에서도 알림이 보이도록 설정합니다.
+    // .list 제거: 알림 센터에 저장하지 않아 클릭할 수 없게 함
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        completionHandler([.banner, .sound, .list])
+        completionHandler([.banner, .sound])
+    }
+
+    // 알림 클릭 시 아무 동작도 하지 않음 (새 앱 인스턴스 실행 방지)
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        // 아무것도 하지 않고 완료 처리
+        completionHandler()
     }
 
     // 마지막 윈도우가 닫혀도 앱이 종료되지 않도록 합니다 (메뉴 바 앱)
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false
+    }
+
+    // 앱 종료 시 알림 취소
+    func applicationWillTerminate(_ notification: Notification) {
+        pomodoroViewModel?.cancelAllNotifications()
     }
 }
