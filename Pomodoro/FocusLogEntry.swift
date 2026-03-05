@@ -29,4 +29,13 @@ extension PomodoroState {
         case .idle: .gray
         }
     }
+
+    var symbolName: String {
+        switch self {
+        case .idle: "hourglass"
+        case .focus: "timer"
+        case .shortBreak: "cup.and.saucer"
+        case .longBreak: "sparkles"
+        }
+    }
 }

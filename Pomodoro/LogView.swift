@@ -6,14 +6,24 @@ import SwiftData
 
 struct LogView: View {
     @State private var selectedPeriod: TimePeriod = .weekly
+    @State private var periodOffset: Int = 0
     @State private var showingDeleteAlert = false
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.dismissWindow) private var dismissWindow
+
+    private var periodBinding: Binding<TimePeriod> {
+        Binding(
+            get: { selectedPeriod },
+            set: { newValue in
+                selectedPeriod = newValue
+                periodOffset = 0
+            }
+        )
+    }
 
     var body: some View {
         NavigationSplitView {
             VStack(spacing: 0) {
-                Picker("기간 선택", selection: $selectedPeriod) {
+                Picker("기간 선택", selection: periodBinding) {
                     ForEach(TimePeriod.allCases) { period in
                         Text(period.rawValue).tag(period)
                     }
@@ -21,10 +31,15 @@ struct LogView: View {
                 .pickerStyle(.segmented)
                 .padding()
 
-                FilteredLogListView(period: selectedPeriod)
+                if selectedPeriod != .all {
+                    PeriodNavigationBar(period: selectedPeriod, offset: $periodOffset)
+                    FilteredLogListView(period: selectedPeriod, offset: periodOffset)
+                } else {
+                    AllRecordsSummaryView()
+                }
             }
             .navigationTitle("집중 기록")
-            .frame(minWidth: 400)
+            .frame(minWidth: 320)
             .toolbar {
                 ToolbarItem {
                     Button(role: .destructive) {
@@ -41,13 +56,7 @@ struct LogView: View {
                 Text("이 동작은 되돌릴 수 없습니다.")
             }
         } detail: {
-            LogChartView(period: selectedPeriod)
-        }
-        // 윈도우가 포커스를 잃으면 자동으로 닫기
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { notification in
-            guard let window = notification.object as? NSWindow,
-                  window.title == "집중 기록" else { return }
-            dismissWindow(id: "log-window")
+            LogChartView(period: selectedPeriod, offset: periodOffset)
         }
     }
 
@@ -56,12 +65,138 @@ struct LogView: View {
     }
 }
 
+// MARK: - Period Navigation Bar
+
+struct PeriodNavigationBar: View {
+    let period: TimePeriod
+    @Binding var offset: Int
+
+    var body: some View {
+        HStack {
+            Button {
+                offset -= 1
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 13, weight: .semibold))
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            Text(period.dateRangeLabel(offset: offset))
+                .font(.subheadline)
+                .fontWeight(.medium)
+
+            Spacer()
+
+            Button {
+                offset += 1
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+            }
+            .buttonStyle(.plain)
+            .disabled(offset >= 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+    }
+}
+
+// MARK: - All Records Summary (전체 기록 탭 사이드바)
+
+struct AllRecordsSummaryView: View {
+    @Query private var logs: [FocusLogEntry]
+
+    private var totalFocusSessions: Int {
+        logs.filter { $0.sessionType == .focus }.count
+    }
+
+    private var totalFocusTime: TimeInterval {
+        logs.filter { $0.sessionType == .focus }.reduce(0) { $0 + $1.duration }
+    }
+
+    private var totalBreakTime: TimeInterval {
+        logs.filter { $0.sessionType == .shortBreak || $0.sessionType == .longBreak }
+            .reduce(0) { $0 + $1.duration }
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                Spacer(minLength: 20)
+                StatCard(
+                    title: "총 집중 세션",
+                    value: "\(totalFocusSessions)회",
+                    systemImage: "timer",
+                    color: .blue
+                )
+                StatCard(
+                    title: "총 집중 시간",
+                    value: formatTime(totalFocusTime),
+                    systemImage: "brain.head.profile",
+                    color: .blue
+                )
+                StatCard(
+                    title: "총 휴식 시간",
+                    value: formatTime(totalBreakTime),
+                    systemImage: "cup.and.saucer",
+                    color: .green
+                )
+                Spacer(minLength: 20)
+            }
+            .padding()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func formatTime(_ interval: TimeInterval) -> String {
+        let hours = Int(interval) / 3600
+        let minutes = (Int(interval) % 3600) / 60
+        if hours > 0 {
+            return "\(hours)시간 \(minutes)분"
+        } else {
+            return "\(minutes)분"
+        }
+    }
+}
+
+struct StatCard: View {
+    let title: String
+    let value: String
+    let systemImage: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: systemImage)
+                .font(.title2)
+                .foregroundStyle(color)
+                .frame(width: 32)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.primary)
+            }
+            Spacer()
+        }
+        .padding()
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+// MARK: - Filtered Log List View
+
 struct FilteredLogListView: View {
     @Query private var logs: [FocusLogEntry]
-    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.modelContext) private var modelContext
-    init(period: TimePeriod) {
-        _logs = Query(filter: period.predicate, sort: \.startTime, order: .reverse)
+
+    init(period: TimePeriod, offset: Int) {
+        _logs = Query(filter: period.predicate(offset: offset), sort: \.startTime, order: .reverse)
     }
 
     private var groupedLogs: [Date: [FocusLogEntry]] {
@@ -69,11 +204,11 @@ struct FilteredLogListView: View {
             DateHelper.startOfDayUTC(for: log.startTime)
         }
     }
-    
+
     private var sortedDays: [Date] {
         groupedLogs.keys.sorted(by: >)
     }
-    
+
     var body: some View {
         List {
             ForEach(sortedDays, id: \.self) { day in
@@ -81,10 +216,10 @@ struct FilteredLogListView: View {
                     ForEach(groupedLogs[day] ?? []) { log in
                         LogEntryRow(log: log)
                     }
-                    .onDelete{ indexSet in guard let dayLogs = groupedLogs[day] else {return}
+                    .onDelete { indexSet in
+                        guard let dayLogs = groupedLogs[day] else { return }
                         for index in indexSet {
-                            let logToDelete = dayLogs[index]
-                            modelContext.delete(logToDelete)
+                            modelContext.delete(dayLogs[index])
                         }
                     }
                 } header: {
@@ -96,21 +231,30 @@ struct FilteredLogListView: View {
     }
 }
 
+// MARK: - Log Entry Row
+
 struct LogEntryRow: View {
     let log: FocusLogEntry
-    private var timeFormatter: DateFormatter {
+
+    private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
         return formatter
-    }
+    }()
 
     var body: some View {
         HStack(spacing: 12) {
-            Rectangle().fill(log.sessionType.color).frame(width: 5)
-            Text(log.sessionType.emoji).font(.title2)
-            VStack(alignment: .leading) {
+            Rectangle()
+                .fill(log.sessionType.color)
+                .frame(width: 4)
+                .clipShape(Capsule())
+            Image(systemName: log.sessionType.symbolName)
+                .font(.title3)
+                .foregroundStyle(log.sessionType.color)
+                .frame(width: 24)
+            VStack(alignment: .leading, spacing: 2) {
                 Text(log.sessionType.rawValue).fontWeight(.bold)
-                Text("\(timeFormatter.string(from: log.startTime)) - \(timeFormatter.string(from: log.startTime.addingTimeInterval(log.duration)))")
+                Text("\(LogEntryRow.timeFormatter.string(from: log.startTime)) - \(LogEntryRow.timeFormatter.string(from: log.startTime.addingTimeInterval(log.duration)))")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
@@ -122,14 +266,16 @@ struct LogEntryRow: View {
     }
 }
 
+// MARK: - Log Section Header
+
 struct LogSectionHeader: View {
     let day: Date
     let logs: [FocusLogEntry]
-    
+
     private var totalFocusTime: TimeInterval {
         logs.filter { $0.sessionType == .focus }.reduce(0) { $0 + $1.duration }
     }
-    
+
     var body: some View {
         HStack {
             Text(day.formatted(.dateTime.year().month().day().weekday(.wide)))
@@ -143,23 +289,55 @@ struct LogSectionHeader: View {
     }
 }
 
+// MARK: - TimePeriod Enum
+
 enum TimePeriod: String, CaseIterable, Identifiable {
     case weekly = "이번 주", monthly = "이번 달", all = "전체 기록"
     var id: Self { self }
 
-    var predicate: Predicate<FocusLogEntry>? {
+    func predicate(offset: Int = 0) -> Predicate<FocusLogEntry>? {
         let calendar = Calendar.current
         let now = Date()
-        
+
         switch self {
         case .weekly:
-            guard let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)) else { return nil }
-            return #Predicate<FocusLogEntry> { $0.startTime >= startOfWeek }
+            guard let startOfThisWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)),
+                  let startDate = calendar.date(byAdding: .weekOfYear, value: offset, to: startOfThisWeek),
+                  let endDate = calendar.date(byAdding: .weekOfYear, value: 1, to: startDate)
+            else { return nil }
+            return #Predicate<FocusLogEntry> { $0.startTime >= startDate && $0.startTime < endDate }
         case .monthly:
-            guard let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) else { return nil }
-            return #Predicate<FocusLogEntry> { $0.startTime >= startOfMonth }
+            guard let startOfThisMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now)),
+                  let startDate = calendar.date(byAdding: .month, value: offset, to: startOfThisMonth),
+                  let endDate = calendar.date(byAdding: .month, value: 1, to: startDate)
+            else { return nil }
+            return #Predicate<FocusLogEntry> { $0.startTime >= startDate && $0.startTime < endDate }
         case .all:
             return nil
+        }
+    }
+
+    func dateRangeLabel(offset: Int) -> String {
+        let calendar = Calendar.current
+        let now = Date()
+        let formatter = DateFormatter()
+
+        switch self {
+        case .weekly:
+            guard let startOfThisWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)),
+                  let startDate = calendar.date(byAdding: .weekOfYear, value: offset, to: startOfThisWeek),
+                  let endDate = calendar.date(byAdding: .day, value: 6, to: startDate)
+            else { return "" }
+            formatter.dateFormat = "M.d"
+            return "\(formatter.string(from: startDate)) - \(formatter.string(from: endDate))"
+        case .monthly:
+            guard let startOfThisMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now)),
+                  let startDate = calendar.date(byAdding: .month, value: offset, to: startOfThisMonth)
+            else { return "" }
+            formatter.dateFormat = "yyyy년 M월"
+            return formatter.string(from: startDate)
+        case .all:
+            return "전체 기록"
         }
     }
 }
