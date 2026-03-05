@@ -121,6 +121,22 @@ struct AllRecordsSummaryView: View {
             .reduce(0) { $0 + $1.duration }
     }
 
+    private var activeDayCount: Int {
+        let focusLogs = logs.filter { $0.sessionType == .focus }
+        let uniqueDays = Set(focusLogs.map { Calendar.current.startOfDay(for: $0.startTime) })
+        return uniqueDays.count
+    }
+
+    private var dailyAverageFocusTime: TimeInterval {
+        guard activeDayCount > 0 else { return 0 }
+        return totalFocusTime / Double(activeDayCount)
+    }
+
+    private var dailyAverageSessions: Double {
+        guard activeDayCount > 0 else { return 0 }
+        return Double(totalFocusSessions) / Double(activeDayCount)
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
@@ -142,6 +158,18 @@ struct AllRecordsSummaryView: View {
                     value: formatTime(totalBreakTime),
                     systemImage: "cup.and.saucer",
                     color: .green
+                )
+                StatCard(
+                    title: "일 평균 집중 시간",
+                    value: activeDayCount > 0 ? formatTime(dailyAverageFocusTime) : "-",
+                    systemImage: "clock.arrow.circlepath",
+                    color: .orange
+                )
+                StatCard(
+                    title: "일 평균 집중 세션",
+                    value: activeDayCount > 0 ? String(format: "%.1f회", dailyAverageSessions) : "-",
+                    systemImage: "calendar.badge.clock",
+                    color: .orange
                 )
                 Spacer(minLength: 20)
             }
