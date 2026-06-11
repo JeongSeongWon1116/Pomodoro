@@ -51,7 +51,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         }
 
         popover = NSPopover()
-        popover.contentSize = NSSize(width: 260, height: 380)
+        popover.contentSize = NSSize(width: 280, height: 500)
         popover.behavior = .transient
         popover.contentViewController = NSHostingController(
             rootView: SettingsView()
@@ -80,6 +80,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         }
     }
     
+    // 토글과 달리 이미 닫혀 있으면 다시 열지 않습니다.
+    public func closePopover() {
+        if popover.isShown {
+            popover.performClose(nil)
+        }
+    }
+
     // 세션 종료 시 팝오버를 앞으로 가져오는 public 메서드
     public func bringPopoverToFront() {
         if !popover.isShown {

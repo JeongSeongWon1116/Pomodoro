@@ -27,7 +27,7 @@ struct LogChartView: View {
     // 주/월 뷰: 일별 집계
     private var dailyChartData: [AggregatedLogData] {
         let groupedLogs = Dictionary(grouping: logs) { log in
-            DateHelper.startOfDayUTC(for: log.startTime)
+            DateHelper.startOfDay(for: log.startTime)
         }
         var aggregatedData = [Date: AggregatedLogData]()
         for (date, logsInGroup) in groupedLogs {

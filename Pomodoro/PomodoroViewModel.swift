@@ -7,7 +7,6 @@ import SwiftData
 import UserNotifications
 import AppKit
 
-// ... (PomodoroState, TimerState Enums - 변경 없음)
 enum PomodoroState: String, Codable, CaseIterable {
     case idle = "대기", focus = "집중", shortBreak = "짧은 휴식", longBreak = "긴 휴식"
     var description: String { self.rawValue }
@@ -24,10 +23,23 @@ enum TimerState { case running, paused, idle }
 
 @MainActor
 class PomodoroViewModel: ObservableObject {
-    @AppStorage("focusDuration") var focusDurationInMinutes: Int = 25
-    @AppStorage("shortBreakDuration") var shortBreakDurationInMinutes: Int = 5
-    @AppStorage("longBreakDuration") var longBreakDurationInMinutes: Int = 15
-    @AppStorage("longBreakInterval") var longBreakInterval: Int = 4
+    // @AppStorage는 ObservableObject 내부에서 뷰 갱신(objectWillChange)을 트리거하지 않아
+    // 설정 변경이 화면에 반영되지 않는 문제가 있으므로 @Published + UserDefaults를 사용합니다.
+    @Published var focusDurationInMinutes: Int {
+        didSet {
+            UserDefaults.standard.set(focusDurationInMinutes, forKey: "focusDuration")
+            refreshIdleTimeRemaining()
+        }
+    }
+    @Published var shortBreakDurationInMinutes: Int {
+        didSet { UserDefaults.standard.set(shortBreakDurationInMinutes, forKey: "shortBreakDuration") }
+    }
+    @Published var longBreakDurationInMinutes: Int {
+        didSet { UserDefaults.standard.set(longBreakDurationInMinutes, forKey: "longBreakDuration") }
+    }
+    @Published var longBreakInterval: Int {
+        didSet { UserDefaults.standard.set(longBreakInterval, forKey: "longBreakInterval") }
+    }
 
     @Published var currentState: PomodoroState = .idle
     @Published var timerState: TimerState = .idle
@@ -39,110 +51,133 @@ class PomodoroViewModel: ObservableObject {
     private let sessionNotificationId = "pomodoro_session"
     private var lastResumeTime: Date?
     private var accumulatedActiveTime: TimeInterval = 0
-    private var sessionStartTime: Date? // 세션의 실제 시작 시간을 저장
+    private var sessionStartTime: Date? // 세션의 실제 시작 시간
     private var lastPauseTime: Date? // 정지 시작 시간
     private var accumulatedPausedTime: TimeInterval = 0 // 누적 정지 시간
+    private var sessionDuration: TimeInterval = 0 // 현재 세션의 전체 길이
     private var modelContext: ModelContext
     private weak var appDelegate: AppDelegate?
 
     init(modelContext: ModelContext, appDelegate: AppDelegate) {
         self.modelContext = modelContext
         self.appDelegate = appDelegate
-        self.timeRemaining = TimeInterval(focusDurationInMinutes * 60)
+
+        let defaults = UserDefaults.standard
+        self.focusDurationInMinutes = (defaults.object(forKey: "focusDuration") as? Int) ?? 25
+        self.shortBreakDurationInMinutes = (defaults.object(forKey: "shortBreakDuration") as? Int) ?? 5
+        self.longBreakDurationInMinutes = (defaults.object(forKey: "longBreakDuration") as? Int) ?? 15
+        self.longBreakInterval = (defaults.object(forKey: "longBreakInterval") as? Int) ?? 4
+        self.timeRemaining = TimeInterval(self.focusDurationInMinutes * 60)
     }
 
     var timeRemainingString: String {
-        let minutes = Int(timeRemaining) / 60
-        let seconds = Int(timeRemaining) % 60
-        return String(format: "%02d:%02d", minutes, seconds)
+        let totalSeconds = max(0, Int(timeRemaining.rounded(.up)))
+        return String(format: "%02d:%02d", totalSeconds / 60, totalSeconds % 60)
     }
 
     var progress: Double {
-        let totalDuration = getTotalDuration(for: currentState)
-        guard totalDuration > 0 else { return 0 }
-        let elapsedTime = totalDuration - timeRemaining
-        return min(max(elapsedTime / totalDuration, 0.0), 1.0)
+        guard sessionDuration > 0 else { return 0 }
+        let elapsedTime = sessionDuration - timeRemaining
+        return min(max(elapsedTime / sessionDuration, 0.0), 1.0)
     }
 
     func startFocusSession() {
         guard timerState == .idle else { return }
         if currentState == .idle {
             completedFocusSessions = 0
-            currentState = .focus
         }
-        startTimer(duration: getTotalDuration(for: currentState))
+        startSession(currentState == .idle ? .focus : currentState)
     }
 
     func pauseTimer() {
         guard timerState == .running, let resumeTime = lastResumeTime else { return }
-        accumulatedActiveTime += Date().timeIntervalSince(resumeTime)
+        accumulatedActiveTime = min(accumulatedActiveTime + Date().timeIntervalSince(resumeTime), sessionDuration)
         lastResumeTime = nil
-        lastPauseTime = Date() // 정지 시작 시간 기록
+        lastPauseTime = Date()
         timerSubscription?.cancel()
         timerState = .paused
     }
 
     func resumeTimer() {
         guard timerState == .paused else { return }
-        // 정지 시간 누적
         if let pauseTime = lastPauseTime {
             accumulatedPausedTime += Date().timeIntervalSince(pauseTime)
             lastPauseTime = nil
         }
-        lastResumeTime = Date()
-        startTimer(duration: timeRemaining, isResuming: true)
+        startTicking()
     }
 
     func skipToNextSession() {
+        guard timerState != .idle else { return }
         timerDidEnd(skipped: true)
     }
 
     func resetToIdle() {
+        guard timerState != .idle else { return }
         logSession()
         timerSubscription?.cancel()
         currentState = .idle
         timerState = .idle
-        timeRemaining = TimeInterval(focusDurationInMinutes * 60)
         completedFocusSessions = 0
-        lastResumeTime = nil
-        accumulatedActiveTime = 0
-        sessionStartTime = nil
-        lastPauseTime = nil
-        accumulatedPausedTime = 0
+        clearSessionTracking()
+        timeRemaining = TimeInterval(focusDurationInMinutes * 60)
     }
 
-    private func startTimer(duration: TimeInterval, isResuming: Bool = false) {
-        if !isResuming {
-            accumulatedActiveTime = 0
-            accumulatedPausedTime = 0
-            sessionStartTime = Date() // 새 세션 시작 시 실제 시작 시간 저장
-        }
-        lastResumeTime = Date()
+    private func startSession(_ state: PomodoroState) {
+        currentState = state
+        sessionDuration = getTotalDuration(for: state)
+        sessionStartTime = Date()
+        accumulatedActiveTime = 0
+        accumulatedPausedTime = 0
         lastPauseTime = nil
-        timeRemaining = duration
-        timerState = .running
+        startTicking()
+    }
 
-        timerSubscription = Timer.publish(every: 1, on: .main, in: .common)
+    private func startTicking() {
+        lastResumeTime = Date()
+        timerState = .running
+        updateTimeRemaining()
+
+        timerSubscription = Timer.publish(every: 0.5, on: .main, in: .common)
             .autoconnect()
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 guard let self = self else { return }
-                if self.timeRemaining >= 1 {
-                    self.timeRemaining -= 1
-                } else {
-                    self.timeRemaining = 0
+                self.updateTimeRemaining()
+                if self.timerState == .running && self.timeRemaining <= 0 {
                     self.timerDidEnd()
                 }
             }
     }
 
+    // 틱마다 1초씩 빼는 방식은 절전 모드나 타이머 지연 시 시간이 실제보다 늦게 가는
+    // 문제가 있어, 벽시계 기준으로 남은 시간을 다시 계산합니다.
+    private func updateTimeRemaining() {
+        guard timerState == .running else { return }
+        timeRemaining = max(0, sessionDuration - currentActiveTime())
+    }
+
+    private func currentActiveTime() -> TimeInterval {
+        var active = accumulatedActiveTime
+        if let resumeTime = lastResumeTime {
+            active += Date().timeIntervalSince(resumeTime)
+        }
+        return active
+    }
+
+    private func clearSessionTracking() {
+        lastResumeTime = nil
+        accumulatedActiveTime = 0
+        sessionStartTime = nil
+        lastPauseTime = nil
+        accumulatedPausedTime = 0
+        sessionDuration = 0
+    }
+
     private func timerDidEnd(skipped: Bool = false) {
         timerSubscription?.cancel()
 
-        // 현재 세션 타입을 저장 (로그 및 알림용)
         let endedSessionType = currentState
-
-        // 다음 세션 타입 미리 계산
         let nextSessionType = getNextSessionType(from: endedSessionType)
 
         if !skipped {
@@ -152,10 +187,15 @@ class PomodoroViewModel: ObservableObject {
         }
 
         logSession()
-        transitionToNextState()
+
+        if endedSessionType == .focus {
+            completedFocusSessions += 1
+        }
+        // 다음 세션을 자동으로 시작합니다.
+        startSession(nextSessionType)
     }
 
-    /// 다음 세션 타입을 계산 (알림용)
+    /// 다음 세션 타입을 계산
     private func getNextSessionType(from current: PomodoroState) -> PomodoroState {
         switch current {
         case .focus:
@@ -166,23 +206,6 @@ class PomodoroViewModel: ObservableObject {
         }
     }
 
-    private func transitionToNextState() {
-        let previousState = currentState
-        
-        let nextState: PomodoroState
-        switch previousState {
-        case .focus:
-            completedFocusSessions += 1
-            nextState = (completedFocusSessions > 0 && completedFocusSessions % longBreakInterval == 0) ? .longBreak : .shortBreak
-        case .shortBreak, .longBreak, .idle:
-            nextState = .focus
-        }
-        currentState = nextState
-        
-        // **FIX**: 다음 세션을 자동으로 시작합니다.
-        startTimer(duration: getTotalDuration(for: nextState))
-    }
-
     private func getTotalDuration(for state: PomodoroState) -> TimeInterval {
         switch state {
         case .focus: TimeInterval(focusDurationInMinutes * 60)
@@ -190,6 +213,11 @@ class PomodoroViewModel: ObservableObject {
         case .longBreak: TimeInterval(longBreakDurationInMinutes * 60)
         case .idle: TimeInterval(focusDurationInMinutes * 60)
         }
+    }
+
+    private func refreshIdleTimeRemaining() {
+        guard timerState == .idle else { return }
+        timeRemaining = TimeInterval(focusDurationInMinutes * 60)
     }
 
     private func logSession() {
@@ -210,9 +238,7 @@ class PomodoroViewModel: ObservableObject {
             totalPausedDuration += endTime.timeIntervalSince(pauseTime)
         }
 
-        let maxDuration = getTotalDuration(for: currentState)
-        let finalDuration = (timeRemaining == 0 && timerState != .paused) ? maxDuration : min(totalActiveDuration, maxDuration)
-
+        let finalDuration = min(totalActiveDuration, sessionDuration)
         guard finalDuration >= 1 else { return }
 
         let newLog = FocusLogEntry(
@@ -226,10 +252,7 @@ class PomodoroViewModel: ObservableObject {
         modelContext.insert(newLog)
         try? modelContext.save()
 
-        // 세션 관련 변수 초기화
-        sessionStartTime = nil
-        lastPauseTime = nil
-        accumulatedPausedTime = 0
+        ObsidianExporter.shared.appendSession(newLog)
     }
 
     private func playSound() {

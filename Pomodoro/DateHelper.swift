@@ -1,21 +1,13 @@
 // File: DateHelper.swift
-// Description: 시간대와 무관하게 일관된 날짜 계산을 제공하는 유틸리티입니다.
+// Description: 일관된 날짜 계산을 제공하는 유틸리티입니다.
 
 import Foundation
 
 struct DateHelper {
-    // 항상 UTC 시간대를 사용하는 캘린더
-    static var utcCalendar: Calendar = {
-        var calendar = Calendar(identifier: .gregorian)
-        guard let utcTimeZone = TimeZone(secondsFromGMT: 0) else {
-            fatalError("UTC 시간대를 생성할 수 없습니다.")
-        }
-        calendar.timeZone = utcTimeZone
-        return calendar
-    }()
-
-    // 주어진 날짜의 UTC 기준 시작 시각(자정)을 반환합니다.
-    static func startOfDayUTC(for date: Date) -> Date {
-        return utcCalendar.startOfDay(for: date)
+    // 사용자의 로컬 시간대 기준 자정을 반환합니다.
+    // UTC 기준으로 그룹핑하면 한국(UTC+9)에서는 오전 9시 이전 기록이
+    // 전날로 분류되는 등 실제 달력 날짜와 어긋납니다.
+    static func startOfDay(for date: Date) -> Date {
+        Calendar.current.startOfDay(for: date)
     }
 }

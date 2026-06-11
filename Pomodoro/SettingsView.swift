@@ -5,18 +5,18 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var viewModel: PomodoroViewModel
-    // **FIX**: 'openWindow'를 사용하기 위해 Environment 값을 선언합니다.
+    @ObservedObject private var obsidian = ObsidianExporter.shared
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openURL) private var openURL
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 14) {
             Text("뽀모도로 타이머")
                 .font(.title2).fontWeight(.bold)
-            
+
             Text("\(viewModel.currentState.description): \(viewModel.timeRemainingString)")
                 .font(.subheadline).foregroundColor(.secondary)
-                .padding(.bottom, 4)
+                .padding(.bottom, 2)
 
             Button(action: {
                 switch viewModel.timerState {
@@ -44,14 +44,39 @@ struct SettingsView: View {
             }
             .padding(.horizontal)
 
-            Divider().padding(.vertical, 8)
+            Divider()
 
-            VStack(alignment: .leading, spacing: 12) {
-                SettingRow(label: "집중 시간", value: $viewModel.focusDurationInMinutes)
-                SettingRow(label: "짧은 휴식", value: $viewModel.shortBreakDurationInMinutes)
-                SettingRow(label: "긴 휴식", value: $viewModel.longBreakDurationInMinutes)
+            VStack(alignment: .leading, spacing: 10) {
+                SettingRow(label: "집중 시간", value: $viewModel.focusDurationInMinutes, unit: "분", range: 1...60)
+                SettingRow(label: "짧은 휴식", value: $viewModel.shortBreakDurationInMinutes, unit: "분", range: 1...60)
+                SettingRow(label: "긴 휴식", value: $viewModel.longBreakDurationInMinutes, unit: "분", range: 1...60)
+                SettingRow(label: "긴 휴식 간격", value: $viewModel.longBreakInterval, unit: "회마다", range: 2...10)
             }
             .disabled(viewModel.timerState != .idle)
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle(isOn: $obsidian.isEnabled) {
+                    Text("Obsidian 데일리 노트 기록")
+                }
+                .toggleStyle(.switch)
+                .controlSize(.small)
+
+                if obsidian.isEnabled {
+                    HStack {
+                        Image(systemName: obsidian.isFolderSelected ? "folder.fill" : "folder.badge.questionmark")
+                            .foregroundStyle(obsidian.isFolderSelected ? Color.accentColor : .orange)
+                        Text(obsidian.folderName ?? "폴더가 선택되지 않았습니다")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                        Spacer()
+                        Button("폴더 선택") { obsidian.chooseFolder() }
+                            .controlSize(.small)
+                    }
+                }
+            }
 
             Spacer()
 
@@ -67,24 +92,21 @@ struct SettingsView: View {
                     }
                 }
                 .tint(.orange)
-                .padding(.bottom, 8)
             }
 
             HStack {
                 Button("로그 보기") {
-                    // **FIX**: SwiftUI의 openWindow를 사용하여 로그 창을 엽니다.
                     openWindow(id: "log-window")
-                    // 팝오버를 닫습니다.
-                    appDelegate?.togglePopover(nil)
+                    appDelegate?.closePopover()
                 }
                 Spacer()
                 Button("종료") { NSApplication.shared.terminate(nil) }
             }
         }
         .padding()
-        .frame(width: 260, height: 380)
+        .frame(width: 280, height: 500)
     }
-    
+
     private var buttonTitle: String {
         switch viewModel.timerState {
         case .running: "일시정지"
@@ -92,8 +114,7 @@ struct SettingsView: View {
         case .idle: "시작"
         }
     }
-    
-    // AppDelegate에 접근하기 위한 트릭
+
     private var appDelegate: AppDelegate? {
         NSApp.delegate as? AppDelegate
     }
@@ -102,12 +123,14 @@ struct SettingsView: View {
 struct SettingRow: View {
     let label: String
     @Binding var value: Int
+    var unit: String = "분"
+    var range: ClosedRange<Int> = 1...60
 
     var body: some View {
         HStack {
             Text(label)
             Spacer()
-            Stepper("\(value) 분", value: $value, in: 1...60)
+            Stepper("\(value)\(unit)", value: $value, in: range)
         }
     }
 }
