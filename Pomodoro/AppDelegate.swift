@@ -108,10 +108,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNUserNot
     }
     
     // 토글과 달리 이미 닫혀 있으면 다시 열지 않습니다.
+    // performClose()는 다른 윈도우가 키를 가져간 직후에는 무시될 수 있어
+    // (예: 이미 열린 로그 창을 다시 앞으로 가져온 경우) close()로 강제로 닫습니다.
     public func closePopover() {
         if popover.isShown {
-            popover.performClose(nil)
+            popover.close()
         }
+        stopPopoverEventMonitor()
     }
 
     // 세션 종료 시 팝오버를 앞으로 가져오는 public 메서드

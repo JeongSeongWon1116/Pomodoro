@@ -58,13 +58,13 @@ struct PopoverView: View {
 
             HStack {
                 Button("로그 보기") {
-                    openWindow(id: "log-window")
                     appDelegate?.closePopover()
+                    openWindow(id: "log-window")
                 }
                 Spacer()
                 Button {
-                    openWindow(id: "settings-window")
                     appDelegate?.closePopover()
+                    openWindow(id: "settings-window")
                 } label: {
                     Image(systemName: "gearshape")
                 }
