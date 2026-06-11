@@ -5,6 +5,7 @@ import SwiftUI
 
 struct StatusBarView: View {
     @EnvironmentObject var viewModel: PomodoroViewModel
+    @ObservedObject private var settings = AppSettings.shared
 
     var body: some View {
         HStack(spacing: 4) {
@@ -13,7 +14,13 @@ struct StatusBarView: View {
                 .foregroundStyle(.primary)
 
             if viewModel.timerState == .running || viewModel.timerState == .paused {
-                LinearProgressBar(progress: viewModel.progress, color: viewModel.currentState.color)
+                if settings.showTimeInMenuBar {
+                    Text(viewModel.timeRemainingString)
+                        .font(.system(size: 11, weight: .medium))
+                        .monospacedDigit()
+                } else {
+                    LinearProgressBar(progress: viewModel.progress, color: viewModel.currentState.color)
+                }
             }
         }
         .padding(.horizontal, 6)

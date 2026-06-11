@@ -20,6 +20,11 @@ struct PomodoroApp: App {
             LogView()
         }
         .modelContainer(container) // 전체 뷰 계층에 공유 ModelContainer를 주입합니다.
+
+        Window("설정", id: "settings-window") {
+            PreferencesView()
+        }
+        .windowResizability(.contentSize)
     }
 
     init() {

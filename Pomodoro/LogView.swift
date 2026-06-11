@@ -229,7 +229,7 @@ struct FilteredLogListView: View {
 
     private var groupedLogs: [Date: [FocusLogEntry]] {
         Dictionary(grouping: logs) { log in
-            DateHelper.startOfDayUTC(for: log.startTime)
+            DateHelper.startOfDay(for: log.startTime)
         }
     }
 
@@ -303,7 +303,8 @@ struct LogEntryRow: View {
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: 2) {
                 Text(log.sessionType.rawValue).fontWeight(.bold)
-                Text("\(LogEntryRow.timeFormatter.string(from: log.startTime)) - \(LogEntryRow.timeFormatter.string(from: log.startTime.addingTimeInterval(log.duration)))")
+                // 종료 시각은 활동 시간뿐 아니라 일시정지된 시간도 포함해야 합니다.
+                Text("\(LogEntryRow.timeFormatter.string(from: log.startTime)) - \(LogEntryRow.timeFormatter.string(from: log.startTime.addingTimeInterval(log.duration + log.pausedDuration)))")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
