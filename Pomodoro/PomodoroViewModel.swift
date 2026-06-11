@@ -83,6 +83,12 @@ class PomodoroViewModel: ObservableObject {
         return remainder
     }
 
+    // NSApp.delegate는 SwiftUI 라이프사이클에서 우리 AppDelegate가 아닐 수 있어
+    // (캐스트 실패 → 조용히 무시됨), init에서 직접 주입받은 참조로 팝오버를 닫습니다.
+    func closePopover() {
+        appDelegate?.closePopover()
+    }
+
     func startFocusSession() {
         guard timerState == .idle else { return }
         if currentState == .idle {

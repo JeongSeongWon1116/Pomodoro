@@ -58,12 +58,12 @@ struct PopoverView: View {
 
             HStack {
                 Button("로그 보기") {
-                    appDelegate?.closePopover()
+                    viewModel.closePopover()
                     openWindow(id: "log-window")
                 }
                 Spacer()
                 Button {
-                    appDelegate?.closePopover()
+                    viewModel.closePopover()
                     openWindow(id: "settings-window")
                 } label: {
                     Image(systemName: "gearshape")
@@ -85,9 +85,6 @@ struct PopoverView: View {
         }
     }
 
-    private var appDelegate: AppDelegate? {
-        NSApp.delegate as? AppDelegate
-    }
 }
 
 /// 긴 휴식까지 남은 집중 사이클을 점으로 표시합니다.
