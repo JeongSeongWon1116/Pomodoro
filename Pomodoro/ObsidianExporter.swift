@@ -12,6 +12,7 @@ final class ObsidianExporter: ObservableObject {
     private static let enabledKey = "obsidianSyncEnabled"
     private static let bookmarkKey = "obsidianFolderBookmark"
     static let sectionHeading = "## 🍅 뽀모도로"
+    static let statsPrefix = "**하루 통계:**"
 
     @Published var isEnabled: Bool {
         didSet { UserDefaults.standard.set(isEnabled, forKey: Self.enabledKey) }
@@ -105,27 +106,76 @@ final class ObsidianExporter: ObservableObject {
         let start = timeFormatter.string(from: entry.startTime)
         // 종료 시각 = 시작 + 활동 시간 + 정지 시간
         let end = timeFormatter.string(from: entry.startTime.addingTimeInterval(entry.duration + entry.pausedDuration))
-        let minutes = max(1, Int((entry.duration / 60).rounded()))
-        return "- \(entry.sessionType.emoji) \(entry.sessionType.rawValue) \(minutes)분 (\(start)–\(end))"
+        return "- \(entry.sessionType.emoji) \(entry.sessionType.rawValue) \(durationText(entry.duration)) (\(start)–\(end))"
     }
 
-    /// 뽀모도로 섹션의 끝(다음 헤딩 직전 또는 파일 끝)에 줄을 삽입합니다.
+    /// 초 단위까지 표시하는 시간 문자열 (예: "1시간 2분 3초", "25분", "42초")
+    static func durationText(_ interval: TimeInterval) -> String {
+        let total = max(0, Int(interval.rounded()))
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let seconds = total % 60
+        var parts: [String] = []
+        if hours > 0 { parts.append("\(hours)시간") }
+        if minutes > 0 { parts.append("\(minutes)분") }
+        if seconds > 0 || parts.isEmpty { parts.append("\(seconds)초") }
+        return parts.joined(separator: " ")
+    }
+
+    /// 섹션에 새 기록 줄을 추가하고, 하루 통계 줄을 다시 계산하여 하나로 유지합니다.
     static func insert(line: String, into content: String) -> String {
+        let (prefix, body, suffix) = splitSection(in: content)
+
+        // 기존 통계 줄은 버리고(중복 방지) 나머지 줄은 그대로 보존합니다.
+        var lines = body
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .map(String.init)
+            .filter { !$0.hasPrefix(statsPrefix) }
+        lines.append(line)
+
+        let section = sectionHeading + "\n" + statsLine(for: lines) + "\n" + lines.joined(separator: "\n") + "\n"
+        return prefix + section + suffix
+    }
+
+    /// 섹션 줄들로부터 하루 통계(집중 횟수 + 총 집중 시간)를 계산합니다.
+    static func statsLine(for lines: [String]) -> String {
+        let focusLines = lines.filter { $0.hasPrefix("- " + PomodoroState.focus.emoji) }
+        let totalSeconds = focusLines.reduce(0) { $0 + parseDurationSeconds(fromLine: $1) }
+        return "\(statsPrefix) \(PomodoroState.focus.emoji) \(focusLines.count)회 · 총 \(durationText(TimeInterval(totalSeconds)))"
+    }
+
+    /// "- 🍅 집중 24분 13초 (09:00–09:25)" 형태의 줄에서 시간을 초로 파싱합니다.
+    static func parseDurationSeconds(fromLine line: String) -> Int {
+        let beforeTimes = line.components(separatedBy: " (").first ?? line
+        var seconds = 0
+        for token in beforeTimes.split(separator: " ") {
+            if token.hasSuffix("시간"), let value = Int(token.dropLast(2)) {
+                seconds += value * 3600
+            } else if token.hasSuffix("분"), let value = Int(token.dropLast()) {
+                seconds += value * 60
+            } else if token.hasSuffix("초"), let value = Int(token.dropLast()) {
+                seconds += value
+            }
+        }
+        return seconds
+    }
+
+    /// 노트를 (섹션 앞, 섹션 본문, 섹션 뒤)로 분리합니다. 섹션이 없으면 본문은 빈 문자열입니다.
+    private static func splitSection(in content: String) -> (prefix: String, body: String, suffix: String) {
         guard let headingRange = content.range(of: sectionHeading) else {
-            var result = content
-            if !result.isEmpty && !result.hasSuffix("\n") { result += "\n" }
-            if !result.isEmpty { result += "\n" }
-            return result + sectionHeading + "\n" + line + "\n"
+            var prefix = content
+            if !prefix.isEmpty && !prefix.hasSuffix("\n") { prefix += "\n" }
+            if !prefix.isEmpty { prefix += "\n" }
+            return (prefix, "", "")
         }
 
         let afterHeading = headingRange.upperBound
-        let insertionIndex = content.range(of: "\n#", range: afterHeading..<content.endIndex)?.lowerBound
+        let bodyEnd = content.range(of: "\n#", range: afterHeading..<content.endIndex)?.lowerBound
             ?? content.endIndex
 
-        var section = String(content[afterHeading..<insertionIndex])
-        while section.hasSuffix("\n") { section.removeLast() }
-
-        let remainder = insertionIndex < content.endIndex ? String(content[insertionIndex...]) : ""
-        return String(content[..<afterHeading]) + section + "\n" + line + "\n" + remainder
+        let prefix = String(content[..<headingRange.lowerBound])
+        let body = String(content[afterHeading..<bodyEnd])
+        let suffix = bodyEnd < content.endIndex ? String(content[bodyEnd...]) : ""
+        return (prefix, body, suffix)
     }
 }

@@ -51,10 +51,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         }
 
         popover = NSPopover()
-        popover.contentSize = NSSize(width: 280, height: 500)
+        popover.contentSize = NSSize(width: 260, height: 300)
         popover.behavior = .transient
         popover.contentViewController = NSHostingController(
-            rootView: SettingsView()
+            rootView: PopoverView()
                .environmentObject(pomodoroViewModel)
                .environment(\.modelContext, modelContext)
         )
