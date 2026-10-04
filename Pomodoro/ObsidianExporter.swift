@@ -76,6 +76,8 @@ final class ObsidianExporter: ObservableObject {
     /// 완료된 세션을 해당 날짜의 데일리 노트에 추가합니다.
     /// 노트가 없으면 새로 만들고, "## 🍅 뽀모도로" 섹션이 있으면 그 끝에 줄을 추가합니다.
     func appendSession(_ entry: FocusLogEntry) {
+        // 단위 테스트가 실제 보관함에 쓰지 않도록 합니다. (파일 처리는 appendLine 으로 따로 검증)
+        if DataController.isRunningTests { return }
         guard isEnabled, let folder = resolveFolderURL() else { return }
         guard folder.startAccessingSecurityScopedResource() else {
             print("Obsidian 폴더 접근 권한을 얻지 못했습니다.")
@@ -86,12 +88,40 @@ final class ObsidianExporter: ObservableObject {
         let noteURL = folder.appendingPathComponent(Self.noteFileName(for: entry.startTime))
         let line = Self.markdownLine(for: entry)
         do {
-            let existing = (try? String(contentsOf: noteURL, encoding: .utf8)) ?? ""
-            let updated = Self.insert(line: line, into: existing)
-            try updated.write(to: noteURL, atomically: true, encoding: .utf8)
+            try Self.appendLine(line, toNoteAt: noteURL)
         } catch {
             print("Obsidian 데일리 노트 기록 실패: \(error)")
         }
+    }
+
+    enum NoteError: Error {
+        /// 노트가 이미 있는데 UTF-8 텍스트로 읽을 수 없음 (다른 인코딩, 권한, 내려받기 실패 등)
+        case unreadableExistingNote(URL, underlying: Error)
+        /// iCloud 에서 아직 내려받지 않은 노트 (".이름.icloud" 자리표시자만 있음)
+        case notDownloadedFromICloud(URL)
+    }
+
+    /// 데일리 노트 파일을 읽어 기록 줄을 넣고 다시 씁니다.
+    /// 노트가 없으면 새로 만듭니다. 노트가 있는데 읽지 못하면 빈 노트로 취급해 덮어쓰지 않고
+    /// 오류를 던집니다. (기록은 앱 안에 남아 있으므로 잃는 것이 없습니다.)
+    static func appendLine(_ line: String, toNoteAt noteURL: URL) throws {
+        let existing: String
+        if FileManager.default.fileExists(atPath: noteURL.path) {
+            do {
+                existing = try String(contentsOf: noteURL, encoding: .utf8)
+            } catch {
+                throw NoteError.unreadableExistingNote(noteURL, underlying: error)
+            }
+        } else {
+            let placeholder = noteURL.deletingLastPathComponent()
+                .appendingPathComponent("." + noteURL.lastPathComponent + ".icloud")
+            guard !FileManager.default.fileExists(atPath: placeholder.path) else {
+                throw NoteError.notDownloadedFromICloud(noteURL)
+            }
+            existing = ""
+        }
+        let updated = insert(line: line, into: existing)
+        try updated.write(to: noteURL, atomically: true, encoding: .utf8)
     }
 
     static func noteFileName(for date: Date) -> String {
@@ -161,21 +191,38 @@ final class ObsidianExporter: ObservableObject {
     }
 
     /// 노트를 (섹션 앞, 섹션 본문, 섹션 뒤)로 분리합니다. 섹션이 없으면 본문은 빈 문자열입니다.
+    /// 섹션 헤딩은 줄 전체가 일치해야 하고, 섹션은 다음 마크다운 헤딩("#" 여러 개 + 공백)에서 끝납니다.
+    /// ("#태그" 줄은 헤딩이 아니므로 섹션 안에 그대로 둡니다.)
     private static func splitSection(in content: String) -> (prefix: String, body: String, suffix: String) {
-        guard let headingRange = content.range(of: sectionHeading) else {
+        let lines = content.components(separatedBy: "\n")
+        guard let headingIndex = lines.firstIndex(where: { trimmedLineEnd($0) == sectionHeading }) else {
             var prefix = content
             if !prefix.isEmpty && !prefix.hasSuffix("\n") { prefix += "\n" }
             if !prefix.isEmpty { prefix += "\n" }
             return (prefix, "", "")
         }
 
-        let afterHeading = headingRange.upperBound
-        let bodyEnd = content.range(of: "\n#", range: afterHeading..<content.endIndex)?.lowerBound
-            ?? content.endIndex
+        let endIndex = lines[(headingIndex + 1)...].firstIndex(where: isMarkdownHeading) ?? lines.count
 
-        let prefix = String(content[..<headingRange.lowerBound])
-        let body = String(content[afterHeading..<bodyEnd])
-        let suffix = bodyEnd < content.endIndex ? String(content[bodyEnd...]) : ""
+        let prefix = lines[..<headingIndex].map { $0 + "\n" }.joined()
+        let body = lines[(headingIndex + 1)..<endIndex].joined(separator: "\n")
+        let suffix = endIndex < lines.count ? "\n" + lines[endIndex...].joined(separator: "\n") : ""
         return (prefix, body, suffix)
+    }
+
+    /// 줄 끝의 공백과 CR(윈도우 줄바꿈)을 뗀 문자열
+    private static func trimmedLineEnd(_ line: String) -> String {
+        var trimmed = Substring(line)
+        while let last = trimmed.last, last == " " || last == "\t" || last == "\r" || last == "\r\n" {
+            trimmed = trimmed.dropLast()
+        }
+        return String(trimmed)
+    }
+
+    /// 마크다운 헤딩 줄인지 판정합니다: "#" 1~6개 뒤에 공백.
+    private static func isMarkdownHeading(_ line: String) -> Bool {
+        let hashes = line.prefix(while: { $0 == "#" })
+        guard (1...6).contains(hashes.count) else { return false }
+        return line.dropFirst(hashes.count).first == " "
     }
 }
