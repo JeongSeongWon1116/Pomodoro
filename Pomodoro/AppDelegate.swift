@@ -147,8 +147,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNUserNot
         return false
     }
 
-    // 앱 종료 시 알림 취소
+    // 앱 종료 시 진행 중인 세션을 기록하고 알림 취소
     func applicationWillTerminate(_ notification: Notification) {
+        pomodoroViewModel?.logInterruptedSession()
         pomodoroViewModel?.cancelAllNotifications()
     }
 }
