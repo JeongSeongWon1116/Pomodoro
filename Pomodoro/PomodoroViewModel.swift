@@ -29,7 +29,9 @@ class PomodoroViewModel: ObservableObject {
     @Published var hasNotificationPermission: Bool = false
     @Published var completedFocusSessions: Int = 0
 
-    let settings = AppSettings.shared
+    let settings: AppSettings
+    // 현재 시각 공급자. 테스트에서 실제 시간을 기다리지 않고 시계를 주입하기 위한 이음매입니다.
+    private let now: () -> Date
 
     private var timerSubscription: AnyCancellable?
     private var settingsSubscription: AnyCancellable?
@@ -43,8 +45,10 @@ class PomodoroViewModel: ObservableObject {
     private var modelContext: ModelContext
     private weak var appDelegate: AppDelegate?
 
-    init(modelContext: ModelContext, appDelegate: AppDelegate) {
+    init(modelContext: ModelContext, appDelegate: AppDelegate, settings: AppSettings = .shared, now: @escaping () -> Date = Date.init) {
         self.modelContext = modelContext
+        self.settings = settings
+        self.now = now
         self.appDelegate = appDelegate
         self.timeRemaining = TimeInterval(settings.focusDurationInMinutes * 60)
 
@@ -74,7 +78,7 @@ class PomodoroViewModel: ObservableObject {
 
     /// 긴 휴식까지 남은 사이클 표시용 (현재 사이클에서 완료한 집중 횟수)
     var focusSessionsInCurrentCycle: Int {
-        let interval = max(1, settings.longBreakInterval)
+        let interval = AppSettings.validLongBreakInterval(settings.longBreakInterval)
         let remainder = completedFocusSessions % interval
         // 긴 휴식 직전(= 배수)에는 가득 찬 상태로 보여줍니다.
         if completedFocusSessions > 0 && remainder == 0 && currentState != .focus && currentState != .idle {
@@ -99,9 +103,9 @@ class PomodoroViewModel: ObservableObject {
 
     func pauseTimer() {
         guard timerState == .running, let resumeTime = lastResumeTime else { return }
-        accumulatedActiveTime = min(accumulatedActiveTime + Date().timeIntervalSince(resumeTime), sessionDuration)
+        accumulatedActiveTime = min(accumulatedActiveTime + now().timeIntervalSince(resumeTime), sessionDuration)
         lastResumeTime = nil
-        lastPauseTime = Date()
+        lastPauseTime = now()
         timerSubscription?.cancel()
         timerState = .paused
     }
@@ -109,7 +113,7 @@ class PomodoroViewModel: ObservableObject {
     func resumeTimer() {
         guard timerState == .paused else { return }
         if let pauseTime = lastPauseTime {
-            accumulatedPausedTime += Date().timeIntervalSince(pauseTime)
+            accumulatedPausedTime += now().timeIntervalSince(pauseTime)
             lastPauseTime = nil
         }
         startTicking()
@@ -135,7 +139,7 @@ class PomodoroViewModel: ObservableObject {
         clearSessionTracking()
         currentState = state
         sessionDuration = getTotalDuration(for: state)
-        sessionStartTime = Date()
+        sessionStartTime = now()
         startTicking()
     }
 
@@ -149,7 +153,7 @@ class PomodoroViewModel: ObservableObject {
     }
 
     private func startTicking() {
-        lastResumeTime = Date()
+        lastResumeTime = now()
         timerState = .running
         updateTimeRemaining()
 
@@ -157,12 +161,16 @@ class PomodoroViewModel: ObservableObject {
             .autoconnect()
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
-                guard let self = self else { return }
-                self.updateTimeRemaining()
-                if self.timerState == .running && self.timeRemaining <= 0 {
-                    self.timerDidEnd()
-                }
+                self?.tick()
             }
+    }
+
+    /// 타이머 한 틱: 남은 시간을 다시 계산하고, 다 되었으면 세션을 끝냅니다.
+    func tick() {
+        updateTimeRemaining()
+        if timerState == .running && timeRemaining <= 0 {
+            timerDidEnd()
+        }
     }
 
     // 틱마다 1초씩 빼는 방식은 절전 모드나 타이머 지연 시 시간이 실제보다 늦게 가는
@@ -175,7 +183,7 @@ class PomodoroViewModel: ObservableObject {
     private func currentActiveTime() -> TimeInterval {
         var active = accumulatedActiveTime
         if let resumeTime = lastResumeTime {
-            active += Date().timeIntervalSince(resumeTime)
+            active += now().timeIntervalSince(resumeTime)
         }
         return active
     }
@@ -193,7 +201,7 @@ class PomodoroViewModel: ObservableObject {
         timerSubscription?.cancel()
 
         let endedSessionType = currentState
-        let nextSessionType = getNextSessionType(from: endedSessionType)
+        let nextSessionType = getNextSessionType(from: endedSessionType, skipped: skipped)
         let shouldAutoStart = nextSessionType == .focus
             ? settings.autoStartFocus
             : settings.autoStartBreaks
@@ -209,7 +217,8 @@ class PomodoroViewModel: ObservableObject {
 
         logSession()
 
-        if endedSessionType == .focus {
+        // 건너뛴 집중은 완료한 것으로 세지 않습니다.
+        if endedSessionType == .focus && !skipped {
             completedFocusSessions += 1
         }
 
@@ -221,11 +230,14 @@ class PomodoroViewModel: ObservableObject {
     }
 
     /// 다음 세션 타입을 계산
-    private func getNextSessionType(from current: PomodoroState) -> PomodoroState {
+    private func getNextSessionType(from current: PomodoroState, skipped: Bool = false) -> PomodoroState {
         switch current {
         case .focus:
+            // 건너뛴 집중은 횟수에 들어가지 않으므로 긴 휴식으로 이어지지 않습니다.
+            if skipped { return .shortBreak }
             let nextCount = completedFocusSessions + 1
-            return (nextCount > 0 && nextCount % settings.longBreakInterval == 0) ? .longBreak : .shortBreak
+            let interval = AppSettings.validLongBreakInterval(settings.longBreakInterval)
+            return (nextCount > 0 && nextCount % interval == 0) ? .longBreak : .shortBreak
         case .shortBreak, .longBreak, .idle:
             return .focus
         }
@@ -255,7 +267,7 @@ class PomodoroViewModel: ObservableObject {
         guard currentState != .idle else { return }
         guard let startTime = sessionStartTime else { return }
 
-        let endTime = Date()
+        let endTime = now()
 
         // 실제 활동 시간 계산
         var totalActiveDuration = accumulatedActiveTime
@@ -286,6 +298,15 @@ class PomodoroViewModel: ObservableObject {
         ObsidianExporter.shared.appendSession(newLog)
     }
 
+    /// 앱 종료 직전에 진행 중인 세션을 중단된 기록으로 남깁니다.
+    /// 기록한 뒤 추적 값을 비우므로 여러 번 불려도 한 번만 남습니다.
+    func logInterruptedSession() {
+        guard sessionStartTime != nil else { return }
+        logSession()
+        timerSubscription?.cancel()
+        clearSessionTracking()
+    }
+
     private func playSound() {
         let soundName = settings.notificationSoundName
         guard soundName != AppSettings.soundOff else { return }
@@ -309,6 +330,8 @@ class PomodoroViewModel: ObservableObject {
 
     /// 세션 전환 알림 (종료 + 시작을 하나로 통합)
     private func showSessionTransitionNotification(ended: PomodoroState, next: PomodoroState, autoStarting: Bool) {
+        // 테스트 호스트에서는 사용 중인 앱과 같은 번들 ID로 알림이 뜨지 않도록 건너뜁니다.
+        if DataController.isRunningTests { return }
         let content = UNMutableNotificationContent()
         content.title = "\(ended.description) 종료!"
         content.body = autoStarting

@@ -18,34 +18,34 @@ final class AppSettings: ObservableObject {
     ]
 
     @Published var focusDurationInMinutes: Int {
-        didSet { UserDefaults.standard.set(focusDurationInMinutes, forKey: "focusDuration") }
+        didSet { defaults?.set(focusDurationInMinutes, forKey: "focusDuration") }
     }
     @Published var shortBreakDurationInMinutes: Int {
-        didSet { UserDefaults.standard.set(shortBreakDurationInMinutes, forKey: "shortBreakDuration") }
+        didSet { defaults?.set(shortBreakDurationInMinutes, forKey: "shortBreakDuration") }
     }
     @Published var longBreakDurationInMinutes: Int {
-        didSet { UserDefaults.standard.set(longBreakDurationInMinutes, forKey: "longBreakDuration") }
+        didSet { defaults?.set(longBreakDurationInMinutes, forKey: "longBreakDuration") }
     }
     @Published var longBreakInterval: Int {
-        didSet { UserDefaults.standard.set(longBreakInterval, forKey: "longBreakInterval") }
+        didSet { defaults?.set(longBreakInterval, forKey: "longBreakInterval") }
     }
 
     /// 집중이 끝났을 때 휴식을 자동으로 시작할지 여부
     @Published var autoStartBreaks: Bool {
-        didSet { UserDefaults.standard.set(autoStartBreaks, forKey: "autoStartBreaks") }
+        didSet { defaults?.set(autoStartBreaks, forKey: "autoStartBreaks") }
     }
     /// 휴식이 끝났을 때 집중을 자동으로 시작할지 여부
     @Published var autoStartFocus: Bool {
-        didSet { UserDefaults.standard.set(autoStartFocus, forKey: "autoStartFocus") }
+        didSet { defaults?.set(autoStartFocus, forKey: "autoStartFocus") }
     }
 
     @Published var notificationSoundName: String {
-        didSet { UserDefaults.standard.set(notificationSoundName, forKey: "notificationSound") }
+        didSet { defaults?.set(notificationSoundName, forKey: "notificationSound") }
     }
 
     /// 메뉴 바에 남은 시간을 텍스트로 표시할지 여부
     @Published var showTimeInMenuBar: Bool {
-        didSet { UserDefaults.standard.set(showTimeInMenuBar, forKey: "showTimeInMenuBar") }
+        didSet { defaults?.set(showTimeInMenuBar, forKey: "showTimeInMenuBar") }
     }
 
     @Published var launchAtLogin: Bool {
@@ -63,16 +63,25 @@ final class AppSettings: ObservableObject {
         }
     }
 
-    private init() {
-        let defaults = UserDefaults.standard
-        self.focusDurationInMinutes = (defaults.object(forKey: "focusDuration") as? Int) ?? 25
-        self.shortBreakDurationInMinutes = (defaults.object(forKey: "shortBreakDuration") as? Int) ?? 5
-        self.longBreakDurationInMinutes = (defaults.object(forKey: "longBreakDuration") as? Int) ?? 15
-        self.longBreakInterval = (defaults.object(forKey: "longBreakInterval") as? Int) ?? 4
-        self.autoStartBreaks = (defaults.object(forKey: "autoStartBreaks") as? Bool) ?? true
-        self.autoStartFocus = (defaults.object(forKey: "autoStartFocus") as? Bool) ?? true
-        self.notificationSoundName = defaults.string(forKey: "notificationSound") ?? "Glass"
-        self.showTimeInMenuBar = (defaults.object(forKey: "showTimeInMenuBar") as? Bool) ?? true
+    /// 긴 휴식 간격으로 쓸 수 있는 값으로 고칩니다.
+    /// (0 이나 음수가 저장돼 있으면 나머지 연산에서 앱이 죽으므로 최소 1로 맞춥니다.)
+    static func validLongBreakInterval(_ value: Int) -> Int {
+        max(1, value)
+    }
+
+    // 저장소. nil 이면 기본값만 쓰고 아무것도 저장하지 않습니다(단위 테스트용).
+    private let defaults: UserDefaults?
+
+    init(defaults: UserDefaults? = .standard) {
+        self.defaults = defaults
+        self.focusDurationInMinutes = (defaults?.object(forKey: "focusDuration") as? Int) ?? 25
+        self.shortBreakDurationInMinutes = (defaults?.object(forKey: "shortBreakDuration") as? Int) ?? 5
+        self.longBreakDurationInMinutes = (defaults?.object(forKey: "longBreakDuration") as? Int) ?? 15
+        self.longBreakInterval = Self.validLongBreakInterval((defaults?.object(forKey: "longBreakInterval") as? Int) ?? 4)
+        self.autoStartBreaks = (defaults?.object(forKey: "autoStartBreaks") as? Bool) ?? true
+        self.autoStartFocus = (defaults?.object(forKey: "autoStartFocus") as? Bool) ?? true
+        self.notificationSoundName = defaults?.string(forKey: "notificationSound") ?? "Glass"
+        self.showTimeInMenuBar = (defaults?.object(forKey: "showTimeInMenuBar") as? Bool) ?? true
         self.launchAtLogin = SMAppService.mainApp.status == .enabled
     }
 }
