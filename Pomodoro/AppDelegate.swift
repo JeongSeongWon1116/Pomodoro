@@ -40,7 +40,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNUserNot
         }
 
         // ViewModel에 AppDelegate 참조를 전달하여 팝오버를 제어할 수 있도록 합니다.
-        self.pomodoroViewModel = PomodoroViewModel(modelContext: modelContext, appDelegate: self)
+        self.pomodoroViewModel = PomodoroViewModel(
+            modelContext: modelContext,
+            appDelegate: self,
+            notesContext: DataController.shared.transitionContainer?.mainContext
+        )
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
@@ -58,15 +62,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNUserNot
         }
 
         popover = NSPopover()
-        popover.contentSize = NSSize(width: 260, height: 300)
         popover.behavior = .transient
         popover.delegate = self
-        popover.contentViewController = NSHostingController(
+        let popoverController = NSHostingController(
             rootView: PopoverView()
                .environmentObject(pomodoroViewModel)
                .environment(\.modelContext, modelContext)
         )
-        
+        // 팝오버 크기는 내용을 따릅니다 (할 일·보상 칸과 선택 화면에 따라 높이가 달라집니다).
+        popoverController.sizingOptions = [.preferredContentSize]
+        popover.contentViewController = popoverController
+
         UNUserNotificationCenter.current().delegate = self
         
         Task {

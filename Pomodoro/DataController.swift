@@ -24,6 +24,25 @@ class DataController {
         }
     }()
 
+    /// 할 일·보상·다음 시작점(TransitionNote)을 두는 별도 저장소.
+    /// 집중 기록 저장소와 파일이 달라서, 이 기능이 없는 빌드로 돌아가도 기록은 그대로 열립니다.
+    /// 열지 못하면 nil 이고, 그때는 메모만 저장되지 않습니다(타이머와 기록은 그대로 동작).
+    lazy var transitionContainer: ModelContainer? = {
+        do {
+            if DataController.isRunningTests {
+                let config = ModelConfiguration(isStoredInMemoryOnly: true)
+                return try ModelContainer(for: TransitionNote.self, configurations: config)
+            }
+            let folder = URL.applicationSupportDirectory
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            let config = ModelConfiguration(url: folder.appending(path: "Transitions.store"))
+            return try ModelContainer(for: TransitionNote.self, configurations: config)
+        } catch {
+            print("전환 메모 저장소를 열지 못했습니다: \(error)")
+            return nil
+        }
+    }()
+
     /// xcodebuild test 가 앱을 테스트 호스트로 띄웠는지 여부.
     static var isRunningTests: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil

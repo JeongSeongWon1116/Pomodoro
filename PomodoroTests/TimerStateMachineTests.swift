@@ -31,6 +31,8 @@ struct TimerStateMachineTests {
         // 저장소 없는 설정: 기본값(집중 25분, 짧은 휴식 5분, 긴 휴식 간격 4)으로 시작하고 아무것도 저장하지 않습니다.
         let settings = AppSettings(defaults: nil)
         settings.notificationSoundName = AppSettings.soundOff
+        // 여기서는 세션이 저절로 넘어가는 기본 상태 기계를 봅니다. 집중이 끝났을 때의 선택은 TransitionFlowTests 에서 봅니다.
+        settings.transitionManagementEnabled = false
         self.settings = settings
         container = try ModelContainer(
             for: FocusLogEntry.self,
