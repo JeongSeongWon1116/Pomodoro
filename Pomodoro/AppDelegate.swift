@@ -19,7 +19,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNUserNot
     var modelContext: ModelContext?
     private var pomodoroViewModel: PomodoroViewModel!
 
-    private let updates = UpdateController.shared
+    @MainActor private var updates: UpdateController { UpdateController.shared }
     private var updateQuietSubscription: AnyCancellable?
 
     // 앱 실행 초기 단계에서 중복 실행 체크
@@ -83,8 +83,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNUserNot
             await pomodoroViewModel.requestNotificationPermission()
         }
 
-        // 자동 업데이트. 받아 둔 업데이트는 타이머가 쉬고 있고 창이 없을 때만 설치하므로,
-        // 타이머 상태가 바뀔 때마다 지금 설치해도 되는지 다시 봅니다. (테스트 호스트에서는 켜지지 않습니다.)
+        // 자동 업데이트. 받아 둔 업데이트는 타이머가 쉬고 있고 창이 없는 상태가 이어질 때만 설치하므로,
+        // 타이머 상태가 바뀔 때마다 지금 조용한지를 다시 잽니다. (테스트 호스트와 개발 빌드에서는 켜지지 않습니다.)
         updates.quietProbe = { [weak self] in self?.isQuietForUpdate ?? false }
         updateQuietSubscription = Publishers.CombineLatest(pomodoroViewModel.$currentState, pomodoroViewModel.$timerState)
             .receive(on: RunLoop.main)
@@ -93,15 +93,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNUserNot
     }
 
     // 지금 앱을 껐다 켜도 잃는 것이 없는지: 타이머가 완전히 대기이고 팝오버와 창이 닫혀 있을 때.
-    // 제목 줄이 있는 창(기록, 설정, 업데이트 안내)만 셉니다. 메뉴 바 항목과 팝오버도 창이지만 제목 줄이 없습니다.
     @MainActor private var isQuietForUpdate: Bool {
         guard let pomodoroViewModel, let popover else { return false }
-        let visibleWindows = NSApp.windows.filter { $0.isVisible && $0.styleMask.contains(.titled) }.count
+        let windows = NSApp.windows.map {
+            (visible: $0.isVisible, miniaturized: $0.isMiniaturized, titled: $0.styleMask.contains(.titled))
+        }
         return UpdateQuietness.isQuiet(
             currentState: pomodoroViewModel.currentState,
             timerState: pomodoroViewModel.timerState,
             popoverShown: popover.isShown,
-            visibleWindows: visibleWindows
+            openWindows: UpdateQuietness.openWindowCount(windows)
         )
     }
 
@@ -117,6 +118,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNUserNot
             popover.contentViewController?.view.window?.makeKey()
             NSApp.activate(ignoringOtherApps: true)
             startPopoverEventMonitor()
+            // 팝오버가 열렸으니 조용하지 않습니다 (버튼 동작은 메인 스레드에서 불립니다).
+            MainActor.assumeIsolated { updates.reevaluateQuietness() }
         }
     }
 
@@ -183,6 +186,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNUserNot
     // 그 실행 요청이 넘어갈 때까지 종료를 잠깐 미룹니다. 요청은 비동기라, 바로 끝내면 전달되기 전에
     // 프로세스가 사라질 수 있습니다.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        // 받아 둔 업데이트를 설치하려고 스스로 끄는 중인데, 그 사이에 사용자가 집중을 시작했거나 창을 열었으면
+        // 끄지 않습니다(설치는 다시 붙잡아 둡니다). 사용자가 직접 끄는 것은 여기서 막지 않습니다.
+        if updates.shouldCancelTermination() { return .terminateCancel }
         guard let pomodoroViewModel else { return .terminateNow }
         var finished = false
         var shouldReply = false // .terminateLater 를 돌려준 뒤에만 답합니다

@@ -196,8 +196,11 @@ struct GeneralSettingsTab: View {
                 automaticallyInstalls: $updates.automaticallyInstalls,
                 lastCheckText: lastCheckText,
                 availableVersion: updates.availableVersion,
+                pendingVersion: updates.pendingVersion,
+                canInstallNow: updates.canInstallPendingUpdate,
                 canCheckNow: updates.canCheckForUpdates,
-                checkNow: { updates.checkForUpdates() }
+                checkNow: { updates.checkForUpdates() },
+                installNow: { updates.installPendingUpdateNow() }
             )
             Section("정보") {
                 LabeledContent("버전", value: versionString)
@@ -215,9 +218,14 @@ struct UpdateSettingsSection: View {
     @Binding var automaticallyChecks: Bool
     @Binding var automaticallyInstalls: Bool
     let lastCheckText: String
+    /// 찾았지만 받지 않은 새 버전 (자동 설치를 껐을 때)
     let availableVersion: String?
+    /// 받아 두고 설치를 기다리는 버전
+    let pendingVersion: String?
+    let canInstallNow: Bool
     let canCheckNow: Bool
     let checkNow: () -> Void
+    let installNow: () -> Void
 
     var body: some View {
         Section("업데이트") {
@@ -230,14 +238,26 @@ struct UpdateSettingsSection: View {
                 Toggle("새 버전을 자동으로 받아 설치", isOn: $automaticallyInstalls)
                     .disabled(!automaticallyChecks)
                 LabeledContent("마지막 확인", value: lastCheckText)
-                if let availableVersion {
-                    Text("새 버전 \(availableVersion)이 있습니다.")
+                if let pendingVersion {
+                    LabeledContent("받아 둔 버전 \(pendingVersion)") {
+                        Button("지금 설치하고 다시 켜기", action: installNow)
+                            .disabled(!canInstallNow)
+                    }
+                    Text(canInstallNow
+                         ? "타이머가 대기 중이고 창이 모두 닫힌 채로 1분쯤 지나면 스스로 설치하고 다시 켭니다. 그 전에 앱을 끄면 그때 설치됩니다. 설치할 때까지는 새로 확인하지 않습니다."
+                         : "앱을 끌 때 설치됩니다. 설치할 때까지는 새로 확인하지 않습니다.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    if let availableVersion {
+                        Text("새 버전 \(availableVersion)이 있습니다.")
+                    }
+                    Button("지금 확인", action: checkNow)
+                        .disabled(!canCheckNow)
+                    Text("새 버전을 받으면, 타이머가 대기 중이고 창이 모두 닫힌 채로 1분쯤 지났을 때 앱을 다시 켜면서 설치합니다. 그 전에 앱을 끄면 그때 설치됩니다.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                Button("지금 확인", action: checkNow)
-                    .disabled(!canCheckNow)
-                Text("자동 설치는 타이머가 대기 중이고 창이 모두 닫혀 있을 때 앱을 다시 켜면서 이루어집니다. 그 전에 앱을 끄면 그때 설치됩니다.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
     }

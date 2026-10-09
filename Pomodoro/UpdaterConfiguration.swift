@@ -32,13 +32,19 @@ struct UpdaterConfiguration: Equatable {
         ((value as? String) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// http(s) 주소만 받습니다. 채워지지 않은 빌드 설정 자리표시("$(...)")는 주소가 아닙니다.
+    /// https 주소만 받습니다. 채워지지 않은 빌드 설정 자리표시("$(...)")는 주소가 아닙니다.
+    /// 암호화하지 않은 http 는 중간에서 업데이트 목록을 바꾸거나 막을 수 있으므로, 이 컴퓨터 자신을 가리킬 때만
+    /// 받습니다(scripts/update-e2e.sh 의 시험용 빌드).
     private static func webURL(_ text: String) -> URL? {
         guard !text.contains("$("),
               let url = URL(string: text),
-              let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http",
-              url.host?.isEmpty == false
+              let scheme = url.scheme?.lowercased(),
+              let host = url.host?.lowercased(), !host.isEmpty
         else { return nil }
-        return url
+        switch scheme {
+        case "https": return url
+        case "http": return ["localhost", "127.0.0.1", "::1"].contains(host) ? url : nil
+        default: return nil
+        }
     }
 }
