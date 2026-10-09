@@ -21,6 +21,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNUserNot
 
     // 자동 업데이트. (테스트에서 다른 것으로 바꿔 끼울 수 있게 변수로 둡니다.)
     @MainActor lazy var updates: UpdateController = .shared
+    // 지금 처리 중인 종료 요청이 어디서 왔는지 (테스트에서 바꿔 끼웁니다)
+    var terminationRequestProbe: @MainActor () -> TerminationRequest = { TerminationRequest.current }
     private var updateQuietSubscription: AnyCancellable?
     private var hideObservers: [NSObjectProtocol] = []
     // 앱이 가려지기 직전에 열려 있던 창의 수 (가려져 있는 동안에만 값이 있음)
@@ -210,8 +212,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNUserNot
     // 프로세스가 사라질 수 있습니다.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         // 받아 둔 업데이트를 설치하려고 Sparkle이 방금 끄는 중인데, 그 사이에 사용자가 집중을 시작했거나 창을 열었으면
-        // 끄지 않습니다(설치는 다시 붙잡아 둡니다). 사용자가 직접 끄는 것과 로그아웃은 여기서 막지 않습니다.
-        if updates.shouldCancelTermination() { return .terminateCancel }
+        // 끄지 않습니다(설치는 다시 붙잡아 둡니다). 앱 안에서 누른 "종료"와 로그아웃은 여기서 막지 않습니다.
+        if updates.shouldCancelTermination(terminationRequestProbe()) { return .terminateCancel }
         guard let pomodoroViewModel else { return .terminateNow }
         var finished = false
         var shouldReply = false // .terminateLater 를 돌려준 뒤에만 답합니다

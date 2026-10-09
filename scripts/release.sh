@@ -144,17 +144,24 @@ if [ "$INSTALL" = 1 ]; then
   say "이 Mac 에 설치"
   DEST="/Applications/Pomodoro.app"
   # 실행 중인 Pomodoro 를 정상 종료시킨다(진행 중인 세션은 앱이 끝내면서 기록한다). 강제로 죽이지 않는다.
-  QUIT="$BUILD_HOME/quit-running.swift"
-  cat > "$QUIT" <<'SWIFT'
+  PROC="$BUILD_HOME/running-app.swift"
+  cat > "$PROC" <<'SWIFT'
 import AppKit
-let apps = NSRunningApplication.runningApplications(withBundleIdentifier: CommandLine.arguments[1])
+// quit <bundle id>: 정상 종료를 요청하고 15초까지 기다린다(남아 있으면 1).
+// paths <bundle id>: 떠 있는 것의 앱 경로를 한 줄씩 찍는다.
+let apps = NSRunningApplication.runningApplications(withBundleIdentifier: CommandLine.arguments[2])
+if CommandLine.arguments[1] == "paths" {
+    apps.forEach { print($0.bundleURL?.resolvingSymlinksInPath().path ?? "?") }
+    exit(0)
+}
 apps.forEach { _ = $0.terminate() }
 let deadline = Date().addingTimeInterval(15)
 while Date() < deadline, apps.contains(where: { !$0.isTerminated }) { RunLoop.current.run(until: Date().addingTimeInterval(0.2)) }
 exit(apps.contains(where: { !$0.isTerminated }) ? 1 : 0)
 SWIFT
-  # 끄는 순간, 앱이 받아 둔 업데이트가 있으면 Sparkle 의 설치 도우미(앱 묶음 안에서 돈다)가 앱을 바꾸기 시작한다.
-  # 그것이 끝나기를 기다린다 — 기다리지 않으면 반쯤 바뀐 앱을 옮기거나, 방금 넣은 빌드가 덮일 수 있다.
+  running_paths() { swift "$PROC" paths "$BUNDLE_ID" || die "떠 있는 Pomodoro 를 확인하지 못했습니다"; }
+  # 끄는 순간, 앱이 받아 둔 업데이트가 있으면 Sparkle 의 설치 도우미(Autoupdate — 앱 묶음 안의 Sparkle.framework 에서 돈다)가
+  # 앱을 바꾸기 시작한다. 그것이 끝나기를 기다린다 — 기다리지 않으면 반쯤 바뀐 앱을 옮기거나, 방금 넣은 빌드가 덮일 수 있다.
   HELPERS='Pomodoro\.app/Contents/Frameworks/Sparkle\.framework'
   helpers_alive() { # 시험용 앱(update-e2e)의 도우미는 세지 않는다
     local pid cmd
@@ -165,7 +172,7 @@ SWIFT
     return 1
   }
   quit_and_settle() {
-    swift "$QUIT" "$BUNDLE_ID" || die "실행 중인 Pomodoro 가 끝나지 않았습니다. 직접 끈 뒤 다시 합니다"
+    swift "$PROC" quit "$BUNDLE_ID" || die "실행 중인 Pomodoro 가 끝나지 않았습니다. 직접 끈 뒤 다시 합니다"
     local waited=0
     while helpers_alive; do
       [ "$waited" -lt 90 ] || die "Sparkle 설치 도우미가 끝나지 않습니다. 끝난 뒤 다시 합니다"
@@ -173,8 +180,15 @@ SWIFT
     done
   }
   quit_and_settle
-  # 도우미가 설치를 마치고 앱을 다시 켰을 수 있다. 한 번 더 끄고 기다린다(떠 있는 것이 없으면 곧바로 지나간다).
-  quit_and_settle
+  # 도우미는 설치를 마치면 앱을 다시 켤 수 있고, 다시 켜진 앱이 목록에 오르기까지 틈이 있다. 떠 있는 앱도 도우미도 없는
+  # 상태가 5초 이어질 때까지 지켜보고, 그 사이에 뜨면 다시 끈다.
+  CALM=0; TRIES=0
+  while [ "$CALM" -lt 5 ]; do
+    [ "$TRIES" -lt 60 ] || die "Pomodoro 가 계속 다시 켜집니다. 직접 끈 뒤 다시 합니다"
+    TRIES=$((TRIES + 1))
+    RUNNING="$(running_paths)"
+    if [ -n "$RUNNING" ] || helpers_alive; then quit_and_settle; CALM=0; else CALM=$((CALM + 1)); sleep 1; fi
+  done
   if [ -e "$DEST" ]; then
     OLD_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$DEST/Contents/Info.plist" 2>/dev/null || echo old)"
     # 지우지 않고 옮겨 둔다. 이름 끝을 .app 이 아니게 해서, macOS 가 이것을 또 하나의 Pomodoro 로 보고
@@ -184,10 +198,21 @@ SWIFT
     mv "$DEST" "$KEEP"
     echo "예전 앱: $KEEP"
   fi
+  # ditto 는 이미 있는 묶음 위에 합쳐 쓴다. 그 사이에 무언가가 다시 놓였으면 섞지 않고 멈춘다.
+  [ ! -e "$DEST" ] || die "$DEST 가 다시 생겼습니다. 무엇이 놓았는지 본 뒤 다시 합니다"
   ditto "$APP" "$DEST"
   codesign --verify --deep --strict "$DEST" || die "설치한 앱의 서명 확인 실패"
   [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$DEST/Contents/Info.plist")" = "$BUILD" ] || die "설치한 앱의 빌드 번호가 다릅니다"
   open "$DEST"
+  # 켠 것이 정말 방금 넣은 앱인지 본다(다른 곳의 Pomodoro 가 떠 있으면 새 앱은 중복 실행으로 곧 끝난다).
+  STARTED=0; TRIES=0
+  while [ "$TRIES" -lt 20 ]; do
+    TRIES=$((TRIES + 1))
+    RUNNING="$(running_paths)"
+    if [ "$RUNNING" = "$DEST" ]; then STARTED=1; break; fi
+    sleep 1
+  done
+  [ "$STARTED" = 1 ] || die "넣었지만 $DEST 만 떠 있는 상태가 되지 않았습니다. 떠 있는 것: ${RUNNING:-없음}"
   echo "설치하고 켬: $DEST ($VERSION)"
 fi
 

@@ -198,6 +198,7 @@ struct GeneralSettingsTab: View {
                 availableVersion: updates.availableVersion,
                 pendingVersion: updates.pendingVersion,
                 canInstallNow: updates.canInstallPendingUpdate,
+                installing: updates.installInProgress,
                 canCheckNow: updates.canCheckForUpdates,
                 checkNow: { updates.checkForUpdates() },
                 installNow: { updates.installPendingUpdateNow() }
@@ -223,6 +224,8 @@ struct UpdateSettingsSection: View {
     /// 받아 두고 설치를 기다리는 버전
     let pendingVersion: String?
     let canInstallNow: Bool
+    /// 받아 둔 업데이트의 설치를 시작해 앱이 꺼지기를 기다리는 중인지
+    let installing: Bool
     let canCheckNow: Bool
     let checkNow: () -> Void
     let installNow: () -> Void
@@ -235,32 +238,41 @@ struct UpdateSettingsSection: View {
                     .foregroundStyle(.secondary)
             } else {
                 Toggle("자동으로 업데이트 확인", isOn: $automaticallyChecks)
+                // 받아 둔 것이 있으면 자동 확인이 꺼져 있어도 켜고 끌 수 있게 둡니다 — 그것을 스스로 설치할지를 정하는 스위치이기도 합니다.
                 Toggle("새 버전을 자동으로 받아 설치", isOn: $automaticallyInstalls)
-                    .disabled(!automaticallyChecks)
+                    .disabled(!automaticallyChecks && pendingVersion == nil)
                 LabeledContent("마지막 확인", value: lastCheckText)
                 if let pendingVersion {
                     LabeledContent("받아 둔 버전 \(pendingVersion)") {
-                        Button("지금 설치하고 다시 켜기", action: installNow)
+                        Button(installing ? "설치하는 중…" : "지금 설치하고 다시 켜기", action: installNow)
                             .disabled(!canInstallNow)
                     }
-                    Text(automaticallyInstalls
-                         ? "타이머가 대기 중이고 창이 모두 닫힌 채로 1분쯤 지나면 스스로 설치하고 다시 켭니다. 그 전에 앱을 끄면 그때 설치됩니다. 설치할 때까지는 새로 확인하지 않습니다."
-                         : "자동 설치가 꺼져 있어 스스로 설치하지 않습니다. 위 단추를 누르거나 앱을 끄면 설치됩니다. 설치할 때까지는 새로 확인하지 않습니다.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 } else {
                     if let availableVersion {
                         Text("새 버전 \(availableVersion)이 있습니다.")
                     }
                     Button("지금 확인", action: checkNow)
                         .disabled(!canCheckNow)
-                    Text(automaticallyInstalls
-                         ? "새 버전을 받으면, 타이머가 대기 중이고 창이 모두 닫힌 채로 1분쯤 지났을 때 앱을 다시 켜면서 설치합니다. 그 전에 앱을 끄면 그때 설치됩니다."
-                         : "자동 설치가 꺼져 있습니다. 새 버전이 있으면 알려 주기만 합니다.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
+                Text(Self.caption(hasPending: pendingVersion != nil, automaticallyChecks: automaticallyChecks, automaticallyInstalls: automaticallyInstalls))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
+    }
+
+    /// 아래 설명 한 줄. 지금 설정에서 실제로 일어나는 일만 적습니다.
+    nonisolated static func caption(hasPending: Bool, automaticallyChecks: Bool, automaticallyInstalls: Bool) -> String {
+        if hasPending {
+            return automaticallyInstalls
+                ? "타이머가 대기 중이고 팝오버와 창이 모두 닫힌 채로 1분쯤 지나면 스스로 설치하고 다시 켭니다. 그 전에 앱을 끄면 그때 설치됩니다. 설치할 때까지는 새로 확인하지 않습니다."
+                : "자동 설치가 꺼져 있어 스스로 설치하지 않습니다. 위 단추를 누르거나 앱을 끄면 설치됩니다. 설치할 때까지는 새로 확인하지 않습니다."
+        }
+        if !automaticallyChecks {
+            return "자동 확인이 꺼져 있습니다. \"지금 확인\"을 누를 때만 확인합니다."
+        }
+        return automaticallyInstalls
+            ? "새 버전을 받으면, 타이머가 대기 중이고 팝오버와 창이 모두 닫힌 채로 1분쯤 지났을 때 앱을 다시 켜면서 설치합니다. 그 전에 앱을 끄면 그때 설치됩니다."
+            : "자동 설치가 꺼져 있습니다. 새 버전이 있으면 알려 주기만 합니다."
     }
 }

@@ -22,7 +22,8 @@ final class UpdateController: NSObject, ObservableObject {
     /// 사용자 기본값 `UpdateInstallSettleSeconds`로 바꿀 수 있습니다(scripts/update-e2e.sh 가 시험을 빨리 돌리려고 씁니다).
     nonisolated static let settleTimeKey = "UpdateInstallSettleSeconds"
     nonisolated static let defaultSettleTime: TimeInterval = 60
-    /// Sparkle이 "이제 끄고 다시 켠다"고 알린 뒤 이만큼(초) 안에 온 종료만 Sparkle의 종료로 봅니다.
+    /// Sparkle이 "이제 끄고 다시 켠다"고 알린 뒤(재시도에서는 설치 동작을 다시 실행한 뒤) 이만큼(초) 안에,
+    /// 다른 프로세스가 보낸 종료만 Sparkle의 종료로 봅니다.
     nonisolated static let relaunchGrace: TimeInterval = 10
 
     let configuration: UpdaterConfiguration
@@ -64,8 +65,10 @@ final class UpdateController: NSObject, ObservableObject {
     // Sparkle 쪽에서 바뀐 값을 받아 적는 중인지 (받은 값을 Sparkle에 되쓰지 않기 위함)
     private var syncingFromUpdater = false
     private var quietTimer: Timer?
-    // Sparkle이 "이제 끄고 다시 켠다"고 알린 때
+    // Sparkle의 종료 요청이 곧 올 것으로 보는 때: Sparkle이 "이제 끄고 다시 켠다"고 알린 때, 또는 그 뒤의 재시도를 실행한 때
     private var relaunchAnnouncedAt: TimeInterval?
+    // Sparkle이 지금 붙잡고 있는 설치에 대해 이미 알렸는지. Sparkle은 설치 하나에 한 번만 알리고 미룰지도 한 번만 묻습니다.
+    private var relaunchWasAnnounced = false
     private let reminderNotificationId = "pomodoro_update"
     // 업데이트가 왜 설치됐는지(또는 안 됐는지)를 나중에 볼 수 있게 남깁니다 (콘솔 앱에서 category "update").
     private let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Pomodoro", category: "update")
@@ -171,11 +174,19 @@ final class UpdateController: NSObject, ObservableObject {
         pendingVersion = version
         lastLoggedQuiet = nil
         relaunchAnnouncedAt = nil
+        relaunchWasAnnounced = false
         gate.hold { [weak self] in
             self?.log.notice("installing held update \(version, privacy: .public) now")
+            self?.heldInstallWillRun()
             install()
         }
         gateDidChange()
+    }
+
+    // 문지기가 설치 동작을 실행하기 직전에. 종료를 한 번 막은 뒤의 재시도에는 Sparkle의 알림이 다시 오지 않으므로
+    // (설치 도우미에게 종료 요청만 다시 보내게 합니다), 스스로 다시 실행하는 지금을 알린 때로 삼습니다.
+    private func heldInstallWillRun() {
+        if relaunchWasAnnounced { relaunchAnnouncedAt = now() }
     }
 
     /// 타이머 상태나 창이 바뀌었을 때, 그리고 붙잡고 있는 동안 주기적으로 불러 지금 조용한지를 다시 잽니다.
@@ -207,6 +218,7 @@ final class UpdateController: NSObject, ObservableObject {
         let version = pendingVersion ?? "?"
         gate.hold { [weak self] in
             self?.log.notice("resuming postponed install of \(version, privacy: .public)")
+            self?.heldInstallWillRun()
             resume()
         }
         gateDidChange()
@@ -215,31 +227,32 @@ final class UpdateController: NSObject, ObservableObject {
 
     /// Sparkle이 "이제 앱을 끄고 다시 켠다"고 알렸을 때.
     func sparkleWillRelaunch() {
+        relaunchWasAnnounced = true
         relaunchAnnouncedAt = now()
     }
 
     /// 앱이 꺼지려 할 때 AppDelegate가 묻습니다. 문지기가 스스로 시작한 설치로 Sparkle이 방금 끄는 중인데 그 사이
     /// 조용하지 않게 됐으면(집중 시작, 창 열림) 참을 돌려주고 설치를 다시 붙잡습니다.
-    /// Sparkle이 끈다고 알린 직후의 종료만 봅니다 — 사용자가 직접 끄는 것, 로그아웃, "지금 설치"는 막지 않습니다.
-    func shouldCancelTermination() -> Bool {
-        guard let announcedAt = relaunchAnnouncedAt, now() - announcedAt < Self.relaunchGrace,
+    /// Sparkle의 설치 도우미는 다른 프로세스에서 종료를 요청하므로 그런 요청만, 그것도 Sparkle이 끈다고 알린 직후에만 봅니다 —
+    /// 앱 안에서 누른 "종료", 로그아웃·시스템 종료, "지금 설치"는 막지 않습니다.
+    func shouldCancelTermination(_ request: TerminationRequest) -> Bool {
+        guard request == .fromAnotherProcess,
+              let announcedAt = relaunchAnnouncedAt, now() - announcedAt < Self.relaunchGrace,
               gate.isInstallingOnItsOwn, !quietProbe()
         else { return false }
         log.notice("cancelled termination for update: no longer quiet")
         lastLoggedQuiet = nil
-        relaunchAnnouncedAt = nil
         gate.installWasInterrupted()
         gateDidChange()
         return true
     }
 
-    /// Sparkle의 업데이트 주기가 끝났을 때. 받아 둔 설치 동작은 그 주기의 것이라 더 쓸 수 없으므로 치웁니다
-    /// (설치 도우미와의 연결이 끊긴 경우 등. 이미 받아 둔 업데이트는 앱을 끌 때 설치됩니다).
+    /// Sparkle의 업데이트 주기가 끝났거나 오류로 중단됐을 때. 받아 둔 설치 동작은 그 주기의 것이라 더 쓸 수 없으므로 치웁니다.
+    /// 그 업데이트는 설치 도우미가 살아 있으면 앱을 끌 때 설치되고, 아니면 다음 확인 때 다시 받습니다.
     func updateCycleDidFinish() {
         if gate.hasPendingInstall { log.notice("update cycle finished: dropping the held install") }
         gate.discard()
         pendingVersion = nil
-        relaunchAnnouncedAt = nil
         gateDidChange()
     }
 
@@ -249,9 +262,14 @@ final class UpdateController: NSObject, ObservableObject {
         refreshQuietTimer()
     }
 
-    // 창이 열리고 닫히는 것처럼 알림이 오지 않는 변화도 놓치지 않도록, 스스로 설치할 것을 붙잡고 있는 동안에만 10초마다 다시 잽니다.
+    /// 10초마다 다시 재야 하는지. 창이 열리고 닫히는 것처럼 알림이 오지 않는 변화를 놓치지 않도록 스스로 설치할 것을
+    /// 붙잡고 있는 동안에, 그리고 시작한 설치가 먹지 않았을 때 그것을 알아채도록 설치 중인 동안에 잽니다.
+    var needsQuietTimer: Bool {
+        gate.hasPendingInstall && (gate.allowsAutomaticInstall || gate.isInstalling)
+    }
+
     private func refreshQuietTimer() {
-        if gate.hasPendingInstall && gate.allowsAutomaticInstall {
+        if needsQuietTimer {
             guard quietTimer == nil else { return }
             quietTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
                 Task { @MainActor in self?.reevaluateQuietness() }
@@ -300,6 +318,22 @@ extension UpdateController: SPUUpdaterDelegate {
 
     func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: Error?) {
         updateCycleDidFinish()
+    }
+
+    // 주기가 끝났다는 알림이 오지 않는 중단도 있어(꼭 설치해야 하는 업데이트가 중단된 경우), 오류로 중단될 때도 치웁니다.
+    func updater(_ updater: SPUUpdater, didAbortWithError error: Error) {
+        updateCycleDidFinish()
+    }
+}
+
+extension TerminationRequest {
+    /// 지금 처리 중인 종료 요청 (applicationShouldTerminate 안에서 읽습니다).
+    @MainActor static var current: TerminationRequest {
+        let event = NSAppleEventManager.shared().currentAppleEvent
+        let isQuit = event.map { $0.eventClass == AEEventClass(kCoreEventClass) && $0.eventID == AEEventID(kAEQuitApplication) } ?? false
+        // 'why?' = keyAEQuitReason (로그아웃·재시동·시스템 종료가 붙이는 이유). Swift 에 이름이 나와 있지 않아 값으로 씁니다.
+        let hasReason = event?.attributeDescriptor(forKeyword: AEKeyword(0x7768_793F)) != nil
+        return classify(isQuitEvent: isQuit, hasQuitReason: hasReason)
     }
 }
 

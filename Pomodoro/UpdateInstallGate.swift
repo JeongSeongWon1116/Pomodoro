@@ -118,6 +118,23 @@ final class UpdateInstallGate {
     }
 }
 
+/// 앱을 끄라는 요청이 어디서 왔는지.
+enum TerminationRequest: Equatable {
+    /// 앱 안에서 부른 종료 (팝오버의 "종료")
+    case fromThisApp
+    /// 로그아웃, 재시동, 시스템 종료
+    case fromSystem
+    /// 다른 프로세스가 보낸 종료 요청. Sparkle 의 설치 도우미가 앱을 이렇게 끕니다 (활성 상태 보기나 스크립트가 끌 때도 같습니다).
+    case fromAnotherProcess
+
+    /// 종료를 처리하는 그 순간의 Apple 이벤트로 가립니다. 앱 안에서 부른 종료에는 Apple 이벤트가 없고,
+    /// 다른 프로세스가 끄면 "종료" 이벤트가 오며, 로그아웃·재시동·시스템 종료에는 거기에 이유가 붙어 옵니다.
+    static func classify(isQuitEvent: Bool, hasQuitReason: Bool) -> TerminationRequest {
+        guard isQuitEvent else { return .fromThisApp }
+        return hasQuitReason ? .fromSystem : .fromAnotherProcess
+    }
+}
+
 /// 지금 앱을 껐다 켜도 사용자가 잃는 것이 없는 때인지.
 enum UpdateQuietness {
     /// 타이머가 완전히 대기이고(세션도, 준비해 둔 다음 세션도 없음) 팝오버와 창이 모두 닫혀 있을 때만 참.
