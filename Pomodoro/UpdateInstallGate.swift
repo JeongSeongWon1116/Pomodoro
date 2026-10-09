@@ -14,7 +14,7 @@ final class UpdateInstallGate {
     private enum Phase {
         case empty
         case holding
-        case installing(userRequested: Bool, startedAt: Date)
+        case installing(userRequested: Bool, startedAt: TimeInterval)
     }
 
     /// 조용함이 이만큼 이어져야 스스로 설치합니다.
@@ -22,12 +22,25 @@ final class UpdateInstallGate {
     /// 설치를 시작했는데 이만큼 지나도 앱이 꺼지지 않으면 다시 붙잡습니다.
     let installTimeout: TimeInterval
 
-    private let now: () -> Date
+    // 깨어 있는 동안만 가는 시계(초). 벽시계를 쓰면 잠든 시간이 조용함으로 세어져, 깨어나자마자 설치하게 됩니다.
+    private let now: () -> TimeInterval
     private var install: (() -> Void)?
     private var phase: Phase = .empty
-    private var quietSince: Date?
+    private var quietSince: TimeInterval?
+
+    /// 스스로 설치해도 되는지(설정의 "자동 설치"). 꺼져 있으면 붙잡고만 있습니다 — 버리지 않으므로 다시 켜면 이어서 하고,
+    /// 그동안에도 "지금 설치"는 됩니다. 꺼져 있던 동안의 조용함은 세지 않습니다.
+    var allowsAutomaticInstall = true {
+        didSet { if !allowsAutomaticInstall { quietSince = nil } }
+    }
 
     var hasPendingInstall: Bool { install != nil }
+
+    /// 설치 동작을 실행했고 앱이 꺼지기를 기다리는 중인지.
+    var isInstalling: Bool {
+        if case .installing = phase { return true }
+        return false
+    }
 
     /// 문지기가 스스로 시작한 설치로 앱이 꺼지는 중인지. (사용자가 "지금 설치"를 누른 경우는 아님)
     var isInstallingOnItsOwn: Bool {
@@ -35,7 +48,11 @@ final class UpdateInstallGate {
         return false
     }
 
-    init(settleTime: TimeInterval = 60, installTimeout: TimeInterval = 30, now: @escaping () -> Date = Date.init) {
+    init(
+        settleTime: TimeInterval = 60,
+        installTimeout: TimeInterval = 30,
+        now: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
+    ) {
         self.settleTime = settleTime
         self.installTimeout = installTimeout
         self.now = now
@@ -51,27 +68,32 @@ final class UpdateInstallGate {
 
     /// 지금 조용한지를 잴 때마다 알려 줍니다. 조용함이 `settleTime` 동안 이어졌으면 설치 동작을 실행합니다.
     func update(quiet: Bool) {
-        guard install != nil else { return }
-        if case .installing(_, let startedAt) = phase {
-            // 이미 설치를 시작했습니다. 앱이 곧 꺼질 것이므로 또 실행하지 않습니다.
-            // 한참 지나도 살아 있으면(설치 도우미가 실패한 경우 등) 다시 붙잡고 처음부터 셉니다.
-            guard now().timeIntervalSince(startedAt) >= installTimeout else { return }
-            phase = .holding
-            quietSince = nil
-        }
-        guard quiet else {
+        guard install != nil, !stillInstalling() else { return }
+        guard quiet, allowsAutomaticInstall else {
             quietSince = nil
             return
         }
         let since = quietSince ?? now()
         quietSince = since
-        guard now().timeIntervalSince(since) >= settleTime else { return }
+        guard now() - since >= settleTime else { return }
         run(userRequested: false)
     }
 
-    /// 사용자가 "지금 설치"를 눌렀을 때. 조용한지를 따지지 않습니다.
+    /// 사용자가 "지금 설치"를 눌렀을 때. 조용한지도, 스스로 설치가 켜져 있는지도 따지지 않습니다.
+    /// 이미 설치가 진행 중이면 또 실행하지 않습니다.
     func installNow() {
+        guard install != nil, !stillInstalling() else { return }
         run(userRequested: true)
+    }
+
+    // 설치를 시작했으면 앱이 곧 꺼질 것이므로 또 실행하지 않습니다. 한참 지나도 살아 있으면(설치 도우미가 실패한
+    // 경우 등) 다시 붙잡는 상태로 돌려 놓고 거짓을 돌려줍니다.
+    private func stillInstalling() -> Bool {
+        guard case .installing(_, let startedAt) = phase else { return false }
+        if now() - startedAt < installTimeout { return true }
+        phase = .holding
+        quietSince = nil
+        return false
     }
 
     /// 설치하려고 앱을 끄던 중에 종료가 취소됐을 때. 다시 붙잡고, 조용함을 처음부터 셉니다.
@@ -81,7 +103,7 @@ final class UpdateInstallGate {
         quietSince = nil
     }
 
-    /// 맡긴 설치를 버립니다 (자동 설치를 껐을 때. 앱을 끌 때 설치되는 것은 Sparkle 이 따로 합니다).
+    /// 맡긴 설치를 버립니다 (Sparkle 의 업데이트 주기가 끝나 그 설치 동작을 더 쓸 수 없을 때).
     func discard() {
         install = nil
         phase = .empty
@@ -108,5 +130,11 @@ enum UpdateQuietness {
     /// 제목 줄이 없습니다. Dock 에 최소화해 둔 창은 보이지 않아도 열린 창입니다(앱을 다시 켜면 사라집니다).
     static func openWindowCount(_ windows: [(visible: Bool, miniaturized: Bool, titled: Bool)]) -> Int {
         windows.filter { $0.titled && ($0.visible || $0.miniaturized) }.count
+    }
+
+    /// 앱이 가려져 있을 때("가리기", "기타 가리기")는 창이 보이지 않아 `openWindowCount`가 0이 됩니다.
+    /// 닫힌 것이 아니므로, 가려지기 직전에 세어 둔 수를 씁니다. 가려진 채로 켜져서 세어 둔 것이 없으면 지금 수를 씁니다.
+    static func effectiveOpenWindows(live: Int, appHidden: Bool, countBeforeHide: Int?) -> Int {
+        appHidden ? max(live, countBeforeHide ?? 0) : live
     }
 }

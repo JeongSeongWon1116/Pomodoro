@@ -243,9 +243,9 @@ struct UpdateSettingsSection: View {
                         Button("지금 설치하고 다시 켜기", action: installNow)
                             .disabled(!canInstallNow)
                     }
-                    Text(canInstallNow
+                    Text(automaticallyInstalls
                          ? "타이머가 대기 중이고 창이 모두 닫힌 채로 1분쯤 지나면 스스로 설치하고 다시 켭니다. 그 전에 앱을 끄면 그때 설치됩니다. 설치할 때까지는 새로 확인하지 않습니다."
-                         : "앱을 끌 때 설치됩니다. 설치할 때까지는 새로 확인하지 않습니다.")
+                         : "자동 설치가 꺼져 있어 스스로 설치하지 않습니다. 위 단추를 누르거나 앱을 끄면 설치됩니다. 설치할 때까지는 새로 확인하지 않습니다.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
@@ -254,7 +254,9 @@ struct UpdateSettingsSection: View {
                     }
                     Button("지금 확인", action: checkNow)
                         .disabled(!canCheckNow)
-                    Text("새 버전을 받으면, 타이머가 대기 중이고 창이 모두 닫힌 채로 1분쯤 지났을 때 앱을 다시 켜면서 설치합니다. 그 전에 앱을 끄면 그때 설치됩니다.")
+                    Text(automaticallyInstalls
+                         ? "새 버전을 받으면, 타이머가 대기 중이고 창이 모두 닫힌 채로 1분쯤 지났을 때 앱을 다시 켜면서 설치합니다. 그 전에 앱을 끄면 그때 설치됩니다."
+                         : "자동 설치가 꺼져 있습니다. 새 버전이 있으면 알려 주기만 합니다.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

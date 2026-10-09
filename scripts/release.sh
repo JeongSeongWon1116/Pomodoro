@@ -29,14 +29,14 @@ for arg in "$@"; do
     --publish) PUBLISH=1 ;;
     --install) INSTALL=1 ;;
     --allow-key-change) ALLOW_KEY_CHANGE=1 ;;
-    *) sed -n '2,12p' "$0"; exit 2 ;;
+    *) awk 'NR > 1 && /^#/ { print; next } NR > 1 { exit }' "$0"; exit 2 ;;
   esac
 done
 say() { printf '\n== %s\n' "$*"; }
 die() { printf 'release: %s\n' "$*" >&2; exit 1; }
 xcb() { xcodebuild -project Pomodoro.xcodeproj -scheme Pomodoro -derivedDataPath "$DD" "$@"; }
-# project.pbxproj 글에서 빌드 설정 하나의 첫 값을 꺼낸다 (따옴표가 있든 없든).
-pbx_setting() { sed -n "s/^[[:space:]]*$1 = \"\{0,1\}\([^\";]*\)\"\{0,1\};\$/\1/p" | head -1; }
+# project.pbxproj 글에서 빌드 설정 하나의 값을 모두 꺼낸다 (구성·타깃마다 한 줄. 따옴표가 있든 없든).
+pbx_values() { sed -n "s/^[[:space:]]*$1 = \"\{0,1\}\([^\";]*\)\"\{0,1\};\$/\1/p"; }
 
 say "버전과 서명 키"
 mkdir -p "$BUILD_HOME" "$ROOT/build"
@@ -57,14 +57,21 @@ echo "Pomodoro $VERSION ($BUILD)"
 say "지난 릴리스와 견주기"
 # 이미 설치된 앱은 지난 릴리스에 든 공개 키를 믿고, 빌드 번호가 더 커야만 업데이트로 본다.
 [ "$PUBLISH" = 0 ] || git fetch -q --tags origin || die "태그를 받아 오지 못했습니다"
-PREV_TAG="$(git tag --list 'v[0-9]*' --sort=-v:refname | head -1)"
+TAGS="$(git tag --list 'v[0-9]*' --sort=-v:refname)" || die "태그 목록을 읽지 못했습니다"
+PREV_TAG=""   # 이 버전의 태그는 빼고(같은 버전을 다시 설치만 하는 경우) 가장 높은 것
+while IFS= read -r tag; do
+  if [ -n "$tag" ] && [ "$tag" != "v$VERSION" ]; then PREV_TAG="$tag"; break; fi
+done <<< "$TAGS"
 if [ -n "$PREV_TAG" ]; then
   PREV_PBX="$(git show "$PREV_TAG:Pomodoro.xcodeproj/project.pbxproj")" || die "$PREV_TAG 의 프로젝트 파일을 읽지 못했습니다"
-  PREV_BUILD="$(printf '%s\n' "$PREV_PBX" | pbx_setting CURRENT_PROJECT_VERSION)"
-  PREV_KEY="$(printf '%s\n' "$PREV_PBX" | pbx_setting POMODORO_ED_PUBLIC_KEY)"
+  # 구성마다 값이 다를 수 있으므로 빌드 번호는 가장 큰 것과 견주고, 공개 키는 하나로 모이는지 본다.
+  PREV_BUILD="$(printf '%s\n' "$PREV_PBX" | pbx_values CURRENT_PROJECT_VERSION | sort -n | tail -1)"
+  PREV_KEYS="$(printf '%s\n' "$PREV_PBX" | pbx_values POMODORO_ED_PUBLIC_KEY | sed '/^$/d' | sort -u)"
   echo "지난 릴리스 $PREV_TAG (빌드 ${PREV_BUILD:-?})"
   case "${PREV_BUILD:-x}" in (*[!0-9]*) die "$PREV_TAG 의 빌드 번호를 읽지 못했습니다" ;; esac
   [ "$BUILD" -gt "$PREV_BUILD" ] || die "빌드 번호($BUILD)가 지난 릴리스($PREV_BUILD)보다 커야 합니다. 같거나 작으면 설치된 앱이 업데이트로 보지 않습니다"
+  [ "$(printf '%s\n' "$PREV_KEYS" | sed '/^$/d' | wc -l | tr -d ' ')" -le 1 ] || die "$PREV_TAG 의 공개 키가 구성마다 다릅니다. 직접 확인합니다"
+  PREV_KEY="$PREV_KEYS"
   if [ -n "$PREV_KEY" ] && [ "$PREV_KEY" != "$PUBKEY" ]; then
     [ "$ALLOW_KEY_CHANGE" = 1 ] || die "공개 키가 $PREV_TAG 와 다릅니다. 이미 설치된 앱은 이 릴리스를 받아들이지 않습니다. 일부러 바꾼 것이면 --allow-key-change"
     echo "주의: 공개 키가 $PREV_TAG 와 다릅니다 (--allow-key-change)"
@@ -146,15 +153,28 @@ let deadline = Date().addingTimeInterval(15)
 while Date() < deadline, apps.contains(where: { !$0.isTerminated }) { RunLoop.current.run(until: Date().addingTimeInterval(0.2)) }
 exit(apps.contains(where: { !$0.isTerminated }) ? 1 : 0)
 SWIFT
-  swift "$QUIT" "$BUNDLE_ID" || die "실행 중인 Pomodoro 가 끝나지 않았습니다. 직접 끈 뒤 다시 합니다"
-  # 끄는 순간, 앱이 받아 둔 업데이트가 있으면 Sparkle 의 설치 도우미가 앱을 바꾸기 시작한다. 그것이 끝나기를 기다린다
-  # (기다리지 않으면 반쯤 바뀐 앱을 옮기거나, 방금 넣은 빌드가 덮일 수 있다).
+  # 끄는 순간, 앱이 받아 둔 업데이트가 있으면 Sparkle 의 설치 도우미(앱 묶음 안에서 돈다)가 앱을 바꾸기 시작한다.
+  # 그것이 끝나기를 기다린다 — 기다리지 않으면 반쯤 바뀐 앱을 옮기거나, 방금 넣은 빌드가 덮일 수 있다.
   HELPERS='Pomodoro\.app/Contents/Frameworks/Sparkle\.framework'
-  waited=0
-  while pgrep -f "$HELPERS" | while read -r pid; do ps -o command= -p "$pid" | grep -v -q "/update-e2e/" && echo "$pid"; done | grep -q .; do
-    [ "$waited" -lt 90 ] || die "Sparkle 설치 도우미가 끝나지 않습니다. 끝난 뒤 다시 합니다"
-    sleep 1; waited=$((waited + 1))
-  done
+  helpers_alive() { # 시험용 앱(update-e2e)의 도우미는 세지 않는다
+    local pid cmd
+    for pid in $(pgrep -f "$HELPERS" || true); do
+      cmd="$(ps -o command= -p "$pid" 2>/dev/null || true)"
+      case "$cmd" in (""|*/update-e2e/*) ;; (*) return 0 ;; esac
+    done
+    return 1
+  }
+  quit_and_settle() {
+    swift "$QUIT" "$BUNDLE_ID" || die "실행 중인 Pomodoro 가 끝나지 않았습니다. 직접 끈 뒤 다시 합니다"
+    local waited=0
+    while helpers_alive; do
+      [ "$waited" -lt 90 ] || die "Sparkle 설치 도우미가 끝나지 않습니다. 끝난 뒤 다시 합니다"
+      sleep 1; waited=$((waited + 1))
+    done
+  }
+  quit_and_settle
+  # 도우미가 설치를 마치고 앱을 다시 켰을 수 있다. 한 번 더 끄고 기다린다(떠 있는 것이 없으면 곧바로 지나간다).
+  quit_and_settle
   if [ -e "$DEST" ]; then
     OLD_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$DEST/Contents/Info.plist" 2>/dev/null || echo old)"
     # 지우지 않고 옮겨 둔다. 이름 끝을 .app 이 아니게 해서, macOS 가 이것을 또 하나의 Pomodoro 로 보고
