@@ -20,6 +20,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNUserNot
 
     // 앱 실행 초기 단계에서 중복 실행 체크
     func applicationWillFinishLaunching(_ notification: Notification) {
+        // 테스트 호스트로 실행된 경우에는 중복 실행 체크를 건너뜁니다.
+        // (사용 중인 앱이 떠 있으면 테스트 호스트가 exit(0) 으로 꺼져 테스트가 시작도 못 합니다.)
+        if DataController.isRunningTests { return }
         let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier ?? "")
         if runningApps.count > 1 {
             // 기존 앱 활성화하고 새 인스턴스 즉시 종료
