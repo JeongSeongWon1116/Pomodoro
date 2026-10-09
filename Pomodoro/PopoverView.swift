@@ -70,7 +70,11 @@ struct PopoverView: View {
                 }
                 .help("설정")
                 Spacer()
-                Button("종료") { NSApplication.shared.terminate(nil) }
+                Button("종료") {
+                    // 진행 중인 세션이 사라지지 않도록 종료 전에 기록합니다.
+                    viewModel.logInterruptedSession()
+                    NSApplication.shared.terminate(nil)
+                }
             }
         }
         .padding()
