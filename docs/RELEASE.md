@@ -44,7 +44,7 @@ Pomodoro는 GitHub 릴리스로 배포하고, 설치된 앱은 [Sparkle](https:/
     cd /Volumes/C/project/Pomodoro && bash scripts/release.sh --publish
     ```
     GitHub 릴리스 `v<버전>`을 만들고 zip과 `appcast.xml`을 붙입니다. 올린 뒤 앱이 보는 주소가 이 버전을 돌려주는지 확인합니다. 설치된 앱은 6시간 안에(또는 "지금 확인"으로) 받아 갑니다.
-4. 이 Mac의 `/Applications/Pomodoro.app`을 곧바로 바꾸려면 `--install`을 더합니다. 실행 중인 Pomodoro를 정상 종료시키고(받아 둔 업데이트가 있어 Sparkle이 설치를 시작하면 그것이 끝나기를 기다립니다), 예전 앱은 지우지 않고 `~/Library/Developer/Pomodoro-build/replaced/`로 옮긴 뒤 새 빌드를 넣고 켭니다. (자동 업데이트가 되는 버전이 한 번 설치된 뒤로는 필요 없습니다.)
+4. 이 Mac의 `/Applications/Pomodoro.app`을 곧바로 바꾸려면 `--install`을 더합니다. 실행 중인 Pomodoro를 정상 종료시키고(받아 둔 업데이트가 있어 Sparkle이 설치를 시작하면 그것이 끝나기를 기다립니다), 예전 앱은 지우지 않고 `~/Library/Developer/Pomodoro-build/replaced/`로 옮긴 뒤(이름 끝을 `.app-replaced`로 바꿔 macOS가 또 하나의 Pomodoro로 보지 않게 합니다) 새 빌드를 넣고 켭니다. "로그인 시 자동 실행"을 켜 두었다면 설치 뒤 설정 > 일반에서 켜져 있는지 한 번 봅니다. (자동 업데이트가 되는 버전이 한 번 설치된 뒤로는 필요 없습니다.)
 
 스크립트는 `~/Library/Developer/Pomodoro-build/dd`에 빌드합니다(`POMODORO_BUILD_HOME`으로 바꿀 수 있음). Xcode의 기본 DerivedData(Xcode에서 실행 중인 앱이 쓰는 곳)는 건드리지 않습니다. 저장소가 외장 디스크에 있어도 빌드는 내장 디스크에 둡니다 — 아래 "알려진 한계"의 외장 디스크 항목 때문입니다. 저장소에 공유 scheme은 없고, `xcodebuild`가 스스로 만드는 `Pomodoro` scheme에 기댑니다.
 

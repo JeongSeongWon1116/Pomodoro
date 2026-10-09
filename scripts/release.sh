@@ -157,9 +157,11 @@ SWIFT
   done
   if [ -e "$DEST" ]; then
     OLD_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$DEST/Contents/Info.plist" 2>/dev/null || echo old)"
-    KEEP="$BUILD_HOME/replaced/Pomodoro-$OLD_VERSION-$(date +%Y%m%d-%H%M%S).app"
+    # 지우지 않고 옮겨 둔다. 이름 끝을 .app 이 아니게 해서, macOS 가 이것을 또 하나의 Pomodoro 로 보고
+    # (Spotlight, 로그인 항목 등에서) 예전 앱을 띄우는 일이 없게 한다. 되돌리려면 이름을 Pomodoro.app 으로 바꿔 /Applications 에 넣는다.
+    KEEP="$BUILD_HOME/replaced/Pomodoro-$OLD_VERSION-$(date +%Y%m%d-%H%M%S).app-replaced"
     mkdir -p "$(dirname "$KEEP")"
-    mv "$DEST" "$KEEP"   # 지우지 않고 옮겨 둔다
+    mv "$DEST" "$KEEP"
     echo "예전 앱: $KEEP"
   fi
   ditto "$APP" "$DEST"
