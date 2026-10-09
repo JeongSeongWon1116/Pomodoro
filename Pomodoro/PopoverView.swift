@@ -76,8 +76,7 @@ struct PopoverView: View {
                 .help("설정")
                 Spacer()
                 Button("종료") {
-                    // 진행 중인 세션이 사라지지 않도록 종료 전에 기록합니다.
-                    viewModel.logInterruptedSession()
+                    // 진행 중인 세션은 종료 과정(AppDelegate.applicationShouldTerminate)에서 기록합니다.
                     NSApplication.shared.terminate(nil)
                 }
             }

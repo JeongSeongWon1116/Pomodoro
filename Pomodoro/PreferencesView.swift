@@ -14,6 +14,8 @@ struct PreferencesView: View {
                 .tabItem { Label("알림", systemImage: "bell") }
             ObsidianSettingsTab()
                 .tabItem { Label("Obsidian", systemImage: "doc.text") }
+            ShortcutSettingsTab()
+                .tabItem { Label("단축어", systemImage: "square.2.layers.3d") }
             GeneralSettingsTab()
                 .tabItem { Label("일반", systemImage: "gearshape") }
         }
@@ -131,6 +133,38 @@ struct ObsidianSettingsTab: View {
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+// MARK: - 단축어
+
+struct ShortcutSettingsTab: View {
+    @ObservedObject private var settings = AppSettings.shared
+
+    var body: some View {
+        Form {
+            Section("집중할 때 실행할 단축어") {
+                shortcutRow("집중을 시작할 때", name: $settings.focusStartShortcut)
+                shortcutRow("집중이 끝날 때", name: $settings.focusEndShortcut)
+            }
+            Section {
+                Text("단축어 앱에 있는 단축어의 이름을 그대로 적습니다(예: 방해금지 모드를 켜는 단축어와 끄는 단축어). 비워 두면 실행하지 않습니다. 연장하면 시작 단축어를 다시 실행하고, 건너뛰기·초기화·종료로 집중을 그만둘 때도 끝 단축어를 실행합니다.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private func shortcutRow(_ title: String, name: Binding<String>) -> some View {
+        LabeledContent(title) {
+            TextField(title, text: name, prompt: Text("단축어 이름"))
+                .labelsHidden()
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 170)
+            Button("실행해 보기") { URLShortcutRunner().run(named: name.wrappedValue) }
+                .disabled(name.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
     }
 }
 

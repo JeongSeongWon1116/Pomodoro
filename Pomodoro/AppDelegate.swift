@@ -153,7 +153,28 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNUserNot
         return false
     }
 
-    // 앱 종료 시 진행 중인 세션을 기록하고 알림 취소
+    // 종료하기 전에 진행 중인 세션을 기록합니다. 집중 도중이었고 끝 단축어(방해금지 끄기 등)가 있으면
+    // 그 실행 요청이 넘어갈 때까지 종료를 잠깐 미룹니다. 요청은 비동기라, 바로 끝내면 전달되기 전에
+    // 프로세스가 사라질 수 있습니다.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let pomodoroViewModel else { return .terminateNow }
+        var finished = false
+        var shouldReply = false // .terminateLater 를 돌려준 뒤에만 답합니다
+        let finish = {
+            guard !finished else { return }
+            finished = true
+            if shouldReply { sender.reply(toApplicationShouldTerminate: true) }
+        }
+        guard pomodoroViewModel.logInterruptedSession(shortcutDelivered: finish), !finished else {
+            return .terminateNow
+        }
+        shouldReply = true
+        // 단축어 앱이 응답하지 않아도 종료가 멈춰 있지 않도록 2초 뒤에는 끝냅니다.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: finish)
+        return .terminateLater
+    }
+
+    // 앱 종료 시 (위에서 이미 기록하지 못한 경우에 대비해) 진행 중인 세션을 기록하고 알림 취소
     func applicationWillTerminate(_ notification: Notification) {
         pomodoroViewModel?.logInterruptedSession()
         pomodoroViewModel?.cancelAllNotifications()
