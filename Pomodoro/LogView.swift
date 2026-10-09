@@ -62,6 +62,8 @@ struct LogView: View {
 
     private func deleteAllLogs() {
         try? modelContext.delete(model: FocusLogEntry.self)
+        // 기록에 딸린 할 일·보상·다음 시작점 메모도 함께 지웁니다.
+        TransitionNote.delete(forSessions: nil, in: DataController.shared.transitionContainer?.mainContext)
     }
 }
 
@@ -246,8 +248,10 @@ struct FilteredLogListView: View {
                     }
                     .onDelete { indexSet in
                         guard let dayLogs = groupedLogs[day] else { return }
-                        for index in indexSet {
-                            modelContext.delete(dayLogs[index])
+                        let deleted = indexSet.map { dayLogs[$0] }
+                        TransitionNote.delete(forSessions: deleted.map(\.id), in: DataController.shared.transitionContainer?.mainContext)
+                        for log in deleted {
+                            modelContext.delete(log)
                         }
                     }
                 } header: {

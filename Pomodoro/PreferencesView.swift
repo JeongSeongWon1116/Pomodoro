@@ -39,9 +39,10 @@ struct TimerSettingsTab: View {
                         value: $settings.longBreakInterval, in: 2...10)
             }
             Section("세션 전환") {
+                Toggle("전환 관리 (할 일·보상 적기, 집중이 끝나면 선택 기다리기)", isOn: $settings.transitionManagementEnabled)
                 Toggle("집중이 끝나면 휴식 자동 시작", isOn: $settings.autoStartBreaks)
                 Toggle("휴식이 끝나면 집중 자동 시작", isOn: $settings.autoStartFocus)
-                Text("끄면 세션이 끝났을 때 대기 상태로 멈추고, 메뉴 바에서 직접 시작할 수 있습니다.")
+                Text("전환 관리를 켜면, 끝까지 마친 집중은 저절로 넘어가지 않고 메뉴 바에서 휴식 시작이나 10분 연장을 고를 때까지 기다립니다(휴식 자동 시작은 건너뛴 집중에만 적용). 끄면 할 일·보상 칸과 선택 화면이 없어지고 예전처럼 동작합니다. 자동 시작을 끄면 세션이 끝났을 때 대기 상태로 멈추고, 메뉴 바에서 직접 시작할 수 있습니다.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

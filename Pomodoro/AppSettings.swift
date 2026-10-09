@@ -39,6 +39,12 @@ final class AppSettings: ObservableObject {
         didSet { defaults?.set(autoStartFocus, forKey: "autoStartFocus") }
     }
 
+    /// 전환 관리(할 일·보상·다음 시작점 적기, 집중이 끝났을 때 선택 기다리기)를 쓸지 여부.
+    /// 끄면 칸도 선택 화면도 없이 예전처럼 동작하고, 메모도 남기지 않습니다.
+    @Published var transitionManagementEnabled: Bool {
+        didSet { defaults?.set(transitionManagementEnabled, forKey: "transitionManagementEnabled") }
+    }
+
     @Published var notificationSoundName: String {
         didSet { defaults?.set(notificationSoundName, forKey: "notificationSound") }
     }
@@ -70,7 +76,8 @@ final class AppSettings: ObservableObject {
     }
 
     // 저장소. nil 이면 기본값만 쓰고 아무것도 저장하지 않습니다(단위 테스트용).
-    private let defaults: UserDefaults?
+    // ViewModel 도 적어 둔 할 일·보상을 여기에 둡니다.
+    let defaults: UserDefaults?
 
     init(defaults: UserDefaults? = .standard) {
         self.defaults = defaults
@@ -80,6 +87,7 @@ final class AppSettings: ObservableObject {
         self.longBreakInterval = Self.validLongBreakInterval((defaults?.object(forKey: "longBreakInterval") as? Int) ?? 4)
         self.autoStartBreaks = (defaults?.object(forKey: "autoStartBreaks") as? Bool) ?? true
         self.autoStartFocus = (defaults?.object(forKey: "autoStartFocus") as? Bool) ?? true
+        self.transitionManagementEnabled = (defaults?.object(forKey: "transitionManagementEnabled") as? Bool) ?? true
         self.notificationSoundName = defaults?.string(forKey: "notificationSound") ?? "Glass"
         self.showTimeInMenuBar = (defaults?.object(forKey: "showTimeInMenuBar") as? Bool) ?? true
         self.launchAtLogin = SMAppService.mainApp.status == .enabled

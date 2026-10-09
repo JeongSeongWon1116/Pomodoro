@@ -9,11 +9,15 @@ struct StatusBarView: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: viewModel.currentState.symbolName)
+            Image(systemName: viewModel.timerState == .awaitingChoice ? "bell.badge" : viewModel.currentState.symbolName)
                 .imageScale(.large)
                 .foregroundStyle(.primary)
 
-            if viewModel.timerState == .running || viewModel.timerState == .paused {
+            if viewModel.timerState == .awaitingChoice {
+                // 집중이 끝나 휴식/연장 선택을 기다리는 중
+                Text("선택")
+                    .font(.system(size: 11, weight: .medium))
+            } else if viewModel.timerState == .running || viewModel.timerState == .paused {
                 if settings.showTimeInMenuBar {
                     Text(viewModel.timeRemainingString)
                         .font(.system(size: 11, weight: .medium))

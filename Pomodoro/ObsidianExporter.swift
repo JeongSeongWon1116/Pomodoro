@@ -75,7 +75,8 @@ final class ObsidianExporter: ObservableObject {
 
     /// 완료된 세션을 해당 날짜의 데일리 노트에 추가합니다.
     /// 노트가 없으면 새로 만들고, "## 🍅 뽀모도로" 섹션이 있으면 그 끝에 줄을 추가합니다.
-    func appendSession(_ entry: FocusLogEntry) {
+    /// details 가 있으면 할 일·보상·다음 시작점·연장을 기록 줄 아래에 들여쓴 줄로 붙입니다.
+    func appendSession(_ entry: FocusLogEntry, details: TransitionDetails? = nil) {
         // 단위 테스트가 실제 보관함에 쓰지 않도록 합니다. (파일 처리는 appendLine 으로 따로 검증)
         if DataController.isRunningTests { return }
         guard isEnabled, let folder = resolveFolderURL() else { return }
@@ -86,7 +87,7 @@ final class ObsidianExporter: ObservableObject {
         defer { folder.stopAccessingSecurityScopedResource() }
 
         let noteURL = folder.appendingPathComponent(Self.noteFileName(for: entry.startTime))
-        let line = Self.markdownLine(for: entry)
+        let line = Self.markdownLines(for: entry, details: details)
         do {
             try Self.appendLine(line, toNoteAt: noteURL)
         } catch {
@@ -137,6 +138,35 @@ final class ObsidianExporter: ObservableObject {
         // 종료 시각 = 시작 + 활동 시간 + 정지 시간
         let end = timeFormatter.string(from: entry.startTime.addingTimeInterval(entry.duration + entry.pausedDuration))
         return "- \(entry.sessionType.emoji) \(entry.sessionType.rawValue) \(durationText(entry.duration)) (\(start)–\(end))"
+    }
+
+    /// 기록 줄과, 그 아래에 들여써 붙이는 할 일·보상·다음 시작점·연장 줄.
+    /// 기록 줄 자체는 markdownLine 과 같아서 하루 통계 계산에 영향을 주지 않습니다.
+    static func markdownLines(for entry: FocusLogEntry, details: TransitionDetails?) -> String {
+        var lines = [markdownLine(for: entry)]
+        guard let details else { return lines[0] }
+        for (label, text) in [("할 일", details.task), ("보상", details.reward), ("다음 시작점", details.nextStartingPoint)] {
+            let flattened = singleLine(text)
+            if !flattened.isEmpty { lines.append("\t- \(label): \(flattened)") }
+        }
+        if details.extensionCount > 0 {
+            let minutes = details.extensionCount * Int(PomodoroViewModel.focusExtension / 60)
+            lines.append("\t- 연장: +\(minutes)분")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// 줄바꿈을 공백으로 펴고 앞뒤 공백을 뗍니다. (적은 글이 노트의 줄 구조를 깨지 않도록)
+    /// "%%" 는 Obsidian 의 주석 표시라, 짝이 없으면 뒤의 내용이 화면에서 숨으므로 사이를 띄웁니다.
+    private static func singleLine(_ text: String) -> String {
+        var flattened = text.split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        while flattened.contains("%%") {
+            flattened = flattened.replacingOccurrences(of: "%%", with: "% %")
+        }
+        return flattened
     }
 
     /// 초 단위까지 표시하는 시간 문자열 (예: "1시간 2분 3초", "25분", "42초")
