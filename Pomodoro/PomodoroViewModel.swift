@@ -68,6 +68,7 @@ class PomodoroViewModel: ObservableObject {
     private var awaitingSince: Date? // 집중 시간이 다 된 시각 (선택을 기다리는 동안에만 값이 있음)
     private var modelContext: ModelContext
     private let notesContext: ModelContext? // 할 일·보상·다음 시작점을 두는 별도 저장소. nil 이면 저장하지 않습니다.
+    private let shortcuts: ShortcutRunning // 집중의 시작과 끝에 단축어를 실행하는 것
     private weak var appDelegate: AppDelegate?
 
     init(
@@ -75,10 +76,12 @@ class PomodoroViewModel: ObservableObject {
         appDelegate: AppDelegate,
         settings: AppSettings = .shared,
         notesContext: ModelContext? = nil,
+        shortcuts: ShortcutRunning = URLShortcutRunner(),
         now: @escaping () -> Date = Date.init
     ) {
         self.modelContext = modelContext
         self.notesContext = notesContext
+        self.shortcuts = shortcuts
         self.settings = settings
         self.now = now
         self.appDelegate = appDelegate
@@ -180,11 +183,14 @@ class PomodoroViewModel: ObservableObject {
         sessionDuration += Self.focusExtension
         extensionCount += 1
         startTicking()
+        runShortcut(settings.focusStartShortcut)
     }
 
     func resetToIdle() {
         guard timerState != .idle || currentState != .idle else { return }
+        let focusWasInProgress = isFocusInProgress
         logSession()
+        if focusWasInProgress { runShortcut(settings.focusEndShortcut) }
         timerSubscription?.cancel()
         currentState = .idle
         timerState = .idle
@@ -199,6 +205,7 @@ class PomodoroViewModel: ObservableObject {
         sessionDuration = getTotalDuration(for: state)
         sessionStartTime = now()
         startTicking()
+        if state == .focus { runShortcut(settings.focusStartShortcut) }
     }
 
     /// 자동 시작이 꺼져 있을 때: 다음 세션을 대기 상태로 준비만 해 둡니다.
@@ -269,6 +276,7 @@ class PomodoroViewModel: ObservableObject {
         // 연장한 집중은 원래 시간을 이미 다 채웠으므로, 연장 중에 건너뛰어도 마친 집중으로 셉니다.
         let countsAsSkipped = skipped && !(endedSessionType == .focus && extensionCount > 0)
         let nextSessionType = getNextSessionType(from: endedSessionType, skipped: countsAsSkipped)
+        if endedSessionType == .focus { runShortcut(settings.focusEndShortcut) }
         let shouldAutoStart = nextSessionType == .focus
             ? settings.autoStartFocus
             : settings.autoStartBreaks
@@ -307,6 +315,7 @@ class PomodoroViewModel: ObservableObject {
         lastResumeTime = nil
         timeRemaining = 0
         timerState = .awaitingChoice
+        runShortcut(settings.focusEndShortcut)
         playSound()
         showFocusEndedNotification()
     }
@@ -416,11 +425,33 @@ class PomodoroViewModel: ObservableObject {
 
     /// 앱 종료 직전에 진행 중인 세션을 중단된 기록으로 남깁니다.
     /// 기록한 뒤 추적 값을 비우므로 여러 번 불려도 한 번만 남습니다.
-    func logInterruptedSession() {
-        guard sessionStartTime != nil else { return }
+    ///
+    /// 집중 도중이었고 끝 단축어가 적혀 있으면 그것을 실행하고 true 를 돌려줍니다. 그때는 실행 요청이
+    /// 단축어 앱 쪽으로 넘어간 뒤 shortcutDelivered 가 불리므로, 부른 쪽은 종료를 그때까지 미룰 수 있습니다.
+    /// 실행할 단축어가 없으면 false 를 돌려주고 shortcutDelivered 는 부르지 않습니다.
+    @discardableResult
+    func logInterruptedSession(shortcutDelivered: (() -> Void)? = nil) -> Bool {
+        guard sessionStartTime != nil else { return false }
+        let focusWasInProgress = isFocusInProgress
         logSession()
         timerSubscription?.cancel()
         clearSessionTracking()
+        guard focusWasInProgress else { return false }
+        return runShortcut(settings.focusEndShortcut, completion: shortcutDelivered)
+    }
+
+    /// 집중 시간이 흐르는 중이거나 일시정지된 상태 (선택을 기다리는 집중은 이미 끝난 것으로 봅니다)
+    private var isFocusInProgress: Bool {
+        currentState == .focus && (timerState == .running || timerState == .paused)
+    }
+
+    /// 설정에 적어 둔 이름의 단축어를 실행합니다. 비어 있으면 아무것도 하지 않고 false 를 돌려줍니다.
+    @discardableResult
+    private func runShortcut(_ name: String, completion: (() -> Void)? = nil) -> Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        shortcuts.run(named: trimmed, completion: completion)
+        return true
     }
 
     private func playSound() {

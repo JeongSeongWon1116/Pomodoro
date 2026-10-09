@@ -45,6 +45,14 @@ final class AppSettings: ObservableObject {
         didSet { defaults?.set(transitionManagementEnabled, forKey: "transitionManagementEnabled") }
     }
 
+    /// 집중을 시작할 때와 집중이 끝날 때 실행할 단축어의 이름. 비워 두면 실행하지 않습니다.
+    @Published var focusStartShortcut: String {
+        didSet { defaults?.set(focusStartShortcut, forKey: "focusStartShortcut") }
+    }
+    @Published var focusEndShortcut: String {
+        didSet { defaults?.set(focusEndShortcut, forKey: "focusEndShortcut") }
+    }
+
     @Published var notificationSoundName: String {
         didSet { defaults?.set(notificationSoundName, forKey: "notificationSound") }
     }
@@ -88,6 +96,8 @@ final class AppSettings: ObservableObject {
         self.autoStartBreaks = (defaults?.object(forKey: "autoStartBreaks") as? Bool) ?? true
         self.autoStartFocus = (defaults?.object(forKey: "autoStartFocus") as? Bool) ?? true
         self.transitionManagementEnabled = (defaults?.object(forKey: "transitionManagementEnabled") as? Bool) ?? true
+        self.focusStartShortcut = defaults?.string(forKey: "focusStartShortcut") ?? ""
+        self.focusEndShortcut = defaults?.string(forKey: "focusEndShortcut") ?? ""
         self.notificationSoundName = defaults?.string(forKey: "notificationSound") ?? "Glass"
         self.showTimeInMenuBar = (defaults?.object(forKey: "showTimeInMenuBar") as? Bool) ?? true
         self.launchAtLogin = SMAppService.mainApp.status == .enabled
