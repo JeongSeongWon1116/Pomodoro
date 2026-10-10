@@ -139,6 +139,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNUserNot
             Task {
                 await pomodoroViewModel.checkNotificationSettings()
             }
+            // 기록 창에서 메모를 지웠을 수 있으니, 칸 옆의 "지난 것에서 고르기"를 열 때마다 다시 읽습니다.
+            MainActor.assumeIsolated { pomodoroViewModel.refreshNoteSuggestions() }
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
             NSApp.activate(ignoringOtherApps: true)

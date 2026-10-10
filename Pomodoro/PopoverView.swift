@@ -98,10 +98,10 @@ struct PopoverView: View {
                     .textFieldStyle(.roundedBorder)
             } else if viewModel.currentState == .idle || viewModel.currentState == .focus {
                 if !viewModel.resumeHint.isEmpty { NoteLine(label: "이어서", text: viewModel.resumeHint) }
-                TextField("할 일", text: $viewModel.focusTask)
-                    .textFieldStyle(.roundedBorder)
-                TextField("끝나면 받을 보상", text: $viewModel.focusReward)
-                    .textFieldStyle(.roundedBorder)
+                NoteField(title: "할 일", text: $viewModel.focusTask,
+                          suggestions: viewModel.taskSuggestions, help: "지난 할 일에서 고르기")
+                NoteField(title: "끝나면 받을 보상", text: $viewModel.focusReward,
+                          suggestions: viewModel.rewardSuggestions, help: "지난 보상에서 고르기")
             } else {
                 if !reward.isEmpty { NoteLine(label: "보상", text: reward) }
                 if !viewModel.resumeHint.isEmpty { NoteLine(label: "다음 시작점", text: viewModel.resumeHint) }
@@ -127,6 +127,40 @@ struct PopoverView: View {
         }
     }
 
+}
+
+/// 글을 적는 칸. 지난 집중에 적었던 글이 있으면 칸 옆의 단추로 골라 넣을 수 있습니다.
+struct NoteField: View {
+    let title: String
+    @Binding var text: String
+    let suggestions: [String]
+    let help: String
+
+    var body: some View {
+        HStack(spacing: 4) {
+            TextField(title, text: $text)
+                .textFieldStyle(.roundedBorder)
+            if !suggestions.isEmpty {
+                Menu {
+                    ForEach(suggestions, id: \.self) { suggestion in
+                        Button(Self.menuTitle(suggestion)) { text = suggestion }
+                    }
+                } label: {
+                    Image(systemName: "clock.arrow.circlepath")
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help(help)
+            }
+        }
+    }
+
+    /// 메뉴에는 한 줄로, 길면 줄여서 보여 줍니다 (고르면 원래 글이 그대로 들어갑니다).
+    nonisolated static func menuTitle(_ text: String, limit: Int = 30) -> String {
+        let oneLine = text.split(whereSeparator: \.isNewline).joined(separator: " ")
+        return oneLine.count > limit ? oneLine.prefix(limit) + "…" : oneLine
+    }
 }
 
 /// "보상: 커피" 처럼 적어 둔 글을 한두 줄로 보여 줍니다.
