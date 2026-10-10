@@ -38,12 +38,19 @@ struct NoteFieldPickTests {
         let timer = Timer(timeInterval: 0.05, repeats: true) { _ in
             MainActor.assumeIsolated {
                 ticks += 1
-                guard let menu = button.menu else { return }
-                if !chosen, let index = menu.items.firstIndex(where: { $0.title == title }) {
+                if !chosen, let menu = button.menu, let index = menu.items.firstIndex(where: { $0.title == title }) {
                     chosen = true
                     menu.performActionForItem(at: index)
                 }
-                if chosen || ticks >= 40 { menu.cancelTracking() }
+                guard chosen || ticks >= 40 else { return }
+                button.menu?.cancelTracking()
+                // 그래도 닫히지 않으면(2초가 지나도 추적 중이면) Esc 를 넣어 닫습니다. 테스트가 멈춰 서면 릴리스 스크립트도 멈춥니다.
+                if ticks >= 40, let esc = NSEvent.keyEvent(
+                    with: .keyDown, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                    windowNumber: 0, context: nil, characters: "\u{1B}", charactersIgnoringModifiers: "\u{1B}", isARepeat: false, keyCode: 53
+                ) {
+                    NSApp.postEvent(esc, atStart: true)
+                }
             }
         }
         RunLoop.main.add(timer, forMode: .common)
