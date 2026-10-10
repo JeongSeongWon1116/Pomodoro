@@ -808,6 +808,25 @@ struct UpdateControllerTests {
         #expect(installs == 1)
     }
 
+    @Test func 자동_확인_값을_받아_적기_전에는_스스로_설치하지_않는다() {
+        // 막 만든 때의 값은 "자동 확인 꺼짐"입니다(앱은 start() 에서 Sparkle 의 값을 받아 적습니다). 그 처음 상태도 규칙을 따라야 합니다.
+        let controller = UpdateController(
+            configuration: usable,
+            gate: UpdateInstallGate(settleTime: 0, installTimeout: 30, now: { [clock] in clock.time }),
+            now: { [clock] in clock.time }
+        )
+        controller.quietProbe = { true }
+        var installs = 0
+        controller.holdInstall(version: "1.2.1") { installs += 1 }
+        #expect(!controller.needsQuietTimer)
+        controller.reevaluateQuietness()
+        #expect(installs == 0)
+
+        controller.automaticallyChecks = true
+        controller.reevaluateQuietness()
+        #expect(installs == 1)
+    }
+
     @Test func 자동_설치가_꺼져_있어도_지금_설치는_된다() {
         let controller = makeController(settle: 0)
         controller.quietProbe = { true }
@@ -889,6 +908,7 @@ struct UpdateTerminationWiringTests {
             gate: UpdateInstallGate(settleTime: 0, installTimeout: 30, now: { [clock] in clock.time }),
             now: { [clock] in clock.time }
         )
+        controller.automaticallyChecks = true // 앱에서는 Sparkle 의 값을 받아 적습니다
         var quiet = true
         controller.quietProbe = { quiet }
         controller.holdInstall(version: "1.2.1") {}

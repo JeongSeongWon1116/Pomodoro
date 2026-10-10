@@ -111,6 +111,8 @@ final class UpdateController: NSObject, ObservableObject {
         let configured = UserDefaults.standard.double(forKey: Self.settleTimeKey)
         self.gate = gate ?? UpdateInstallGate(settleTime: configured >= 1 ? configured : Self.defaultSettleTime, now: now)
         super.init()
+        // 처음 값(자동 확인 꺼짐)도 규칙을 따르게 합니다. 앱은 start() 에서 Sparkle 의 값을 받아 적으며 다시 맞춥니다.
+        applyAutomaticInstallPolicy()
     }
 
     /// 업데이터를 켭니다(`whyNotStarting`이 이유를 대면 아무것도 하지 않습니다).
@@ -163,7 +165,8 @@ final class UpdateController: NSObject, ObservableObject {
 
     // 받아 둔 것을 스스로 설치해도 되는지: 자동 확인과 자동 설치가 모두 켜져 있을 때만.
     // 끄면 붙잡아 둔 것을 스스로 설치하지 않습니다. 버리지는 않습니다 — 다시 켜면 이어서 하고, "지금 설치"도 됩니다.
-    // Sparkle 도 자동 확인이 꺼져 있으면 자동 설치를 꺼진 것으로 읽지만, 설정 창의 문구가 그것에 기대지 않도록 여기서 정합니다.
+    // Sparkle 2.10.0 도 자동 확인이 꺼져 있으면 자동 설치를 꺼진 것으로 읽지만(SPUUpdaterSettings.m), 설정 창의 문구가
+    // Sparkle 의 속에 기대지 않도록 여기서 정합니다.
     private func applyAutomaticInstallPolicy() {
         let allowed = automaticallyChecks && automaticallyInstalls
         if gate.allowsAutomaticInstall != allowed { gate.allowsAutomaticInstall = allowed }

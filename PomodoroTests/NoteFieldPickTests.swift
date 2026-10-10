@@ -35,17 +35,25 @@ struct NoteFieldPickTests {
     private func choose(_ title: String, from button: NSPopUpButton) -> Bool {
         var chosen = false
         var ticks = 0
+        // SwiftUI 가 단추의 menu 가 아닌 다른 메뉴 객체로 열더라도 닫을 수 있게, 실제로 추적을 시작한 메뉴를 받아 둡니다.
+        var tracking: NSMenu?
+        let observer = NotificationCenter.default.addObserver(forName: NSMenu.didBeginTrackingNotification, object: nil, queue: nil) { note in
+            let menu = note.object as? NSMenu
+            MainActor.assumeIsolated { tracking = menu }
+        }
+        defer { NotificationCenter.default.removeObserver(observer) }
         let timer = Timer(timeInterval: 0.05, repeats: true) { _ in
             MainActor.assumeIsolated {
                 ticks += 1
-                if !chosen, let menu = button.menu, let index = menu.items.firstIndex(where: { $0.title == title }) {
+                let menu = tracking ?? button.menu
+                if !chosen, let menu, let index = menu.items.firstIndex(where: { $0.title == title }) {
                     chosen = true
                     menu.performActionForItem(at: index)
                 }
                 guard chosen || ticks >= 40 else { return }
-                button.menu?.cancelTracking()
-                // 그래도 닫히지 않으면(2초가 지나도 추적 중이면) Esc 를 넣어 닫습니다. 테스트가 멈춰 서면 릴리스 스크립트도 멈춥니다.
-                if ticks >= 40, let esc = NSEvent.keyEvent(
+                menu?.cancelTrackingWithoutAnimation()
+                // 그래도 닫히지 않으면(2초가 지나도 추적 중이면) Esc 를 한 번 넣어 닫습니다. 테스트가 멈춰 서면 릴리스 스크립트도 멈춥니다.
+                if ticks == 41, let esc = NSEvent.keyEvent(
                     with: .keyDown, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
                     windowNumber: 0, context: nil, characters: "\u{1B}", charactersIgnoringModifiers: "\u{1B}", isARepeat: false, keyCode: 53
                 ) {
@@ -57,6 +65,50 @@ struct NoteFieldPickTests {
         button.performClick(nil)
         timer.invalidate()
         return chosen
+    }
+
+    struct TwoFieldHost: View {
+        @ObservedObject var task: Model
+        @ObservedObject var reward: Model
+        var body: some View {
+            VStack {
+                NoteField(title: "할 일", text: $task.text, suggestions: ["지난 글"], help: "지난 할 일에서 고르기")
+                NoteField(title: "보상", text: $reward.text, suggestions: ["지난 보상"], help: "지난 보상에서 고르기")
+            }
+            .padding()
+            .frame(width: 320)
+        }
+    }
+
+    @Test func 다른_칸을_편집하는_중이면_그_칸의_편집과_글은_그대로_둔다() throws {
+        let task = Model(), reward = Model()
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 120), styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        defer { window.close() }
+        let hosting = NSHostingView(rootView: TwoFieldHost(task: task, reward: reward))
+        window.contentView = hosting
+        hosting.layoutSubtreeIfNeeded()
+        spin()
+        let all = descendants(of: hosting)
+        let fields = all.compactMap { $0 as? NSTextField }.filter(\.isEditable)
+        let buttons = all.compactMap { $0 as? NSPopUpButton }
+        try #require(fields.count == 2 && buttons.count == 2)
+        // 위아래 차례로 놓였으므로 화면에서 더 위에 있는 것이 할 일 칸입니다.
+        let byHeight = { (a: NSView, b: NSView) in a.convert(a.bounds, to: nil).midY > b.convert(b.bounds, to: nil).midY }
+        let rewardField = fields.sorted(by: byHeight)[1]
+        let taskButton = buttons.sorted(by: byHeight)[0]
+        #expect(window.makeFirstResponder(rewardField))
+        let editor = try #require(rewardField.currentEditor() as? NSTextView)
+        editor.insertText("받을 보상", replacementRange: NSRange(location: 0, length: 0))
+        spin(0.1)
+        #expect(reward.text == "받을 보상")
+
+        guard choose("지난 글", from: taskButton) else { return Self.skipped() }
+        spin(0.3)
+        #expect(task.text == "지난 글")
+        #expect(reward.text == "받을 보상")
+        #expect(rewardField.stringValue == "받을 보상")
+        #expect(rewardField.currentEditor() != nil) // 보상 칸은 여전히 편집 중
     }
 
     private struct Stage {
