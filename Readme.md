@@ -14,6 +14,7 @@ macOS용으로 제작된 간단한 뽀모도로 타이머 애플리케이션입�
 - **알림 기능**: 집중 또는 휴식 시간이 끝나면 사용자에게 알려줍니다.
 - **Obsidian 연동**: 세션이 끝날 때마다 Obsidian 데일리 노트에 초 단위 기록과 하루 통계를 자동으로 남깁니다. ([가이드](docs/OBSIDIAN.md))
 - **단축어 연동**: 집중이 시작할 때와 끝날 때 단축어 앱의 단축어를 실행합니다(방해금지 켜고 끄기 등). ([가이드](docs/SHORTCUTS.md))
+- **자동 업데이트**: 새 버전이 나오면 스스로 받아, 타이머가 대기 중이고 팝오버와 창이 모두 닫힌 채로 1분쯤 지났을 때 설치합니다. (설정 > 일반 > 업데이트)
 
 ## 💻 사용 기술
 
@@ -26,20 +27,31 @@ macOS용으로 제작된 간단한 뽀모도로 타이머 애플리케이션입�
 ### 요구사항
 
 - macOS 14.0 이상
-- Xcode 16.0 이상
+- Xcode 16.0 이상 (소스에서 빌드할 때)
 
-### 설치 및 실행
+### 설치
+
+1. [릴리스](https://github.com/JeongSeongWon1116/Pomodoro/releases/latest)에서 `Pomodoro-<버전>.zip`을 받아 풀고, `Pomodoro.app`을 응용 프로그램 폴더로 옮깁니다.
+2. 처음 열 때 macOS가 "확인되지 않은 개발자"라며 막습니다(Apple 공증을 받지 않은 앱입니다). **시스템 설정 > 개인정보 보호 및 보안**에서 "그래도 열기"를 누르거나, 터미널에서 아래 한 줄을 실행한 뒤 다시 엽니다.
+    ```bash
+    xattr -dr com.apple.quarantine /Applications/Pomodoro.app
+    ```
+3. 그 뒤의 새 버전은 앱이 스스로 받아 설치합니다.
+
+요구사항: macOS 14.0 이상.
+
+### 소스에서 빌드
 
 1.  이 저장소를 로컬 컴퓨터에 복제(clone)합니다.
     ```bash
     git clone https://github.com/jeongseongwon1116/pomodoro.git
     ```
 2.  Xcode에서 `Pomodoro.xcodeproj` 파일을 엽니다.
-3.  빌드하고 실행합니다 (Cmd+R).
+3.  빌드하고 실행합니다 (Cmd+R). Xcode에서 실행한 개발 빌드는 자동 업데이트를 확인하지 않습니다. 릴리스를 만드는 법은 [docs/RELEASE.md](docs/RELEASE.md)에 있습니다.
 
 ## 🔖 버전
 
-현재 버전: **1.1.0** — 변경 내역은 [CHANGELOG.md](CHANGELOG.md)를 참고하세요.
+현재 버전: **1.2.0** — 변경 내역은 [CHANGELOG.md](CHANGELOG.md)를 참고하세요.
 
 ## 📝 향후 개선 계획
 
@@ -62,5 +74,6 @@ macOS용으로 제작된 간단한 뽀모도로 타이머 애플리케이션입�
 - [x] 세션 자동/수동 전환 설정
 - [x] 긴 휴식 간격 설정 기능
 - [x] 로그인 시 자동 실행 옵션
-- [ ] app으로 release 하기 (Archive → 공증 → DMG 배포)
+- [x] app으로 release 하기 — GitHub 릴리스(zip)와 자동 업데이트 ([docs/RELEASE.md](docs/RELEASE.md))
+- [ ] Apple 공증 (Developer ID가 있어야 합니다. 지금은 받은 앱을 처음 열 때 한 번 허용해야 합니다)
 - [x] 집중 세션에 방해금지 모드가 자동으로 실행되는 기능 — 단축어 연동으로 ([docs/SHORTCUTS.md](docs/SHORTCUTS.md))

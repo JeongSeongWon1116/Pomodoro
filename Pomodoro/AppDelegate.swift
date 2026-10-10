@@ -2,6 +2,7 @@
 // Description: 상태 표시줄 아이콘, 팝오버, 알림 등 AppKit 관련 기능을 관리합니다.
 
 import Cocoa
+import Combine
 import SwiftUI
 import SwiftData
 import UserNotifications
@@ -17,6 +18,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNUserNot
 
     var modelContext: ModelContext?
     private var pomodoroViewModel: PomodoroViewModel!
+
+    // 자동 업데이트. (테스트에서 다른 것으로 바꿔 끼울 수 있게 변수로 둡니다.)
+    @MainActor lazy var updates: UpdateController = .shared
+    // 지금 처리 중인 종료 요청이 어디서 왔는지 (테스트에서 바꿔 끼웁니다)
+    var terminationRequestProbe: @MainActor () -> TerminationRequest = { TerminationRequest.current }
+    private var updateQuietSubscription: AnyCancellable?
+    private var hideObservers: [NSObjectProtocol] = []
+    // 앱이 가려지기 직전에 열려 있던 창의 수 (가려져 있는 동안에만 값이 있음)
+    private var openWindowsBeforeHide: Int?
 
     // 앱 실행 초기 단계에서 중복 실행 체크
     func applicationWillFinishLaunching(_ notification: Notification) {
@@ -78,6 +88,47 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNUserNot
         Task {
             await pomodoroViewModel.requestNotificationPermission()
         }
+
+        // 자동 업데이트. 받아 둔 업데이트는 타이머가 쉬고 있고 창이 없는 상태가 이어질 때만 설치하므로,
+        // 타이머 상태가 바뀔 때마다 지금 조용한지를 다시 잽니다. (테스트 호스트와 개발 빌드에서는 켜지지 않습니다.)
+        updates.quietProbe = { [weak self] in self?.isQuietForUpdate ?? false }
+        // "가리기"를 하면 창이 보이지 않게 되어 닫힌 것처럼 세어집니다. 가려지기 직전의 수를 적어 두었다가 씁니다.
+        hideObservers = [
+            NotificationCenter.default.addObserver(forName: NSApplication.willHideNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.openWindowsBeforeHide = self?.liveOpenWindowCount }
+            },
+            NotificationCenter.default.addObserver(forName: NSApplication.didUnhideNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.openWindowsBeforeHide = nil
+                    self?.updates.reevaluateQuietness()
+                }
+            }
+        ]
+        updateQuietSubscription = Publishers.CombineLatest(pomodoroViewModel.$currentState, pomodoroViewModel.$timerState)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.updates.reevaluateQuietness() }
+        updates.start()
+    }
+
+    @MainActor private var liveOpenWindowCount: Int {
+        UpdateQuietness.openWindowCount(NSApp.windows.map {
+            (visible: $0.isVisible, miniaturized: $0.isMiniaturized, titled: $0.styleMask.contains(.titled))
+        })
+    }
+
+    // 지금 앱을 껐다 켜도 잃는 것이 없는지: 타이머가 완전히 대기이고 팝오버와 창이 닫혀 있을 때.
+    @MainActor private var isQuietForUpdate: Bool {
+        guard let pomodoroViewModel, let popover else { return false }
+        return UpdateQuietness.isQuiet(
+            currentState: pomodoroViewModel.currentState,
+            timerState: pomodoroViewModel.timerState,
+            popoverShown: popover.isShown,
+            openWindows: UpdateQuietness.effectiveOpenWindows(
+                live: liveOpenWindowCount,
+                appHidden: NSApp.isHidden,
+                countBeforeHide: openWindowsBeforeHide
+            )
+        )
     }
 
     @objc func togglePopover(_ sender: AnyObject? = nil) {
@@ -92,6 +143,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNUserNot
             popover.contentViewController?.view.window?.makeKey()
             NSApp.activate(ignoringOtherApps: true)
             startPopoverEventMonitor()
+            // 팝오버가 열렸으니 조용하지 않습니다 (버튼 동작은 메인 스레드에서 불립니다).
+            MainActor.assumeIsolated { updates.reevaluateQuietness() }
         }
     }
 
@@ -114,6 +167,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNUserNot
     // transient 동작 등 어떤 경로로 닫히든 모니터를 함께 해제합니다.
     func popoverDidClose(_ notification: Notification) {
         stopPopoverEventMonitor()
+        updates.reevaluateQuietness()
     }
     
     // 토글과 달리 이미 닫혀 있으면 다시 열지 않습니다.
@@ -157,6 +211,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNUserNot
     // 그 실행 요청이 넘어갈 때까지 종료를 잠깐 미룹니다. 요청은 비동기라, 바로 끝내면 전달되기 전에
     // 프로세스가 사라질 수 있습니다.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        // 받아 둔 업데이트를 설치하려고 Sparkle이 방금 끄는 중인데, 그 사이에 사용자가 집중을 시작했거나 창을 열었으면
+        // 끄지 않습니다(설치는 다시 붙잡아 둡니다). 앱 안에서 누른 "종료"와 로그아웃은 여기서 막지 않습니다.
+        if updates.shouldCancelTermination(terminationRequestProbe()) { return .terminateCancel }
         guard let pomodoroViewModel else { return .terminateNow }
         var finished = false
         var shouldReply = false // .terminateLater 를 돌려준 뒤에만 답합니다
