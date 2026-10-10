@@ -248,7 +248,7 @@ final class UpdateController: NSObject, ObservableObject {
     }
 
     /// Sparkle의 업데이트 주기가 끝났거나 오류로 중단됐을 때. 받아 둔 설치 동작은 그 주기의 것이라 더 쓸 수 없으므로 치웁니다.
-    /// 그 업데이트는 설치 도우미가 살아 있으면 앱을 끌 때 설치되고, 아니면 다음 확인 때 다시 받습니다.
+    /// 주기는 설치 도우미의 오류나 연결 끊김으로 끝나고 그때 도우미도 스스로 끝나므로, 그 업데이트는 대개 다음 확인 때 다시 받습니다.
     func updateCycleDidFinish() {
         if gate.hasPendingInstall { log.notice("update cycle finished: dropping the held install") }
         gate.discard()

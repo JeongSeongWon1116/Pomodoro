@@ -296,8 +296,10 @@ struct ShortcutHookTests {
     }
 
     @Test func 적어_둔_단축어_이름은_저장소가_있으면_앱을_다시_켜도_남는다() throws {
-        let suite = "PomodoroTests-\(UUID().uuidString)"
+        // 이름을 고정합니다: 돌릴 때마다 새 이름을 쓰면, 지운 뒤에도 빈 설정 파일이 앱의 컨테이너에 하나씩 남습니다.
+        let suite = "PomodoroTests-shortcut-names"
         let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
         defer { defaults.removePersistentDomain(forName: suite) }
 
         let first = AppSettings(defaults: defaults)

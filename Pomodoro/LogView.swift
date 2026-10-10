@@ -224,8 +224,19 @@ struct StatCard: View {
 struct FilteredLogListView: View {
     @Query private var logs: [FocusLogEntry]
     @Environment(\.modelContext) private var modelContext
+    @ObservedObject private var settings = AppSettings.shared
     /// 세션마다 적어 둔 할 일·보상·다음 시작점 (다른 저장소에 있어 따로 읽습니다)
     @State private var notes: [UUID: TransitionDetails] = [:]
+
+    /// 줄에 보여 줄 글. "전환 관리"를 꺼 두면 보여 주지 않습니다(적어 둔 글은 그대로 있고, 다시 켜면 보입니다).
+    static func visibleDetails(for sessionID: UUID, in notes: [UUID: TransitionDetails], transitionManagementEnabled: Bool) -> TransitionDetails? {
+        transitionManagementEnabled ? notes[sessionID] : nil
+    }
+
+    /// 글을 읽어 올 세션들: 집중 기록만 (휴식에는 적는 글이 없습니다). 꺼 두었으면 읽지 않습니다.
+    static func sessionsToLookUp(_ logs: [(id: UUID, type: PomodoroState)], transitionManagementEnabled: Bool) -> [UUID] {
+        transitionManagementEnabled ? logs.filter { $0.type == .focus }.map(\.id) : []
+    }
 
     init(period: TimePeriod, offset: Int) {
         _logs = Query(filter: period.predicate(offset: offset), sort: \.startTime, order: .reverse)
@@ -246,7 +257,8 @@ struct FilteredLogListView: View {
             ForEach(sortedDays, id: \.self) { day in
                 Section {
                     ForEach(groupedLogs[day] ?? []) { log in
-                        LogEntryRow(log: log, details: notes[log.id])
+                        LogEntryRow(log: log, details: Self.visibleDetails(
+                            for: log.id, in: notes, transitionManagementEnabled: settings.transitionManagementEnabled))
                     }
                     .onDelete { indexSet in
                         guard let dayLogs = groupedLogs[day] else { return }
@@ -262,9 +274,10 @@ struct FilteredLogListView: View {
             }
         }
         .listStyle(.inset)
-        // 보이는 기록이 바뀔 때마다(새 세션, 기간 이동, 삭제) 딸린 글을 다시 읽습니다.
-        .task(id: logs.map(\.id)) {
-            notes = TransitionNote.details(forSessions: logs.map(\.id), in: DataController.shared.transitionContainer?.mainContext)
+        // 보이는 기록이 바뀔 때마다(새 세션, 기간 이동, 삭제), 그리고 전환 관리를 켜고 끌 때 딸린 글을 다시 읽습니다.
+        .task(id: Self.sessionsToLookUp(logs.map { (id: $0.id, type: $0.sessionType) }, transitionManagementEnabled: settings.transitionManagementEnabled)) {
+            let ids = Self.sessionsToLookUp(logs.map { (id: $0.id, type: $0.sessionType) }, transitionManagementEnabled: settings.transitionManagementEnabled)
+            notes = TransitionNote.details(forSessions: ids, in: DataController.shared.transitionContainer?.mainContext)
         }
     }
 }

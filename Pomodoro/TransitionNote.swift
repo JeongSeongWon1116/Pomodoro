@@ -52,7 +52,11 @@ final class TransitionNote {
     /// 세션 id → 그 세션에 적은 글. 기록 창이 줄마다 보여 주는 데 씁니다. 적은 글이 없는 세션은 들어 있지 않습니다.
     static func details(forSessions sessionIDs: [UUID], in context: ModelContext?) -> [UUID: TransitionDetails] {
         guard let context, !sessionIDs.isEmpty else { return [:] }
-        let descriptor = FetchDescriptor<TransitionNote>(predicate: #Predicate { sessionIDs.contains($0.sessionID) })
+        // 세션마다 메모는 하나만 생기지만, 둘이 있어도 가장 나중 것을 쓰도록 차례를 정해 둡니다.
+        let descriptor = FetchDescriptor<TransitionNote>(
+            predicate: #Predicate { sessionIDs.contains($0.sessionID) },
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
         let notes = (try? context.fetch(descriptor)) ?? []
         return Dictionary(notes.map { ($0.sessionID, $0.details) }, uniquingKeysWith: { first, _ in first })
     }

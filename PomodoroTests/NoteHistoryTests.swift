@@ -32,6 +32,13 @@ struct NoteSuggestionsTests {
         #expect(picked == ["할 일 1", "할 일 2", "할 일 3", "할 일 4", "할 일 5"])
     }
 
+    @Test func 자모가_풀린_한글과_합쳐진_한글은_같은_글로_본다() {
+        // 파일 이름에서 온 글처럼 자모가 풀려 있어도(NFD) 같은 글입니다.
+        let decomposed = "\u{1112}\u{1161}\u{11AB}\u{1100}\u{1173}\u{11AF}" // "한글"
+        #expect(NoteSuggestions.recent([decomposed, "한글", "커피"]) == [decomposed, "커피"])
+        #expect(NoteSuggestions.recent(["한글", "커피"], excluding: decomposed) == ["커피"])
+    }
+
     @Test func 고른_글은_앞뒤_공백을_뗀_모습이다() {
         #expect(NoteSuggestions.recent(["  커피 한 잔\n"]) == ["커피 한 잔"])
     }
@@ -129,6 +136,15 @@ struct NoteHistoryTests {
         #expect(viewModel.rewardSuggestions.isEmpty)
     }
 
+    @Test func 지금_칸의_글과_대소문자나_공백만_다른_글도_고를_것에서_빠진다() {
+        finishFocus(task: "Review PR", reward: "Coffee")
+        viewModel.resetToIdle()
+        viewModel.focusTask = " review pr "
+        viewModel.focusReward = "COFFEE"
+        #expect(viewModel.taskSuggestions.isEmpty)
+        #expect(viewModel.rewardSuggestions.isEmpty)
+    }
+
     @Test func 기록을_모두_지운_뒤_다시_읽으면_고를_것이_없다() {
         finishFocus(task: "논문 3장", reward: "커피")
         viewModel.resetToIdle()
@@ -149,6 +165,16 @@ struct NoteHistoryTests {
         bare.refreshNoteSuggestions()
         #expect(bare.taskSuggestions.isEmpty)
         #expect(bare.rewardSuggestions.isEmpty)
+
+        // 그 상태로 집중을 마쳐도 기록은 남습니다.
+        let before = try container.mainContext.fetch(FetchDescriptor<FocusLogEntry>()).count
+        bare.focusTask = "논문 3장"
+        bare.startFocusSession()
+        clock.advance(bare.timeRemaining)
+        bare.tick()
+        bare.startBreakAfterFocus()
+        #expect(try container.mainContext.fetch(FetchDescriptor<FocusLogEntry>()).count == before + 1)
+        #expect(bare.taskSuggestions.isEmpty)
     }
 
     @Test func 앱을_다시_켜도_지난_기록에서_고를_수_있다() {
@@ -179,5 +205,26 @@ struct NoteHistoryTests {
         #expect(TransitionNote.details(forSessions: [focusIDs[1]], in: notesContainer.mainContext).keys.map { $0 } == [focusIDs[1]])
         #expect(TransitionNote.details(forSessions: [], in: notesContainer.mainContext).isEmpty)
         #expect(TransitionNote.details(forSessions: focusIDs, in: nil).isEmpty)
+    }
+
+    @Test func 같은_세션의_메모가_둘이면_나중_것을_쓴다() throws {
+        let context = notesContainer.mainContext
+        let id = UUID()
+        context.insert(TransitionNote(sessionID: id, details: TransitionDetails(task: "먼저"), createdAt: Date(timeIntervalSince1970: 100)))
+        context.insert(TransitionNote(sessionID: id, details: TransitionDetails(task: "나중"), createdAt: Date(timeIntervalSince1970: 200)))
+        try context.save()
+        #expect(TransitionNote.details(forSessions: [id], in: context)[id]?.task == "나중")
+    }
+
+    @Test func 전환_관리를_꺼_두면_기록_창은_적은_글을_보이지_않고_읽지도_않는다() {
+        let id = UUID()
+        let notes = [id: TransitionDetails(task: "논문 3장")]
+        #expect(FilteredLogListView.visibleDetails(for: id, in: notes, transitionManagementEnabled: true)?.task == "논문 3장")
+        #expect(FilteredLogListView.visibleDetails(for: id, in: notes, transitionManagementEnabled: false) == nil)
+
+        let rest = UUID()
+        let logs: [(id: UUID, type: PomodoroState)] = [(id: id, type: .focus), (id: rest, type: .shortBreak)]
+        #expect(FilteredLogListView.sessionsToLookUp(logs, transitionManagementEnabled: true) == [id]) // 휴식은 묻지 않습니다
+        #expect(FilteredLogListView.sessionsToLookUp(logs, transitionManagementEnabled: false).isEmpty)
     }
 }

@@ -143,7 +143,7 @@ struct NoteField: View {
             if !suggestions.isEmpty {
                 Menu {
                     ForEach(suggestions, id: \.self) { suggestion in
-                        Button(Self.menuTitle(suggestion)) { text = suggestion }
+                        Button(Self.menuTitle(suggestion)) { pick(suggestion) }
                     }
                 } label: {
                     Image(systemName: "clock.arrow.circlepath")
@@ -152,8 +152,16 @@ struct NoteField: View {
                 .menuIndicator(.hidden)
                 .fixedSize()
                 .help(help)
+                .accessibilityLabel(help)
             }
         }
+    }
+
+    private func pick(_ suggestion: String) {
+        // 칸을 편집하던 중이면 편집을 먼저 끝냅니다. 편집 중인 칸은 밖에서 바꾼 값을 보여 주지 않거나,
+        // 편집이 끝날 때 적던 글로 다시 덮을 수 있습니다.
+        NSApp.keyWindow?.makeFirstResponder(nil)
+        text = suggestion
     }
 
     /// 메뉴에는 한 줄로, 길면 줄여서 보여 줍니다 (고르면 원래 글이 그대로 들어갑니다).
