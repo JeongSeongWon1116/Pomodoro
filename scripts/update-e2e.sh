@@ -16,6 +16,10 @@
 # (임시 서명은 빌드마다 달라서 매번 다시 묻는다).
 # 남는 것: 위 폴더(다음 실행 때 옆으로 옮긴다), ~/Library/Containers/Jeong.Pomodoro.updatetest (시험용 앱의 자료).
 # 필요한 것: Xcode, python3, ed25519 를 아는 openssl(Homebrew 의 openssl 3).
+# 어떻게 불렸든(bash scripts/…, sh …) macOS 의 /bin/bash 로 돈다. PATH 에 먼저 잡히는 Homebrew 의 bash(5.x)는
+# CoreFoundation 을 쓰는 gettext 에 물려 있어, 갈라져 나온 하위 셸이 로캘을 되돌리다가 드물게 죽는다
+# (2026-10-10: 릴리스 예행이 테스트 직후 SIGSEGV 로 끝남).
+[ "${BASH:-}" = /bin/bash ] || exec /bin/bash "$0" "$@"
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

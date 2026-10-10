@@ -13,6 +13,10 @@
 #   - Xcode 의 기본 DerivedData(Xcode 에서 실행 중인 앱이 쓰는 곳)를 건드리지 않는다.
 #   - 저장소가 외장 디스크에 있어도 빌드는 내장 디스크에 둔다. 외장 디스크에서 앱을 띄우면(단위 테스트의 호스트 앱)
 #     macOS 가 "이동식 볼륨의 파일에 접근" 허락을 묻고, 임시 서명은 빌드마다 달라서 매번 다시 묻는다.
+# 어떻게 불렸든(bash scripts/…, sh …) macOS 의 /bin/bash 로 돈다. PATH 에 먼저 잡히는 Homebrew 의 bash(5.x)는
+# CoreFoundation 을 쓰는 gettext 에 물려 있어, 갈라져 나온 하위 셸이 로캘을 되돌리다가 드물게 죽는다
+# (2026-10-10: 릴리스 예행이 테스트 직후 SIGSEGV 로 끝남).
+[ "${BASH:-}" = /bin/bash ] || exec /bin/bash "$0" "$@"
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -91,8 +95,13 @@ fi
 
 say "단위 테스트"
 xcb -only-testing:PomodoroTests test > "$BUILD_HOME/release-test.log" 2>&1 || die "테스트 실패: $BUILD_HOME/release-test.log"
-PASSED="$(LC_ALL=C grep -a -c "^Test case .* passed" "$BUILD_HOME/release-test.log" || true)"
-[ "${PASSED:-0}" -gt 0 ] || die "통과한 테스트를 세지 못했습니다: $BUILD_HOME/release-test.log"
+# 통과한 수는 알려 주려고 센다(통과 여부는 위 xcodebuild 의 종료 코드가 정한다). 결과 줄("Test case '…' passed …")의
+# 마지막 한 줄은 xcodebuild 의 글과 섞여 중간에서 잘리곤 하므로, 줄머리로 세고 실패 줄을 뺀다.
+# 셸의 로캘은 건드리지 않고 grep 에만 준다.
+RESULTS="$(env LC_ALL=C grep -a -c "^Test case '" "$BUILD_HOME/release-test.log" || true)"
+FAILED="$(env LC_ALL=C grep -a -c "' failed on" "$BUILD_HOME/release-test.log" || true)"
+PASSED=$(( ${RESULTS:-0} - ${FAILED:-0} ))
+[ "$PASSED" -gt 0 ] || die "통과한 테스트를 세지 못했습니다: $BUILD_HOME/release-test.log"
 echo "$PASSED 건 통과"
 
 say "Release 빌드 (arm64 + x86_64)"
