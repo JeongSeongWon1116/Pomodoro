@@ -448,11 +448,14 @@ struct UpdateControllerTests {
     }
 
     private func makeController(settle: TimeInterval = 0) -> UpdateController {
-        UpdateController(
+        let controller = UpdateController(
             configuration: usable,
             gate: UpdateInstallGate(settleTime: settle, installTimeout: 30, now: { [clock] in clock.time }),
             now: { [clock] in clock.time }
         )
+        // 앱에서는 Sparkle 의 값(Info.plist 의 기본값은 켜짐)을 받아 적습니다. 테스트에서는 업데이터를 켜지 않으므로 직접 켭니다.
+        controller.automaticallyChecks = true
+        return controller
     }
 
     // 켤지 말지: 셋 가운데 하나라도 걸리면 켜지 않습니다. 한 조건씩만 걸어 봅니다
@@ -780,6 +783,27 @@ struct UpdateControllerTests {
         #expect(controller.canInstallPendingUpdate)
 
         controller.automaticallyInstalls = true
+        controller.reevaluateQuietness()
+        #expect(installs == 1)
+    }
+
+    @Test func 자동_확인을_끄면_자동_설치가_켜져_있어도_스스로_설치하지_않는다() {
+        // 설정 창의 문구와 CHANGELOG 가 이렇게 약속합니다. Sparkle 이 이 조합을 어떻게 다루든 여기서 지킵니다.
+        let controller = makeController(settle: 0)
+        controller.quietProbe = { true }
+        controller.automaticallyChecks = true
+        controller.automaticallyInstalls = true
+        var installs = 0
+        controller.holdInstall(version: "1.2.1") { installs += 1 }
+        #expect(controller.needsQuietTimer)
+
+        controller.automaticallyChecks = false
+        #expect(!controller.needsQuietTimer)
+        controller.reevaluateQuietness()
+        #expect(installs == 0)
+        #expect(controller.canInstallPendingUpdate) // 버리지는 않습니다: "지금 설치"는 됩니다
+
+        controller.automaticallyChecks = true
         controller.reevaluateQuietness()
         #expect(installs == 1)
     }

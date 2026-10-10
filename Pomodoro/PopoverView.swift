@@ -135,11 +135,13 @@ struct NoteField: View {
     @Binding var text: String
     let suggestions: [String]
     let help: String
+    @FocusState private var isEditing: Bool
 
     var body: some View {
         HStack(spacing: 4) {
             TextField(title, text: $text)
                 .textFieldStyle(.roundedBorder)
+                .focused($isEditing)
             if !suggestions.isEmpty {
                 Menu {
                     ForEach(suggestions, id: \.self) { suggestion in
@@ -158,10 +160,14 @@ struct NoteField: View {
     }
 
     private func pick(_ suggestion: String) {
-        // 칸을 편집하던 중이면 편집을 먼저 끝냅니다. 편집 중인 칸은 밖에서 바꾼 값을 보여 주지 않거나,
-        // 편집이 끝날 때 적던 글로 다시 덮을 수 있습니다.
-        NSApp.keyWindow?.makeFirstResponder(nil)
+        // 이 칸을 편집하던 중이면 편집을 끝내고(다른 칸과 다른 창은 건드리지 않습니다) 고른 글을 넣습니다.
+        isEditing = false
         text = suggestion
+        // 편집을 끝내는 처리나 입력기의 확정이 뒤늦게 돌아 적던 글이 다시 들어오면, 고른 글을 한 번 더 넣습니다.
+        let text = $text
+        DispatchQueue.main.async {
+            if text.wrappedValue != suggestion { text.wrappedValue = suggestion }
+        }
     }
 
     /// 메뉴에는 한 줄로, 길면 줄여서 보여 줍니다 (고르면 원래 글이 그대로 들어갑니다).

@@ -41,15 +41,14 @@ final class UpdateController: NSObject, ObservableObject {
     @Published private(set) var lastCheckDate: Date?
     @Published var automaticallyChecks = false {
         didSet {
+            applyAutomaticInstallPolicy()
             guard !syncingFromUpdater, let updater, updater.automaticallyChecksForUpdates != automaticallyChecks else { return }
             updater.automaticallyChecksForUpdates = automaticallyChecks
         }
     }
     @Published var automaticallyInstalls = true {
         didSet {
-            // 끄면 붙잡아 둔 것을 스스로 설치하지 않습니다. 버리지는 않습니다 — 다시 켜면 이어서 하고, "지금 설치"도 됩니다.
-            gate.allowsAutomaticInstall = automaticallyInstalls
-            refreshQuietTimer()
+            applyAutomaticInstallPolicy()
             guard !syncingFromUpdater, let updater, updater.automaticallyDownloadsUpdates != automaticallyInstalls else { return }
             updater.automaticallyDownloadsUpdates = automaticallyInstalls
         }
@@ -158,6 +157,17 @@ final class UpdateController: NSObject, ObservableObject {
         if automaticallyChecks != updater.automaticallyChecksForUpdates { automaticallyChecks = updater.automaticallyChecksForUpdates }
         if automaticallyInstalls != updater.automaticallyDownloadsUpdates { automaticallyInstalls = updater.automaticallyDownloadsUpdates }
         if lastCheckDate != updater.lastUpdateCheckDate { lastCheckDate = updater.lastUpdateCheckDate }
+        // 처음 값이 Sparkle 의 값과 같으면 위의 didSet 이 돌지 않으므로 여기서도 맞춥니다.
+        applyAutomaticInstallPolicy()
+    }
+
+    // 받아 둔 것을 스스로 설치해도 되는지: 자동 확인과 자동 설치가 모두 켜져 있을 때만.
+    // 끄면 붙잡아 둔 것을 스스로 설치하지 않습니다. 버리지는 않습니다 — 다시 켜면 이어서 하고, "지금 설치"도 됩니다.
+    // Sparkle 도 자동 확인이 꺼져 있으면 자동 설치를 꺼진 것으로 읽지만, 설정 창의 문구가 그것에 기대지 않도록 여기서 정합니다.
+    private func applyAutomaticInstallPolicy() {
+        let allowed = automaticallyChecks && automaticallyInstalls
+        if gate.allowsAutomaticInstall != allowed { gate.allowsAutomaticInstall = allowed }
+        refreshQuietTimer()
     }
 
     /// 사용자가 "지금 확인"을 눌렀을 때. 메뉴 바 앱이라 창이 앞에 오도록 앱을 먼저 활성화합니다.
