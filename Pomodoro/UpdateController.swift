@@ -41,15 +41,14 @@ final class UpdateController: NSObject, ObservableObject {
     @Published private(set) var lastCheckDate: Date?
     @Published var automaticallyChecks = false {
         didSet {
+            applyAutomaticInstallPolicy()
             guard !syncingFromUpdater, let updater, updater.automaticallyChecksForUpdates != automaticallyChecks else { return }
             updater.automaticallyChecksForUpdates = automaticallyChecks
         }
     }
     @Published var automaticallyInstalls = true {
         didSet {
-            // 끄면 붙잡아 둔 것을 스스로 설치하지 않습니다. 버리지는 않습니다 — 다시 켜면 이어서 하고, "지금 설치"도 됩니다.
-            gate.allowsAutomaticInstall = automaticallyInstalls
-            refreshQuietTimer()
+            applyAutomaticInstallPolicy()
             guard !syncingFromUpdater, let updater, updater.automaticallyDownloadsUpdates != automaticallyInstalls else { return }
             updater.automaticallyDownloadsUpdates = automaticallyInstalls
         }
@@ -112,6 +111,8 @@ final class UpdateController: NSObject, ObservableObject {
         let configured = UserDefaults.standard.double(forKey: Self.settleTimeKey)
         self.gate = gate ?? UpdateInstallGate(settleTime: configured >= 1 ? configured : Self.defaultSettleTime, now: now)
         super.init()
+        // 처음 값(자동 확인 꺼짐)도 규칙을 따르게 합니다. 앱은 start() 에서 Sparkle 의 값을 받아 적으며 다시 맞춥니다.
+        applyAutomaticInstallPolicy()
     }
 
     /// 업데이터를 켭니다(`whyNotStarting`이 이유를 대면 아무것도 하지 않습니다).
@@ -158,6 +159,18 @@ final class UpdateController: NSObject, ObservableObject {
         if automaticallyChecks != updater.automaticallyChecksForUpdates { automaticallyChecks = updater.automaticallyChecksForUpdates }
         if automaticallyInstalls != updater.automaticallyDownloadsUpdates { automaticallyInstalls = updater.automaticallyDownloadsUpdates }
         if lastCheckDate != updater.lastUpdateCheckDate { lastCheckDate = updater.lastUpdateCheckDate }
+        // 처음 값이 Sparkle 의 값과 같으면 위의 didSet 이 돌지 않으므로 여기서도 맞춥니다.
+        applyAutomaticInstallPolicy()
+    }
+
+    // 받아 둔 것을 스스로 설치해도 되는지: 자동 확인과 자동 설치가 모두 켜져 있을 때만.
+    // 끄면 붙잡아 둔 것을 스스로 설치하지 않습니다. 버리지는 않습니다 — 다시 켜면 이어서 하고, "지금 설치"도 됩니다.
+    // Sparkle 2.10.0 도 자동 확인이 꺼져 있으면 자동 설치를 꺼진 것으로 읽지만(SPUUpdaterSettings.m), 설정 창의 문구가
+    // Sparkle 의 속에 기대지 않도록 여기서 정합니다.
+    private func applyAutomaticInstallPolicy() {
+        let allowed = automaticallyChecks && automaticallyInstalls
+        if gate.allowsAutomaticInstall != allowed { gate.allowsAutomaticInstall = allowed }
+        refreshQuietTimer()
     }
 
     /// 사용자가 "지금 확인"을 눌렀을 때. 메뉴 바 앱이라 창이 앞에 오도록 앱을 먼저 활성화합니다.
@@ -248,7 +261,7 @@ final class UpdateController: NSObject, ObservableObject {
     }
 
     /// Sparkle의 업데이트 주기가 끝났거나 오류로 중단됐을 때. 받아 둔 설치 동작은 그 주기의 것이라 더 쓸 수 없으므로 치웁니다.
-    /// 그 업데이트는 설치 도우미가 살아 있으면 앱을 끌 때 설치되고, 아니면 다음 확인 때 다시 받습니다.
+    /// 주기는 설치 도우미의 오류나 연결 끊김으로 끝나고 그때 도우미도 스스로 끝나므로, 그 업데이트는 대개 다음 확인 때 다시 받습니다.
     func updateCycleDidFinish() {
         if gate.hasPendingInstall { log.notice("update cycle finished: dropping the held install") }
         gate.discard()
@@ -271,9 +284,12 @@ final class UpdateController: NSObject, ObservableObject {
     private func refreshQuietTimer() {
         if needsQuietTimer {
             guard quietTimer == nil else { return }
-            quietTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
+            let timer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
                 Task { @MainActor in self?.reevaluateQuietness() }
             }
+            // 붙잡은 채로 며칠씩 갈 수 있으므로(선택을 기다리는 화면도 조용한 때가 아닙니다), 깨어나는 때를 느슨하게 둡니다.
+            timer.tolerance = 3
+            quietTimer = timer
         } else {
             quietTimer?.invalidate()
             quietTimer = nil
@@ -320,20 +336,30 @@ extension UpdateController: SPUUpdaterDelegate {
         updateCycleDidFinish()
     }
 
-    // 주기가 끝났다는 알림이 오지 않는 중단도 있어(꼭 설치해야 하는 업데이트가 중단된 경우), 오류로 중단될 때도 치웁니다.
+    // 오류로 중단될 때도 치웁니다. (자동으로 받는 경로에서는 오류가 있는 중단 뒤에 주기 끝 알림도 오므로 대개 겹칩니다.
+    // 붙잡고 있는 동안에는 다른 확인이 끼어들지 못해, 멀쩡히 붙잡은 것을 여기서 치우는 일은 없습니다.)
     func updater(_ updater: SPUUpdater, didAbortWithError error: Error) {
         updateCycleDidFinish()
     }
 }
 
 extension TerminationRequest {
+    /// 'why?' = kAEQuitReason: 로그아웃·재시동·시스템 종료가 종료 이벤트에 붙이는 이유. Swift 에 이름이 나와 있지 않아 값으로 씁니다.
+    static let quitReasonKeyword = AEKeyword(0x7768_793F)
+
+    /// 종료를 처리하는 순간의 Apple 이벤트로 가립니다. 이벤트가 없으면 앱 안에서 부른 종료입니다.
+    static func classify(event: NSAppleEventDescriptor?) -> TerminationRequest {
+        guard let event else { return .fromThisApp }
+        let isQuit = event.eventClass == AEEventClass(kCoreEventClass) && event.eventID == AEEventID(kAEQuitApplication)
+        // 이유는 이벤트의 속성으로 옵니다. 매개변수로 붙여 보내는 곳이 있어도 시스템의 종료로 봅니다.
+        let hasReason = event.attributeDescriptor(forKeyword: quitReasonKeyword) != nil
+            || event.paramDescriptor(forKeyword: quitReasonKeyword) != nil
+        return classify(isQuitEvent: isQuit, hasQuitReason: hasReason)
+    }
+
     /// 지금 처리 중인 종료 요청 (applicationShouldTerminate 안에서 읽습니다).
     @MainActor static var current: TerminationRequest {
-        let event = NSAppleEventManager.shared().currentAppleEvent
-        let isQuit = event.map { $0.eventClass == AEEventClass(kCoreEventClass) && $0.eventID == AEEventID(kAEQuitApplication) } ?? false
-        // 'why?' = keyAEQuitReason (로그아웃·재시동·시스템 종료가 붙이는 이유). Swift 에 이름이 나와 있지 않아 값으로 씁니다.
-        let hasReason = event?.attributeDescriptor(forKeyword: AEKeyword(0x7768_793F)) != nil
-        return classify(isQuitEvent: isQuit, hasQuitReason: hasReason)
+        classify(event: NSAppleEventManager.shared().currentAppleEvent)
     }
 }
 

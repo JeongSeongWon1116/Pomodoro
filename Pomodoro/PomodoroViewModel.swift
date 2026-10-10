@@ -49,6 +49,13 @@ class PomodoroViewModel: ObservableObject {
     @Published private(set) var resumeHint: String {
         didSet { settings.defaults?.set(resumeHint, forKey: Self.resumeHintKey) }
     }
+    /// 지난 집중들에 적었던 할 일과 보상 (최근 것부터, 겹치지 않게)
+    @Published private var pastTasks: [String] = []
+    @Published private var pastRewards: [String] = []
+    /// 팝오버의 칸 옆에서 다시 고를 수 있는 지난 할 일·보상. 지금 칸에 적혀 있는 글은 빠집니다.
+    var taskSuggestions: [String] { NoteSuggestions.recent(pastTasks, excluding: focusTask) }
+    var rewardSuggestions: [String] { NoteSuggestions.recent(pastRewards, excluding: focusReward) }
+
     /// 이번 집중을 연장한 횟수
     @Published private(set) var extensionCount: Int = 0
 
@@ -101,6 +108,15 @@ class PomodoroViewModel: ObservableObject {
         .sink { [weak self] _ in
             self?.refreshIdleTimeRemaining()
         }
+        refreshNoteSuggestions()
+    }
+
+    /// 지난 메모에서 고를 것을 다시 읽습니다 (메모를 남긴 뒤, 팝오버를 열 때 — 기록 창에서 지웠을 수 있습니다).
+    func refreshNoteSuggestions() {
+        // 고르는 것은 몇 개뿐이라 최근 100개의 메모만 봅니다.
+        let notes = TransitionNote.latest(100, in: notesContext)
+        pastTasks = NoteSuggestions.recent(notes.map(\.task), limit: 20)
+        pastRewards = NoteSuggestions.recent(notes.map(\.reward), limit: 20)
     }
 
     var timeRemainingString: String {
@@ -396,6 +412,7 @@ class PomodoroViewModel: ObservableObject {
             if let details, let notesContext {
                 notesContext.insert(TransitionNote(sessionID: newLog.id, details: details, createdAt: newLog.endTime))
                 try? notesContext.save()
+                refreshNoteSuggestions()
             }
         }
         ObsidianExporter.shared.appendSession(newLog, details: details)

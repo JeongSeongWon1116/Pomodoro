@@ -224,6 +224,19 @@ struct StatCard: View {
 struct FilteredLogListView: View {
     @Query private var logs: [FocusLogEntry]
     @Environment(\.modelContext) private var modelContext
+    @ObservedObject private var settings = AppSettings.shared
+    /// 세션마다 적어 둔 할 일·보상·다음 시작점 (다른 저장소에 있어 따로 읽습니다)
+    @State private var notes: [UUID: TransitionDetails] = [:]
+
+    /// 줄에 보여 줄 글. "전환 관리"를 꺼 두면 보여 주지 않습니다(적어 둔 글은 그대로 있고, 다시 켜면 보입니다).
+    static func visibleDetails(for sessionID: UUID, in notes: [UUID: TransitionDetails], transitionManagementEnabled: Bool) -> TransitionDetails? {
+        transitionManagementEnabled ? notes[sessionID] : nil
+    }
+
+    /// 글을 읽어 올 세션들: 집중 기록만 (휴식에는 적는 글이 없습니다). 꺼 두었으면 읽지 않습니다.
+    static func sessionsToLookUp(_ logs: [(id: UUID, type: PomodoroState)], transitionManagementEnabled: Bool) -> [UUID] {
+        transitionManagementEnabled ? logs.filter { $0.type == .focus }.map(\.id) : []
+    }
 
     init(period: TimePeriod, offset: Int) {
         _logs = Query(filter: period.predicate(offset: offset), sort: \.startTime, order: .reverse)
@@ -244,7 +257,8 @@ struct FilteredLogListView: View {
             ForEach(sortedDays, id: \.self) { day in
                 Section {
                     ForEach(groupedLogs[day] ?? []) { log in
-                        LogEntryRow(log: log)
+                        LogEntryRow(log: log, details: Self.visibleDetails(
+                            for: log.id, in: notes, transitionManagementEnabled: settings.transitionManagementEnabled))
                     }
                     .onDelete { indexSet in
                         guard let dayLogs = groupedLogs[day] else { return }
@@ -260,6 +274,11 @@ struct FilteredLogListView: View {
             }
         }
         .listStyle(.inset)
+        // 보이는 기록이 바뀔 때마다(새 세션, 기간 이동, 삭제), 그리고 전환 관리를 켜고 끌 때 딸린 글을 다시 읽습니다.
+        .task(id: Self.sessionsToLookUp(logs.map { (id: $0.id, type: $0.sessionType) }, transitionManagementEnabled: settings.transitionManagementEnabled)) {
+            let ids = Self.sessionsToLookUp(logs.map { (id: $0.id, type: $0.sessionType) }, transitionManagementEnabled: settings.transitionManagementEnabled)
+            notes = TransitionNote.details(forSessions: ids, in: DataController.shared.transitionContainer?.mainContext)
+        }
     }
 }
 
@@ -267,6 +286,8 @@ struct FilteredLogListView: View {
 
 struct LogEntryRow: View {
     let log: FocusLogEntry
+    /// 이 세션에 적어 둔 할 일·보상·다음 시작점 (없으면 nil)
+    var details: TransitionDetails? = nil
 
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -310,6 +331,11 @@ struct LogEntryRow: View {
                 // 종료 시각은 활동 시간뿐 아니라 일시정지된 시간도 포함해야 합니다.
                 Text("\(LogEntryRow.timeFormatter.string(from: log.startTime)) - \(LogEntryRow.timeFormatter.string(from: log.startTime.addingTimeInterval(log.duration + log.pausedDuration)))")
                     .font(.caption).foregroundStyle(.secondary)
+                ForEach(details?.labeledLines ?? [], id: \.label) { line in
+                    // 긴 글은 두 줄까지 접어 보여 줍니다.
+                    NoteLine(label: line.label, text: line.text)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {

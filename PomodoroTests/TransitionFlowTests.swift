@@ -417,8 +417,10 @@ struct TransitionFlowTests {
     }
 
     @Test func 적어_둔_할_일과_보상과_다음_시작점은_저장소가_있으면_앱을_다시_켜도_남는다() throws {
-        let suite = "PomodoroTests-\(UUID().uuidString)"
+        // 이름을 고정합니다: 돌릴 때마다 새 이름을 쓰면, 지운 뒤에도 빈 설정 파일이 앱의 컨테이너에 하나씩 남습니다.
+        let suite = "PomodoroTests-transition-notes"
         let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
         defer { defaults.removePersistentDomain(forName: suite) }
         let clock = self.clock
 
