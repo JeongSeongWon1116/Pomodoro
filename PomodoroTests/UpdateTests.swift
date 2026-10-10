@@ -297,6 +297,41 @@ struct TerminationRequestTests {
     @Test @MainActor func 테스트가_부르는_동안에는_처리_중인_종료_이벤트가_없다() {
         #expect(TerminationRequest.current == .fromThisApp)
     }
+
+    private func event(class eventClass: AEEventClass, id: AEEventID) -> NSAppleEventDescriptor {
+        NSAppleEventDescriptor(
+            eventClass: eventClass, eventID: id, targetDescriptor: nil,
+            returnID: AEReturnID(kAutoGenerateReturnID), transactionID: AETransactionID(kAnyTransactionID)
+        )
+    }
+    private let logOut = NSAppleEventDescriptor(enumCode: 0x6C6F_676F) // 'logo' = 로그아웃
+
+    @Test func 이벤트가_없으면_앱_안의_종료다() {
+        #expect(TerminationRequest.classify(event: nil) == .fromThisApp)
+    }
+
+    @Test func 이유_없는_종료_이벤트는_다른_프로세스의_종료다() {
+        // Sparkle 의 설치 도우미가 보내는 것과 같은 모양
+        #expect(TerminationRequest.classify(event: event(class: AEEventClass(kCoreEventClass), id: AEEventID(kAEQuitApplication))) == .fromAnotherProcess)
+    }
+
+    @Test func 이유가_속성으로_붙은_종료_이벤트는_시스템의_종료다() {
+        let quit = event(class: AEEventClass(kCoreEventClass), id: AEEventID(kAEQuitApplication))
+        quit.setAttribute(logOut, forKeyword: TerminationRequest.quitReasonKeyword)
+        #expect(TerminationRequest.classify(event: quit) == .fromSystem)
+    }
+
+    @Test func 이유가_매개변수로_붙어_와도_시스템의_종료로_본다() {
+        let quit = event(class: AEEventClass(kCoreEventClass), id: AEEventID(kAEQuitApplication))
+        quit.setParam(logOut, forKeyword: TerminationRequest.quitReasonKeyword)
+        #expect(TerminationRequest.classify(event: quit) == .fromSystem)
+    }
+
+    @Test func 종료가_아닌_이벤트를_처리하다가_끝내는_것은_앱_안의_종료다() {
+        // 'oapp' = 앱 열기, 'rapp' = 다시 열기
+        #expect(TerminationRequest.classify(event: event(class: AEEventClass(kCoreEventClass), id: AEEventID(kAEOpenApplication))) == .fromThisApp)
+        #expect(TerminationRequest.classify(event: event(class: AEEventClass(kCoreEventClass), id: AEEventID(kAEReopenApplication))) == .fromThisApp)
+    }
 }
 
 struct UpdateSettingsCaptionTests {
@@ -313,10 +348,23 @@ struct UpdateSettingsCaptionTests {
     }
 
     @Test func 받아_둔_것이_있으면_자동_설치_여부에_따라_적는다() {
-        let on = UpdateSettingsSection.caption(hasPending: true, automaticallyChecks: false, automaticallyInstalls: true)
+        let on = UpdateSettingsSection.caption(hasPending: true, automaticallyChecks: true, automaticallyInstalls: true)
         #expect(on.contains("스스로 설치하고 다시 켭니다") && on.contains("팝오버"))
         let off = UpdateSettingsSection.caption(hasPending: true, automaticallyChecks: true, automaticallyInstalls: false)
-        #expect(off.contains("스스로 설치하지 않습니다"))
+        #expect(off.contains("자동 설치가 꺼져 있어 스스로 설치하지 않습니다"))
+    }
+
+    @Test func 자동_확인이_꺼져_있으면_받아_둔_것도_스스로_설치하지_않는다고_적는다() {
+        // Sparkle 은 자동 확인이 꺼져 있으면 자동 설치를 꺼진 것으로 다룹니다(스위치 값과 상관없이).
+        let text = UpdateSettingsSection.caption(hasPending: true, automaticallyChecks: false, automaticallyInstalls: true)
+        #expect(text.contains("자동 확인이 꺼져 있어 스스로 설치하지 않습니다"))
+        #expect(!text.contains("스스로 설치하고 다시 켭니다"))
+    }
+
+    @Test func 설치를_시작했으면_그렇다고_적는다() {
+        let text = UpdateSettingsSection.caption(hasPending: true, automaticallyChecks: true, automaticallyInstalls: true, installing: true)
+        #expect(text.contains("설치를 시작했습니다"))
+        #expect(!text.contains("1분쯤"))
     }
 }
 
@@ -587,6 +635,44 @@ struct UpdateControllerTests {
         controller.installPendingUpdateNow()
         #expect(installs == 2)
         #expect(!controller.shouldCancelTermination(.fromAnotherProcess))
+    }
+
+    @Test func 다시_설치한_뒤에도_한참_지나서_온_종료는_막지_않는다() {
+        let controller = makeController(settle: 0)
+        var quiet = true
+        controller.quietProbe = { quiet }
+        controller.holdInstall(version: "1.2.1") {}
+        controller.reevaluateQuietness()
+        controller.sparkleWillRelaunch()
+        quiet = false
+        #expect(controller.shouldCancelTermination(.fromAnotherProcess))
+
+        quiet = true
+        clock.advance(60)
+        controller.reevaluateQuietness() // 재시도
+        clock.advance(UpdateController.relaunchGrace) // 종료 요청이 오지 않은 채 시간이 지났다
+        quiet = false
+        #expect(!controller.shouldCancelTermination(.fromAnotherProcess))
+    }
+
+    @Test func 사용자가_누른_설치가_먹지_않은_뒤의_스스로_하는_재시도도_끄는_순간에_본다() {
+        // "지금 설치"에서 Sparkle 이 처음 알리고, 앱이 꺼지지 않은 채 30초가 지나면 문지기가 다시 붙잡습니다.
+        let controller = makeController(settle: 0)
+        var quiet = false
+        controller.quietProbe = { quiet }
+        var installs = 0
+        controller.holdInstall(version: "1.2.1") { installs += 1 }
+        controller.installPendingUpdateNow()
+        controller.sparkleWillRelaunch()
+        #expect(!controller.shouldCancelTermination(.fromAnotherProcess)) // 사용자가 누른 설치는 막지 않습니다
+
+        clock.advance(31) // 설치 도우미가 앱을 끄지 못했다
+        quiet = true
+        controller.reevaluateQuietness() // 스스로 다시 실행
+        #expect(installs == 2)
+        #expect(controller.gate.isInstallingOnItsOwn)
+        quiet = false
+        #expect(controller.shouldCancelTermination(.fromAnotherProcess))
     }
 
     @Test func 새로_받은_업데이트는_Sparkle이_다시_알릴_때까지_종료를_막지_않는다() {

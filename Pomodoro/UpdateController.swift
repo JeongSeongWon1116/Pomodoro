@@ -271,9 +271,12 @@ final class UpdateController: NSObject, ObservableObject {
     private func refreshQuietTimer() {
         if needsQuietTimer {
             guard quietTimer == nil else { return }
-            quietTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
+            let timer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
                 Task { @MainActor in self?.reevaluateQuietness() }
             }
+            // 붙잡은 채로 며칠씩 갈 수 있으므로(선택을 기다리는 화면도 조용한 때가 아닙니다), 깨어나는 때를 느슨하게 둡니다.
+            timer.tolerance = 3
+            quietTimer = timer
         } else {
             quietTimer?.invalidate()
             quietTimer = nil
@@ -320,20 +323,30 @@ extension UpdateController: SPUUpdaterDelegate {
         updateCycleDidFinish()
     }
 
-    // 주기가 끝났다는 알림이 오지 않는 중단도 있어(꼭 설치해야 하는 업데이트가 중단된 경우), 오류로 중단될 때도 치웁니다.
+    // 오류로 중단될 때도 치웁니다. (자동으로 받는 경로에서는 오류가 있는 중단 뒤에 주기 끝 알림도 오므로 대개 겹칩니다.
+    // 붙잡고 있는 동안에는 다른 확인이 끼어들지 못해, 멀쩡히 붙잡은 것을 여기서 치우는 일은 없습니다.)
     func updater(_ updater: SPUUpdater, didAbortWithError error: Error) {
         updateCycleDidFinish()
     }
 }
 
 extension TerminationRequest {
+    /// 'why?' = kAEQuitReason: 로그아웃·재시동·시스템 종료가 종료 이벤트에 붙이는 이유. Swift 에 이름이 나와 있지 않아 값으로 씁니다.
+    static let quitReasonKeyword = AEKeyword(0x7768_793F)
+
+    /// 종료를 처리하는 순간의 Apple 이벤트로 가립니다. 이벤트가 없으면 앱 안에서 부른 종료입니다.
+    static func classify(event: NSAppleEventDescriptor?) -> TerminationRequest {
+        guard let event else { return .fromThisApp }
+        let isQuit = event.eventClass == AEEventClass(kCoreEventClass) && event.eventID == AEEventID(kAEQuitApplication)
+        // 이유는 이벤트의 속성으로 옵니다. 매개변수로 붙여 보내는 곳이 있어도 시스템의 종료로 봅니다.
+        let hasReason = event.attributeDescriptor(forKeyword: quitReasonKeyword) != nil
+            || event.paramDescriptor(forKeyword: quitReasonKeyword) != nil
+        return classify(isQuitEvent: isQuit, hasQuitReason: hasReason)
+    }
+
     /// 지금 처리 중인 종료 요청 (applicationShouldTerminate 안에서 읽습니다).
     @MainActor static var current: TerminationRequest {
-        let event = NSAppleEventManager.shared().currentAppleEvent
-        let isQuit = event.map { $0.eventClass == AEEventClass(kCoreEventClass) && $0.eventID == AEEventID(kAEQuitApplication) } ?? false
-        // 'why?' = keyAEQuitReason (로그아웃·재시동·시스템 종료가 붙이는 이유). Swift 에 이름이 나와 있지 않아 값으로 씁니다.
-        let hasReason = event?.attributeDescriptor(forKeyword: AEKeyword(0x7768_793F)) != nil
-        return classify(isQuitEvent: isQuit, hasQuitReason: hasReason)
+        classify(event: NSAppleEventManager.shared().currentAppleEvent)
     }
 }
 

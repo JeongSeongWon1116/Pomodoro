@@ -152,7 +152,11 @@ fi
 if [ "$INSTALL" = 1 ]; then
   say "이 Mac 에 설치"
   DEST="/Applications/Pomodoro.app"
+  # 넣을 자리에 쓸 수 없으면 앱을 끄기 전에 멈춘다(끈 뒤에 실패하면 쓰던 앱만 꺼진 채로 남는다).
+  [ -w "$(dirname "$DEST")" ] || die "$(dirname "$DEST") 에 쓸 수 없습니다. 관리자 계정에서 돌리거나 앱을 손으로 옮깁니다"
+  [ ! -e "$DEST" ] || [ -w "$DEST" ] || die "$DEST 를 바꿀 수 없습니다(다른 사용자가 넣은 앱). 손으로 옮긴 뒤 다시 합니다"
   # 실행 중인 Pomodoro 를 정상 종료시킨다(진행 중인 세션은 앱이 끝내면서 기록한다). 강제로 죽이지 않는다.
+  # 번들 id 로 찾으므로 Xcode 에서 띄운 개발 빌드도 함께 끈다.
   PROC="$BUILD_HOME/running-app.swift"
   cat > "$PROC" <<'SWIFT'
 import AppKit
