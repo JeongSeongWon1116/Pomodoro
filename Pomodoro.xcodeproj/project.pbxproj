@@ -417,7 +417,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.2.0;
-				POMODORO_ED_PUBLIC_KEY = "";
+				POMODORO_ED_PUBLIC_KEY = "lfB3QqVEK2oCVtxBcXoHB9O2MlCuC8HWIY6Ck2ML4qk=";
 				POMODORO_FEED_URL = "https://github.com/JeongSeongWon1116/Pomodoro/releases/latest/download/appcast.xml";
 				PRODUCT_BUNDLE_IDENTIFIER = Jeong.Pomodoro;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -448,7 +448,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.2.0;
-				POMODORO_ED_PUBLIC_KEY = "";
+				POMODORO_ED_PUBLIC_KEY = "lfB3QqVEK2oCVtxBcXoHB9O2MlCuC8HWIY6Ck2ML4qk=";
 				POMODORO_FEED_URL = "https://github.com/JeongSeongWon1116/Pomodoro/releases/latest/download/appcast.xml";
 				PRODUCT_BUNDLE_IDENTIFIER = Jeong.Pomodoro;
 				PRODUCT_NAME = "$(TARGET_NAME)";
