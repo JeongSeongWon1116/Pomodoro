@@ -103,8 +103,11 @@ downloaded() { grep -q "GET /$1 " "$WORK/http.log"; }
 # 앱이 그 버전을 받아 두었다고 로그에 적었는지 (UpdateController.holdInstall). 이 시험이 시작한 뒤의 로그만 본다.
 STARTED="$(date '+%Y-%m-%d %H:%M:%S')"
 holding() {
-  /usr/bin/log show --start "$STARTED" --style compact --predicate "subsystem == \"$TEST_ID\" AND category == \"update\"" 2>/dev/null \
-    | grep -q "holding update $1 until"
+  # 출력을 다 받은 뒤에 찾는다. 파이프로 grep -q 에 이으면 찾자마자 끊겨, pipefail 아래에서 찾고도 실패로 읽힐 수 있다.
+  local lines
+  lines="$(/usr/bin/log show --start "$STARTED" --style compact --predicate "subsystem == \"$TEST_ID\" AND category == \"update\"" 2>/dev/null || true)"
+  case "$lines" in *"holding update $1 until"*) return 0 ;; esac
+  return 1
 }
 is_version() { [ "$(version)" = "$1" ]; }
 running_as() { [ "$(version)" = "$1" ] && [ -n "$(app_pids)" ]; }
