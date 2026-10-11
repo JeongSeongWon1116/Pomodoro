@@ -40,6 +40,8 @@ die() { printf 'update-e2e: 실패 — %s\n' "$*" >&2; exit 1; }
 OPENSSL="${OPENSSL:-}"
 [ -n "$OPENSSL" ] || { [ -x /opt/homebrew/bin/openssl ] && OPENSSL=/opt/homebrew/bin/openssl; } || OPENSSL="$(command -v openssl || true)"
 [ -n "$OPENSSL" ] || die "openssl 이 없습니다"
+# 받아 두었는지는 앱의 로그로 본다. 로그를 읽지 못하는 계정이면 "받아 두지 않음"으로 잘못 끝나므로 먼저 본다.
+/usr/bin/log show --last 1s > /dev/null 2>&1 || die "/usr/bin/log show 를 돌릴 수 없습니다 (로그를 읽을 수 있는 계정에서 돌립니다)"
 
 ! pgrep -f "update-e2e.*/install/Pomodoro.app/Contents/MacOS/Pomodoro" > /dev/null || die "시험용 앱이 이미 떠 있습니다. 끈 뒤 다시 합니다"
 [ ! -e "$WORK" ] || mv "$WORK" "$WORK.$(date +%Y%m%d-%H%M%S).old"
