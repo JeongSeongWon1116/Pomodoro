@@ -1,6 +1,6 @@
 // File: UpdateTests.swift
 // Description: 자동 업데이트에서 Sparkle 바깥에 있는 우리 쪽 판단을 검사합니다.
-// (받아 둔 업데이트를 언제 설치할지, 지금이 조용한 때인지, 이 빌드가 업데이트를 쓸 수 있는지)
+// (받아 둔 업데이트를 스스로 설치하지 않고 누를 때만 설치하는지, 메뉴 막대에 무엇을 표시하는지, 이 빌드가 업데이트를 쓸 수 있는지)
 
 import Testing
 import AppKit
@@ -14,357 +14,178 @@ private final class UpdateTestClock {
     func advance(_ seconds: TimeInterval) { time += seconds }
 }
 
+/// "잠시 뒤에 할 일"을 모아 두었다가 테스트가 손으로 실행합니다 (앱은 그 시간만큼 기다린 뒤 실행합니다)
 @MainActor
-struct UpdateInstallGateTests {
+private final class ScheduledWork {
+    private(set) var items: [(delay: TimeInterval, work: @MainActor () -> Void)] = []
+    var delays: [TimeInterval] { items.map(\.delay) }
+    func add(_ delay: TimeInterval, _ work: @escaping @MainActor () -> Void) { items.append((delay, work)) }
+    func runAll() {
+        let pending = items
+        items = []
+        pending.forEach { $0.work() }
+    }
+}
+
+@MainActor
+struct HeldUpdateTests {
     private let clock = UpdateTestClock()
 
-    private func makeGate(settle: TimeInterval = 60, timeout: TimeInterval = 30) -> UpdateInstallGate {
-        UpdateInstallGate(settleTime: settle, installTimeout: timeout, now: { [clock] in clock.time })
+    private func makeHeld(timeout: TimeInterval = 30) -> HeldUpdate {
+        HeldUpdate(installTimeout: timeout, now: { [clock] in clock.time })
     }
 
     @Test func 맡기는_것만으로는_설치하지_않는다() {
-        // 설치 동작은 Sparkle 의 대리자 호출이 끝난 뒤에만 써야 합니다. 조용함도 맡긴 뒤부터 셉니다.
-        let gate = makeGate(settle: 0)
+        let held = makeHeld()
         var installs = 0
-        gate.update(quiet: true)
-        gate.hold { installs += 1 }
+        held.hold { installs += 1 }
         #expect(installs == 0)
-        #expect(gate.hasPendingInstall)
+        #expect(held.isHolding)
+        #expect(!held.isInstalling)
     }
 
-    @Test func 조용함이_정해진_시간_이어지면_한_번_설치한다() {
-        let gate = makeGate(settle: 60)
+    @Test func 시간이_아무리_지나도_스스로_설치하지_않는다() {
+        // 1.2.1 까지는 조용한 때가 1분 이어지면 스스로 설치했습니다. 이제는 누를 때만 설치합니다.
+        let held = makeHeld()
         var installs = 0
-        gate.hold { installs += 1 }
-        gate.update(quiet: true)
-        #expect(installs == 0)
-        clock.advance(59)
-        gate.update(quiet: true)
-        #expect(installs == 0)
-        clock.advance(1)
-        gate.update(quiet: true)
+        held.hold { installs += 1 }
+        for _ in 0..<10 {
+            clock.advance(3_600)
+            #expect(installs == 0)
+            #expect(!held.isInstalling)
+        }
+        #expect(held.isHolding)
+    }
+
+    @Test func 누르면_한_번_설치한다() {
+        let held = makeHeld()
+        var installs = 0
+        held.hold { installs += 1 }
+        #expect(held.installNow())
+        #expect(installs == 1)
+        #expect(held.isInstalling)
+        // 설치 동작은 버리지 않습니다 — 먹지 않았을 때 다시 눌러야 합니다.
+        #expect(held.isHolding)
+    }
+
+    @Test func 설치가_진행_중이면_또_눌러도_다시_실행하지_않는다() {
+        let held = makeHeld()
+        var installs = 0
+        held.hold { installs += 1 }
+        held.installNow()
+        clock.advance(5)
+        #expect(!held.installNow())
         #expect(installs == 1)
     }
 
-    @Test func 중간에_바빠지면_처음부터_다시_센다() {
-        // 팝오버를 닫고 곧바로 설정 창을 여는 것처럼, 잠깐 조용해 보이는 틈에 설치하면 안 됩니다.
-        let gate = makeGate(settle: 60)
+    @Test func 설치_동작이_이쪽을_다시_불러도_두_번_설치하지_않는다() {
+        // 설치 동작이 앱을 끝내는 길에 "업데이트"가 한 번 더 눌린 것처럼 불릴 수 있습니다.
+        let held = makeHeld()
         var installs = 0
-        gate.hold { installs += 1 }
-        gate.update(quiet: true)
-        clock.advance(30)
-        gate.update(quiet: false)
-        clock.advance(10)
-        gate.update(quiet: true)
-        clock.advance(59)
-        gate.update(quiet: true)
-        #expect(installs == 0)
-        clock.advance(1)
-        gate.update(quiet: true)
-        #expect(installs == 1)
-    }
-
-    @Test func 설치를_시작한_뒤에는_다시_재도_또_실행하지_않는다() {
-        let gate = makeGate(settle: 0)
-        var installs = 0
-        gate.hold { installs += 1 }
-        gate.update(quiet: true)
-        #expect(installs == 1)
-        gate.update(quiet: true)
-        gate.update(quiet: false)
-        gate.update(quiet: true)
-        #expect(installs == 1)
-        #expect(gate.isInstallingOnItsOwn)
-        #expect(gate.hasPendingInstall) // 종료가 취소되면 다시 써야 하므로 버리지 않습니다
-    }
-
-    @Test func 설치하는_도중에_다시_불려도_두_번_설치하지_않는다() {
-        // 설치 동작은 앱을 끝내면서 상태 변화를 일으킬 수 있습니다. 그 안에서 다시 알림이 와도 한 번만 실행합니다.
-        let gate = makeGate(settle: 0)
-        var installs = 0
-        gate.hold {
+        held.hold { [held] in
             installs += 1
-            gate.update(quiet: true)
+            held.installNow()
         }
-        gate.update(quiet: true)
+        held.installNow()
         #expect(installs == 1)
     }
 
-    @Test func 종료가_취소되면_다시_조용해진_뒤에_또_설치한다() {
-        // 설치하려고 끄는 사이에 사용자가 집중을 시작했다 → 종료를 취소하고, 나중에 다시 설치합니다.
-        let gate = makeGate(settle: 60)
+    @Test func 설치를_시작했는데_앱이_꺼지지_않으면_기다린_뒤에_다시_누를_수_있다() {
+        let held = makeHeld(timeout: 30)
         var installs = 0
-        gate.hold { installs += 1 }
-        gate.update(quiet: true)
-        clock.advance(60)
-        gate.update(quiet: true)
-        #expect(installs == 1)
-
-        gate.installWasInterrupted()
-        #expect(!gate.isInstallingOnItsOwn)
-        #expect(gate.hasPendingInstall)
-        gate.update(quiet: true)
-        clock.advance(59)
-        gate.update(quiet: true)
-        #expect(installs == 1)
-        clock.advance(1)
-        gate.update(quiet: true)
-        #expect(installs == 2)
-    }
-
-    @Test func 설치를_시작했는데_앱이_꺼지지_않으면_기다렸다가_다시_한다() {
-        let gate = makeGate(settle: 10, timeout: 30)
-        var installs = 0
-        gate.hold { installs += 1 }
-        gate.update(quiet: true)
-        clock.advance(10)
-        gate.update(quiet: true)
-        #expect(installs == 1)
-
+        held.hold { installs += 1 }
+        held.installNow()
         clock.advance(29)
-        gate.update(quiet: true)
-        #expect(installs == 1)
-        #expect(gate.isInstallingOnItsOwn)
-
-        clock.advance(1) // 30초가 지나도 앱이 살아 있다 → 다시 붙잡고 조용함을 처음부터 센다
-        gate.update(quiet: true)
-        #expect(installs == 1)
-        #expect(!gate.isInstallingOnItsOwn)
-        clock.advance(10)
-        gate.update(quiet: true)
+        #expect(held.isInstalling)
+        #expect(!held.installNow())
+        clock.advance(1)
+        // 설치 도우미가 실패한 경우 등: 앱이 아직 살아 있으므로 다시 누를 수 있어야 합니다.
+        #expect(!held.isInstalling)
+        #expect(held.isHolding)
+        #expect(held.installNow())
         #expect(installs == 2)
     }
 
-    @Test func 다시_맡기면_나중_것만_설치한다() {
-        let gate = makeGate(settle: 0)
-        var installed: [String] = []
-        gate.hold { installed.append("처음") }
-        gate.hold { installed.append("나중") }
-        gate.update(quiet: true)
-        #expect(installed == ["나중"])
+    @Test func 맡긴_것이_없으면_눌러도_아무것도_하지_않는다() {
+        let held = makeHeld()
+        #expect(!held.installNow())
+        #expect(!held.isHolding)
+        #expect(!held.isInstalling)
     }
 
-    @Test func 버리면_조용해져도_설치하지_않는다() {
-        let gate = makeGate(settle: 0)
+    @Test func 다시_맡기면_나중_것만_설치하고_설치하는_중도_처음으로_돌아간다() {
+        let held = makeHeld()
+        var first = 0
+        var second = 0
+        held.hold { first += 1 }
+        held.installNow()
+        #expect(held.isInstalling)
+        held.hold { second += 1 }
+        #expect(!held.isInstalling)
+        #expect(held.installNow())
+        #expect(first == 1)
+        #expect(second == 1)
+    }
+
+    @Test func 버리면_눌러도_설치하지_않는다() {
+        let held = makeHeld()
         var installs = 0
-        gate.hold { installs += 1 }
-        gate.discard()
-        #expect(!gate.hasPendingInstall)
-        gate.update(quiet: true)
+        held.hold { installs += 1 }
+        held.discard()
+        #expect(!held.isHolding)
+        #expect(!held.installNow())
         #expect(installs == 0)
-        #expect(!gate.isInstallingOnItsOwn)
     }
 
-    @Test func 사용자가_지금_설치를_누르면_바빠도_실행한다() {
-        let gate = makeGate(settle: 60)
-        var installs = 0
-        gate.hold { installs += 1 }
-        gate.update(quiet: false)
-        gate.installNow()
-        #expect(installs == 1)
-        // 사용자가 고른 종료이므로, 조용하지 않다는 이유로 취소하면 안 됩니다.
-        #expect(!gate.isInstallingOnItsOwn)
-    }
-
-    @Test func 맡긴_것이_없으면_지금_설치는_아무것도_하지_않는다() {
-        let gate = makeGate(settle: 0)
-        gate.installNow()
-        gate.update(quiet: true)
-        #expect(!gate.hasPendingInstall)
-        #expect(!gate.isInstallingOnItsOwn)
-    }
-
-    @Test func 설치가_진행_중이면_지금_설치를_또_눌러도_다시_실행하지_않는다() {
-        let gate = makeGate(settle: 0, timeout: 30)
-        var installs = 0
-        gate.hold { installs += 1 }
-        gate.installNow()
-        gate.installNow()
-        gate.update(quiet: true)
-        #expect(installs == 1)
-        #expect(gate.isInstalling)
-        clock.advance(30) // 한참 지나도 앱이 살아 있으면 다시 누를 수 있습니다
-        gate.installNow()
-        #expect(installs == 2)
-    }
-
-    @Test func 스스로_설치를_막아_두면_조용해도_설치하지_않고_풀면_다시_센다() {
-        // 설정에서 "자동 설치"를 끈 경우. 붙잡은 것은 버리지 않습니다 — 다시 켜면 이어서 해야 합니다.
-        let gate = makeGate(settle: 60)
-        var installs = 0
-        gate.hold { installs += 1 }
-        gate.allowsAutomaticInstall = false
-        gate.update(quiet: true)
-        clock.advance(600)
-        gate.update(quiet: true)
-        #expect(installs == 0)
-        #expect(gate.hasPendingInstall)
-
-        gate.allowsAutomaticInstall = true
-        gate.update(quiet: true)
-        #expect(installs == 0) // 막혀 있던 동안의 조용함은 세지 않습니다
-        clock.advance(60)
-        gate.update(quiet: true)
-        #expect(installs == 1)
-    }
-
-    @Test func 스스로_설치를_막아_두어도_지금_설치는_된다() {
-        let gate = makeGate(settle: 60)
-        var installs = 0
-        gate.hold { installs += 1 }
-        gate.allowsAutomaticInstall = false
-        gate.installNow()
-        #expect(installs == 1)
-    }
-}
-
-struct UpdateQuietnessTests {
-
-    @Test func 타이머가_완전히_대기이고_열린_창이_없을_때만_조용하다() {
-        #expect(UpdateQuietness.isQuiet(currentState: .idle, timerState: .idle, popoverShown: false, openWindows: 0))
-    }
-
-    @Test func 세션이_돌거나_멈춰_있거나_선택을_기다리면_조용하지_않다() {
-        for timer in [TimerState.running, .paused, .awaitingChoice] {
-            #expect(!UpdateQuietness.isQuiet(currentState: .focus, timerState: timer, popoverShown: false, openWindows: 0))
-        }
-        #expect(!UpdateQuietness.isQuiet(currentState: .shortBreak, timerState: .running, popoverShown: false, openWindows: 0))
-        #expect(!UpdateQuietness.isQuiet(currentState: .longBreak, timerState: .paused, popoverShown: false, openWindows: 0))
-    }
-
-    @Test func 다음_세션을_준비만_해_둔_대기는_조용하지_않다() {
-        // 자동 시작이 꺼져 있으면 타이머는 멈춰 있어도 다음 세션과 사이클 횟수를 들고 있습니다.
-        // 이때 다시 켜면 긴 휴식까지의 횟수를 잃습니다.
-        for state in [PomodoroState.focus, .shortBreak, .longBreak] {
-            #expect(!UpdateQuietness.isQuiet(currentState: state, timerState: .idle, popoverShown: false, openWindows: 0))
-        }
-    }
-
-    @Test func 팝오버나_창이_열려_있으면_조용하지_않다() {
-        #expect(!UpdateQuietness.isQuiet(currentState: .idle, timerState: .idle, popoverShown: true, openWindows: 0))
-        #expect(!UpdateQuietness.isQuiet(currentState: .idle, timerState: .idle, popoverShown: false, openWindows: 1))
-    }
-
-    @Test func 제목_줄이_있는_창만_열린_창으로_센다() {
-        // 메뉴 바 항목과 팝오버도 창이지만 제목 줄이 없습니다. 이것까지 세면 영영 조용해지지 않습니다.
-        #expect(UpdateQuietness.openWindowCount([(visible: true, miniaturized: false, titled: false)]) == 0)
-        #expect(UpdateQuietness.openWindowCount([(visible: true, miniaturized: false, titled: true)]) == 1)
-    }
-
-    @Test func 최소화한_창도_열린_창이다() {
-        // Dock 에 내려 둔 기록·설정 창은 보이지 않지만 닫힌 것이 아닙니다. 다시 켜면 사라집니다.
-        #expect(UpdateQuietness.openWindowCount([(visible: false, miniaturized: true, titled: true)]) == 1)
-    }
-
-    @Test func 앱이_가려져_있으면_가려지기_전에_열려_있던_창을_센다() {
-        // "가리기"를 하면 창이 보이지 않게 되지만 닫힌 것이 아닙니다. 가려지기 직전에 센 수를 씁니다.
-        #expect(UpdateQuietness.effectiveOpenWindows(live: 0, appHidden: true, countBeforeHide: 1) == 1)
-        #expect(UpdateQuietness.effectiveOpenWindows(live: 0, appHidden: true, countBeforeHide: 0) == 0)
-        // 가려진 채로 켜져서 가려지기 전을 센 적이 없으면 지금 센 수를 씁니다.
-        #expect(UpdateQuietness.effectiveOpenWindows(live: 0, appHidden: true, countBeforeHide: nil) == 0)
-        // 가려져 있지 않으면 지금 센 수만 봅니다.
-        #expect(UpdateQuietness.effectiveOpenWindows(live: 2, appHidden: false, countBeforeHide: 5) == 2)
-        #expect(UpdateQuietness.effectiveOpenWindows(live: 0, appHidden: false, countBeforeHide: 1) == 0)
-    }
-
-    @Test func 닫힌_창은_세지_않는다() {
-        #expect(UpdateQuietness.openWindowCount([(visible: false, miniaturized: false, titled: true)]) == 0)
-        #expect(UpdateQuietness.openWindowCount([]) == 0)
-        #expect(UpdateQuietness.openWindowCount([
-            (visible: true, miniaturized: false, titled: true),
-            (visible: false, miniaturized: true, titled: true),
-            (visible: true, miniaturized: false, titled: false),
-            (visible: false, miniaturized: false, titled: true)
-        ]) == 2)
-    }
-}
-
-struct TerminationRequestTests {
-    @Test func 앱_안에서_부른_종료에는_종료_이벤트가_없다() {
-        #expect(TerminationRequest.classify(isQuitEvent: false, hasQuitReason: false) == .fromThisApp)
-        // 다른 Apple 이벤트를 처리하다가 앱이 스스로 끝내는 경우도 앱 안의 종료로 봅니다.
-        #expect(TerminationRequest.classify(isQuitEvent: false, hasQuitReason: true) == .fromThisApp)
-    }
-
-    @Test func 이유가_붙은_종료_이벤트는_로그아웃이나_시스템_종료다() {
-        #expect(TerminationRequest.classify(isQuitEvent: true, hasQuitReason: true) == .fromSystem)
-    }
-
-    @Test func 이유_없는_종료_이벤트는_다른_프로세스가_끄는_것이다() {
-        #expect(TerminationRequest.classify(isQuitEvent: true, hasQuitReason: false) == .fromAnotherProcess)
-    }
-
-    @Test @MainActor func 테스트가_부르는_동안에는_처리_중인_종료_이벤트가_없다() {
-        #expect(TerminationRequest.current == .fromThisApp)
-    }
-
-    private func event(class eventClass: AEEventClass, id: AEEventID) -> NSAppleEventDescriptor {
-        NSAppleEventDescriptor(
-            eventClass: eventClass, eventID: id, targetDescriptor: nil,
-            returnID: AEReturnID(kAutoGenerateReturnID), transactionID: AETransactionID(kAnyTransactionID)
-        )
-    }
-    private let logOut = NSAppleEventDescriptor(enumCode: 0x6C6F_676F) // 'logo' = 로그아웃
-
-    @Test func 이벤트가_없으면_앱_안의_종료다() {
-        #expect(TerminationRequest.classify(event: nil) == .fromThisApp)
-    }
-
-    @Test func 이유_없는_종료_이벤트는_다른_프로세스의_종료다() {
-        // Sparkle 의 설치 도우미가 보내는 것과 같은 모양
-        #expect(TerminationRequest.classify(event: event(class: AEEventClass(kCoreEventClass), id: AEEventID(kAEQuitApplication))) == .fromAnotherProcess)
-    }
-
-    @Test func 이유가_속성으로_붙은_종료_이벤트는_시스템의_종료다() {
-        let quit = event(class: AEEventClass(kCoreEventClass), id: AEEventID(kAEQuitApplication))
-        quit.setAttribute(logOut, forKeyword: TerminationRequest.quitReasonKeyword)
-        #expect(TerminationRequest.classify(event: quit) == .fromSystem)
-    }
-
-    @Test func 이유가_매개변수로_붙어_와도_시스템의_종료로_본다() {
-        let quit = event(class: AEEventClass(kCoreEventClass), id: AEEventID(kAEQuitApplication))
-        quit.setParam(logOut, forKeyword: TerminationRequest.quitReasonKeyword)
-        #expect(TerminationRequest.classify(event: quit) == .fromSystem)
-    }
-
-    @Test func 종료가_아닌_이벤트를_처리하다가_끝내는_것은_앱_안의_종료다() {
-        // 'oapp' = 앱 열기, 'rapp' = 다시 열기
-        #expect(TerminationRequest.classify(event: event(class: AEEventClass(kCoreEventClass), id: AEEventID(kAEOpenApplication))) == .fromThisApp)
-        #expect(TerminationRequest.classify(event: event(class: AEEventClass(kCoreEventClass), id: AEEventID(kAEReopenApplication))) == .fromThisApp)
+    @Test func 설치하는_중에_버리면_설치하는_중도_끝난다() {
+        let held = makeHeld()
+        held.hold {}
+        held.installNow()
+        held.discard()
+        #expect(!held.isInstalling)
     }
 }
 
 struct UpdateSettingsCaptionTests {
     @Test func 자동_확인이_꺼져_있으면_알려_준다고_하지_않는다() {
-        let text = UpdateSettingsSection.caption(hasPending: false, automaticallyChecks: false, automaticallyInstalls: true)
+        let text = UpdateSettingsSection.caption(hasPending: false, automaticallyChecks: false)
         #expect(text.contains("자동 확인이 꺼져"))
-        #expect(!text.contains("알려 주기만"))
-        #expect(!text.contains("스스로 설치") && !text.contains("다시 켜면서 설치"))
+        #expect(!text.contains("알립니다"))
     }
 
-    @Test func 자동_설치만_꺼져_있으면_알려_주기만_한다고_적는다() {
-        let text = UpdateSettingsSection.caption(hasPending: false, automaticallyChecks: true, automaticallyInstalls: false)
-        #expect(text.contains("알려 주기만"))
+    @Test func 평소에는_받아_두고_표시한다고_적고_스스로_설치한다고_적지_않는다() {
+        let text = UpdateSettingsSection.caption(hasPending: false, automaticallyChecks: true)
+        #expect(text.contains("받아 두고") && text.contains("메뉴 막대 아이콘"))
+        #expect(text.contains("누를 때"))
+        #expect(!text.contains("스스로 설치") && !text.contains("1분쯤"))
     }
 
-    @Test func 받아_둔_것이_있으면_자동_설치_여부에_따라_적는다() {
-        let on = UpdateSettingsSection.caption(hasPending: true, automaticallyChecks: true, automaticallyInstalls: true)
-        #expect(on.contains("스스로 설치하고 다시 켭니다") && on.contains("팝오버"))
-        let off = UpdateSettingsSection.caption(hasPending: true, automaticallyChecks: true, automaticallyInstalls: false)
-        #expect(off.contains("자동 설치가 꺼져 있어 스스로 설치하지 않습니다"))
-    }
-
-    @Test func 자동_확인이_꺼져_있으면_받아_둔_것도_스스로_설치하지_않는다고_적는다() {
-        // Sparkle 은 자동 확인이 꺼져 있으면 자동 설치를 꺼진 것으로 다룹니다(스위치 값과 상관없이).
-        let text = UpdateSettingsSection.caption(hasPending: true, automaticallyChecks: false, automaticallyInstalls: true)
-        #expect(text.contains("자동 확인이 꺼져 있어 스스로 설치하지 않습니다"))
-        #expect(!text.contains("스스로 설치하고 다시 켭니다"))
+    @Test func 받아_둔_것이_있으면_누르면_설치하고_끄면_그때_설치된다고_적는다() {
+        for checks in [true, false] {
+            let text = UpdateSettingsSection.caption(hasPending: true, automaticallyChecks: checks)
+            #expect(text.contains("누르면 설치하고 다시 켭니다"))
+            #expect(text.contains("앱을 끄면 그때 설치"))
+            #expect(text.contains("새로 확인하지 않습니다"))
+            #expect(!text.contains("스스로 설치") && !text.contains("1분쯤"))
+        }
     }
 
     @Test func 설치를_시작했으면_그렇다고_적는다() {
-        let text = UpdateSettingsSection.caption(hasPending: true, automaticallyChecks: true, automaticallyInstalls: true, installing: true)
+        let text = UpdateSettingsSection.caption(hasPending: true, automaticallyChecks: true, installing: true)
         #expect(text.contains("설치를 시작했습니다"))
-        #expect(!text.contains("1분쯤"))
+        #expect(!text.contains("누르면"))
+    }
+}
+
+struct UpdateRowTests {
+    @Test func 설치하는_중이면_단추의_글이_바뀐다() {
+        #expect(UpdateRow.buttonTitle(installing: false) == "업데이트")
+        #expect(UpdateRow.buttonTitle(installing: true) == "설치하는 중…")
+    }
+
+    @Test func 받아_둔_것은_누르면_앱이_다시_켜진다고_알려_준다() {
+        #expect(UpdateRow.help(downloaded: true).contains("다시 켭니다"))
+        #expect(UpdateRow.help(downloaded: false).contains("안내 창"))
     }
 }
 
@@ -439,6 +260,7 @@ struct UpdaterConfigurationTests {
 @MainActor
 struct UpdateControllerTests {
     private let clock = UpdateTestClock()
+    private let scheduled = ScheduledWork()
 
     private var usable: UpdaterConfiguration {
         UpdaterConfiguration(info: [
@@ -447,15 +269,13 @@ struct UpdateControllerTests {
         ])
     }
 
-    private func makeController(settle: TimeInterval = 0) -> UpdateController {
-        let controller = UpdateController(
+    private func makeController(installsOnArrival: Bool = false) -> UpdateController {
+        UpdateController(
             configuration: usable,
-            gate: UpdateInstallGate(settleTime: settle, installTimeout: 30, now: { [clock] in clock.time }),
-            now: { [clock] in clock.time }
+            held: HeldUpdate(installTimeout: 30, now: { [clock] in clock.time }),
+            installsOnArrival: installsOnArrival,
+            schedule: { [scheduled] delay, work in scheduled.add(delay, work) }
         )
-        // 앱에서는 Sparkle 의 값(Info.plist 의 기본값은 켜짐)을 받아 적습니다. 테스트에서는 업데이터를 켜지 않으므로 직접 켭니다.
-        controller.automaticallyChecks = true
-        return controller
     }
 
     // 켤지 말지: 셋 가운데 하나라도 걸리면 켜지 않습니다. 한 조건씩만 걸어 봅니다
@@ -491,381 +311,184 @@ struct UpdateControllerTests {
         #expect(!UpdateController.shared.isEnabled)
     }
 
-    @Test func 받아_둔_업데이트는_붙잡아_두고_조용해지면_설치한다() {
-        let controller = makeController(settle: 60)
-        var quiet = false
-        controller.quietProbe = { quiet }
+    @Test func 받아_둔_업데이트는_들고만_있고_스스로_설치하지_않는다() {
+        let controller = makeController()
         var installs = 0
 
-        controller.holdInstall(version: "1.2.1") { installs += 1 }
+        controller.holdInstall(version: "1.2.2") { installs += 1 }
         #expect(installs == 0)
-        #expect(controller.pendingVersion == "1.2.1")
-
-        controller.reevaluateQuietness()
-        #expect(installs == 0)
-
-        quiet = true
-        controller.reevaluateQuietness()
-        clock.advance(60)
-        controller.reevaluateQuietness()
-        #expect(installs == 1)
-    }
-
-    @Test func 조용할_때_받아도_맡기는_호출_안에서는_설치하지_않는다() {
-        // Sparkle 은 대리자가 "내가 설치하겠다"고 답한 뒤에만 설치 동작을 쓰게 합니다.
-        let controller = makeController(settle: 0)
-        controller.quietProbe = { true }
-        var installs = 0
-        controller.holdInstall(version: "1.2.1") { installs += 1 }
-        #expect(installs == 0)
-        controller.reevaluateQuietness()
-        #expect(installs == 1)
-    }
-
-    @Test func 설치를_넘기기_직전에_바빠졌으면_미루고_다시_붙잡는다() {
-        // Sparkle 은 설치를 넘기기 직전에 한 번 "미룰까"를 묻습니다. 그 사이 집중을 시작했으면 미룹니다.
-        let controller = makeController(settle: 0)
-        var quiet = true
-        controller.quietProbe = { quiet }
-        var installs = 0
-        controller.holdInstall(version: "1.2.1") { installs += 1 }
-        controller.reevaluateQuietness()
-        #expect(installs == 1)
-
-        quiet = false
-        var resumed = 0
-        #expect(controller.shouldPostponeRelaunch { resumed += 1 })
-        #expect(!controller.gate.isInstalling)
-
-        quiet = true
-        controller.reevaluateQuietness()
-        #expect(resumed == 1) // 미룬 뒤에는 Sparkle 이 준 "이어서 하기"를 실행합니다
-        #expect(installs == 1)
-    }
-
-    @Test func 조용한_채로면_미루지_않는다() {
-        let controller = makeController(settle: 0)
-        controller.quietProbe = { true }
-        controller.holdInstall(version: "1.2.1") {}
-        controller.reevaluateQuietness()
-        #expect(!controller.shouldPostponeRelaunch {})
-    }
-
-    @Test func 사용자가_누른_설치는_바빠도_미루지_않는다() {
-        let controller = makeController(settle: 60)
-        controller.quietProbe = { false }
-        controller.holdInstall(version: "1.2.1") {}
-        controller.installPendingUpdateNow()
-        #expect(!controller.shouldPostponeRelaunch {})
-    }
-
-    @Test func Sparkle이_끄는_순간에_바빠졌으면_종료를_막고_다시_붙잡는다() {
-        let controller = makeController(settle: 0)
-        var quiet = true
-        controller.quietProbe = { quiet }
-        var installs = 0
-        controller.holdInstall(version: "1.2.1") { installs += 1 }
-        controller.reevaluateQuietness()
-        #expect(installs == 1)
-        controller.sparkleWillRelaunch() // Sparkle 이 "이제 끄고 다시 켠다"고 알림
-
-        quiet = false // 종료 요청이 닿기 전에 사용자가 집중을 시작했다
-        #expect(controller.shouldCancelTermination(.fromAnotherProcess))
-        #expect(!controller.shouldCancelTermination(.fromAnotherProcess)) // 한 번만 막습니다
-        #expect(controller.pendingVersion == "1.2.1")
-
-        quiet = true
-        controller.reevaluateQuietness()
-        #expect(installs == 2)
-    }
-
-    @Test func 종료를_한_번_막은_뒤_다시_설치할_때도_끄는_순간에_다시_본다() {
-        // Sparkle 은 "이제 끈다"는 알림을 설치 하나에 한 번만 보냅니다. 종료를 막은 뒤의 재시도에는 알림이 다시 오지 않습니다.
-        let controller = makeController(settle: 0)
-        var quiet = true
-        controller.quietProbe = { quiet }
-        var installs = 0
-        controller.holdInstall(version: "1.2.1") { installs += 1 }
-        controller.reevaluateQuietness()
-        controller.sparkleWillRelaunch()
-        quiet = false
-        #expect(controller.shouldCancelTermination(.fromAnotherProcess))
-
-        quiet = true
-        clock.advance(60) // 알림은 한참 전의 일이 됐다
-        controller.reevaluateQuietness() // 재시도 — Sparkle 은 다시 알리지 않는다
-        #expect(installs == 2)
-        quiet = false // 이번에도 종료 요청이 닿기 전에 팝오버를 열었다
-        #expect(controller.shouldCancelTermination(.fromAnotherProcess))
-        #expect(controller.pendingVersion == "1.2.1")
-    }
-
-    @Test func 미뤘다가_이어서_한_설치도_종료를_막은_뒤의_재시도까지_지킨다() {
-        let controller = makeController(settle: 0)
-        var quiet = true
-        controller.quietProbe = { quiet }
-        var resumes = 0
-        controller.holdInstall(version: "1.2.1") {}
-        controller.reevaluateQuietness() // 설치 시작
-        quiet = false
-        #expect(controller.shouldPostponeRelaunch { resumes += 1 }) // 넘기기 직전에 바빠져 미룸
-        quiet = true
-        controller.reevaluateQuietness() // 이어서 하기
-        #expect(resumes == 1)
-        controller.sparkleWillRelaunch() // 이제야 Sparkle 이 알린다 (한 번뿐)
-        quiet = false
-        #expect(controller.shouldCancelTermination(.fromAnotherProcess))
-
-        quiet = true
-        clock.advance(60)
-        controller.reevaluateQuietness() // 재시도 — 물음도 알림도 다시 오지 않는다
-        #expect(resumes == 2)
-        quiet = false
-        #expect(controller.shouldCancelTermination(.fromAnotherProcess))
-    }
-
-    @Test func 종료를_막은_뒤_사용자가_지금_설치를_누르면_막지_않는다() {
-        let controller = makeController(settle: 0)
-        var quiet = true
-        controller.quietProbe = { quiet }
-        var installs = 0
-        controller.holdInstall(version: "1.2.1") { installs += 1 }
-        controller.reevaluateQuietness()
-        controller.sparkleWillRelaunch()
-        quiet = false
-        #expect(controller.shouldCancelTermination(.fromAnotherProcess))
-
-        controller.installPendingUpdateNow()
-        #expect(installs == 2)
-        #expect(!controller.shouldCancelTermination(.fromAnotherProcess))
-    }
-
-    @Test func 다시_설치한_뒤에도_한참_지나서_온_종료는_막지_않는다() {
-        let controller = makeController(settle: 0)
-        var quiet = true
-        controller.quietProbe = { quiet }
-        controller.holdInstall(version: "1.2.1") {}
-        controller.reevaluateQuietness()
-        controller.sparkleWillRelaunch()
-        quiet = false
-        #expect(controller.shouldCancelTermination(.fromAnotherProcess))
-
-        quiet = true
-        clock.advance(60)
-        controller.reevaluateQuietness() // 재시도
-        clock.advance(UpdateController.relaunchGrace) // 종료 요청이 오지 않은 채 시간이 지났다
-        quiet = false
-        #expect(!controller.shouldCancelTermination(.fromAnotherProcess))
-    }
-
-    @Test func 사용자가_누른_설치가_먹지_않은_뒤의_스스로_하는_재시도도_끄는_순간에_본다() {
-        // "지금 설치"에서 Sparkle 이 처음 알리고, 앱이 꺼지지 않은 채 30초가 지나면 문지기가 다시 붙잡습니다.
-        let controller = makeController(settle: 0)
-        var quiet = false
-        controller.quietProbe = { quiet }
-        var installs = 0
-        controller.holdInstall(version: "1.2.1") { installs += 1 }
-        controller.installPendingUpdateNow()
-        controller.sparkleWillRelaunch()
-        #expect(!controller.shouldCancelTermination(.fromAnotherProcess)) // 사용자가 누른 설치는 막지 않습니다
-
-        clock.advance(31) // 설치 도우미가 앱을 끄지 못했다
-        quiet = true
-        controller.reevaluateQuietness() // 스스로 다시 실행
-        #expect(installs == 2)
-        #expect(controller.gate.isInstallingOnItsOwn)
-        quiet = false
-        #expect(controller.shouldCancelTermination(.fromAnotherProcess))
-    }
-
-    @Test func 새로_받은_업데이트는_Sparkle이_다시_알릴_때까지_종료를_막지_않는다() {
-        // 새로 받으면 Sparkle 쪽 설치도 새것이라, 끄기 전에 다시 묻고 다시 알립니다.
-        let controller = makeController(settle: 0)
-        var quiet = true
-        controller.quietProbe = { quiet }
-        controller.holdInstall(version: "1.2.1") {}
-        controller.reevaluateQuietness()
-        controller.sparkleWillRelaunch()
-        quiet = false
-        #expect(controller.shouldCancelTermination(.fromAnotherProcess))
-
-        quiet = true
-        clock.advance(60)
-        controller.holdInstall(version: "1.2.2") {}
-        controller.reevaluateQuietness()
-        #expect(controller.gate.isInstallingOnItsOwn)
-        quiet = false
-        #expect(!controller.shouldCancelTermination(.fromAnotherProcess))
-        controller.sparkleWillRelaunch()
-        #expect(controller.shouldCancelTermination(.fromAnotherProcess))
-    }
-
-    @Test func 앱_안에서_누른_종료와_로그아웃은_Sparkle이_끄는_중이어도_막지_않는다() {
-        let controller = makeController(settle: 0)
-        var quiet = true
-        controller.quietProbe = { quiet }
-        controller.holdInstall(version: "1.2.1") {}
-        controller.reevaluateQuietness()
-        controller.sparkleWillRelaunch()
-        quiet = false
-        #expect(!controller.shouldCancelTermination(.fromThisApp))
-        #expect(!controller.shouldCancelTermination(.fromSystem))
-        // 물어본 것만으로 상태가 바뀌지 않습니다: 뒤이어 온 Sparkle 의 종료는 막습니다.
-        #expect(controller.shouldCancelTermination(.fromAnotherProcess))
-    }
-
-    @Test func Sparkle이_끈다고_알리기_전의_종료는_막지_않는다() {
-        // 스스로 설치를 시작했더라도, Sparkle 이 끈다고 알리기 전에 온 종료는 사용자의 것입니다(팝오버의 "종료", 로그아웃).
-        let controller = makeController(settle: 0)
-        var quiet = true
-        controller.quietProbe = { quiet }
-        controller.holdInstall(version: "1.2.1") {}
-        controller.reevaluateQuietness()
-        #expect(controller.gate.isInstallingOnItsOwn)
-        quiet = false
-        #expect(!controller.shouldCancelTermination(.fromAnotherProcess))
-    }
-
-    @Test func Sparkle이_끈다고_알린_지_오래됐으면_막지_않는다() {
-        let controller = makeController(settle: 0)
-        var quiet = true
-        controller.quietProbe = { quiet }
-        controller.holdInstall(version: "1.2.1") {}
-        controller.reevaluateQuietness()
-        controller.sparkleWillRelaunch()
-        clock.advance(UpdateController.relaunchGrace)
-        quiet = false
-        #expect(!controller.shouldCancelTermination(.fromAnotherProcess))
-    }
-
-    @Test func 조용한_채로_꺼지는_것은_막지_않는다() {
-        let controller = makeController(settle: 0)
-        controller.quietProbe = { true }
-        controller.holdInstall(version: "1.2.1") {}
-        controller.reevaluateQuietness()
-        controller.sparkleWillRelaunch()
-        #expect(!controller.shouldCancelTermination(.fromAnotherProcess))
-    }
-
-    @Test func 붙잡고만_있을_때_사용자가_끄는_것은_막지_않는다() {
-        // 이때는 Sparkle 이 꺼지면서 설치합니다.
-        let controller = makeController(settle: 60)
-        controller.quietProbe = { false }
-        controller.holdInstall(version: "1.2.1") {}
-        #expect(!controller.shouldCancelTermination(.fromAnotherProcess))
-    }
-
-    @Test func 사용자가_지금_설치를_누르면_바빠도_설치하고_종료를_막지_않는다() {
-        let controller = makeController(settle: 60)
-        controller.quietProbe = { false }
-        var installs = 0
-        controller.holdInstall(version: "1.2.1") { installs += 1 }
+        #expect(controller.pendingVersion == "1.2.2")
+        #expect(controller.indicatedVersion == "1.2.2")
         #expect(controller.canInstallPendingUpdate)
+        #expect(!controller.installInProgress)
+        // 나중에 스스로 하려고 걸어 둔 일이 없습니다. 시간이 지나도 그대로입니다.
+        #expect(scheduled.items.isEmpty)
+        clock.advance(86_400)
+        scheduled.runAll()
+        controller.refreshInstallState()
+        #expect(installs == 0)
+        #expect(controller.pendingVersion == "1.2.2")
+    }
+
+    @Test func 누르면_설치하고_설치하는_중으로_바뀐다() {
+        let controller = makeController()
+        var installs = 0
+        controller.holdInstall(version: "1.2.2") { installs += 1 }
+
         controller.installPendingUpdateNow()
         #expect(installs == 1)
-        controller.sparkleWillRelaunch()
-        #expect(!controller.shouldCancelTermination(.fromAnotherProcess))
-        #expect(!controller.canInstallPendingUpdate) // 진행 중에는 단추를 또 누를 수 없습니다
-    }
-
-    @Test func 자동_설치를_끄면_스스로_설치하지_않고_다시_켜면_이어서_한다() {
-        // 꺼 놓았는데 조용해졌다고 스스로 다시 켜지면 안 됩니다. 붙잡은 것은 남겨 두어, 다시 켜거나 "지금 설치"를 누르면 됩니다.
-        let controller = makeController(settle: 0)
-        controller.quietProbe = { true }
-        controller.automaticallyInstalls = true
-        var installs = 0
-        controller.holdInstall(version: "1.2.1") { installs += 1 }
-
-        controller.automaticallyInstalls = false
-        controller.reevaluateQuietness()
-        #expect(installs == 0)
-        #expect(controller.pendingVersion == "1.2.1")
-        #expect(controller.canInstallPendingUpdate)
-
-        controller.automaticallyInstalls = true
-        controller.reevaluateQuietness()
-        #expect(installs == 1)
-    }
-
-    @Test func 자동_확인을_끄면_자동_설치가_켜져_있어도_스스로_설치하지_않는다() {
-        // 설정 창의 문구와 CHANGELOG 가 이렇게 약속합니다. Sparkle 이 이 조합을 어떻게 다루든 여기서 지킵니다.
-        let controller = makeController(settle: 0)
-        controller.quietProbe = { true }
-        controller.automaticallyChecks = true
-        controller.automaticallyInstalls = true
-        var installs = 0
-        controller.holdInstall(version: "1.2.1") { installs += 1 }
-        #expect(controller.needsQuietTimer)
-
-        controller.automaticallyChecks = false
-        #expect(!controller.needsQuietTimer)
-        controller.reevaluateQuietness()
-        #expect(installs == 0)
-        #expect(controller.canInstallPendingUpdate) // 버리지는 않습니다: "지금 설치"는 됩니다
-
-        controller.automaticallyChecks = true
-        controller.reevaluateQuietness()
-        #expect(installs == 1)
-    }
-
-    @Test func 자동_확인_값을_받아_적기_전에는_스스로_설치하지_않는다() {
-        // 막 만든 때의 값은 "자동 확인 꺼짐"입니다(앱은 start() 에서 Sparkle 의 값을 받아 적습니다). 그 처음 상태도 규칙을 따라야 합니다.
-        let controller = UpdateController(
-            configuration: usable,
-            gate: UpdateInstallGate(settleTime: 0, installTimeout: 30, now: { [clock] in clock.time }),
-            now: { [clock] in clock.time }
-        )
-        controller.quietProbe = { true }
-        var installs = 0
-        controller.holdInstall(version: "1.2.1") { installs += 1 }
-        #expect(!controller.needsQuietTimer)
-        controller.reevaluateQuietness()
-        #expect(installs == 0)
-
-        controller.automaticallyChecks = true
-        controller.reevaluateQuietness()
-        #expect(installs == 1)
-    }
-
-    @Test func 자동_설치가_꺼져_있어도_지금_설치는_된다() {
-        let controller = makeController(settle: 0)
-        controller.quietProbe = { true }
-        controller.automaticallyInstalls = false
-        var installs = 0
-        controller.holdInstall(version: "1.2.1") { installs += 1 }
-        controller.reevaluateQuietness()
-        #expect(installs == 0)
-        controller.installPendingUpdateNow()
-        #expect(installs == 1)
-    }
-
-    @Test func 자동_설치가_꺼져_있어도_지금_설치가_먹지_않았으면_단추가_다시_살아난다() {
-        // 설치를 시작했는데 앱이 꺼지지 않은 경우(설치 도우미 실패 등). 자동 설치가 꺼져 있어도 다시 재야 그것을 알아챕니다.
-        let controller = makeController(settle: 60)
-        controller.quietProbe = { false }
-        controller.automaticallyInstalls = false
-        controller.holdInstall(version: "1.2.1") {}
-        #expect(!controller.needsQuietTimer) // 붙잡고만 있고 스스로 설치하지 않으면 잴 것이 없다
-        controller.installPendingUpdateNow()
         #expect(controller.installInProgress)
         #expect(!controller.canInstallPendingUpdate)
-        #expect(controller.needsQuietTimer)
-
-        clock.advance(31)
-        controller.reevaluateQuietness()
-        #expect(!controller.installInProgress)
-        #expect(controller.canInstallPendingUpdate)
-        #expect(!controller.needsQuietTimer)
+        // 표시는 앱이 꺼질 때까지 남습니다.
+        #expect(controller.indicatedVersion == "1.2.2")
+        // 설치하는 동안 또 눌러도 다시 실행하지 않습니다.
+        controller.installPendingUpdateNow()
+        controller.performIndicatedUpdate()
+        #expect(installs == 1)
     }
 
-    @Test func 스스로_설치할_것을_붙잡고_있는_동안에만_주기적으로_다시_잰다() {
-        let controller = makeController(settle: 60)
-        controller.quietProbe = { false }
-        #expect(!controller.needsQuietTimer)
-        controller.holdInstall(version: "1.2.1") {}
-        #expect(controller.needsQuietTimer)
+    @Test func 설치가_먹지_않으면_기다린_뒤에_단추가_다시_살아난다() {
+        // 설치 도우미가 실패해 앱이 꺼지지 않은 경우. 단추가 "설치하는 중…"에 멈춰 있으면 다시 누를 길이 없습니다.
+        let controller = makeController()
+        var installs = 0
+        controller.holdInstall(version: "1.2.2") { installs += 1 }
+        controller.installPendingUpdateNow()
+        // 기다리는 시간이 지난 뒤에 다시 보도록 걸어 둡니다.
+        #expect(scheduled.delays == [31])
+
+        clock.advance(31)
+        scheduled.runAll()
+        #expect(!controller.installInProgress)
+        #expect(controller.canInstallPendingUpdate)
+        controller.installPendingUpdateNow()
+        #expect(installs == 2)
+        #expect(controller.installInProgress)
+    }
+
+    @Test func 기다리는_시간이_지나기_전에는_단추가_살아나지_않는다() {
+        let controller = makeController()
+        controller.holdInstall(version: "1.2.2") {}
+        controller.installPendingUpdateNow()
+        clock.advance(10)
+        controller.refreshInstallState()
+        #expect(controller.installInProgress)
+        #expect(!controller.canInstallPendingUpdate)
+    }
+
+    @Test func 팝오버의_업데이트는_받아_둔_것을_설치한다() {
+        let controller = makeController()
+        var installs = 0
+        controller.holdInstall(version: "1.2.2") { installs += 1 }
+        controller.performIndicatedUpdate()
+        #expect(installs == 1)
+        #expect(controller.installInProgress)
+    }
+
+    @Test func 표시할_것이_없으면_눌러도_아무_일도_없다() {
+        let controller = makeController()
+        #expect(controller.indicatedVersion == nil)
+        controller.performIndicatedUpdate()
+        controller.installPendingUpdateNow()
+        #expect(!controller.installInProgress)
+        #expect(scheduled.items.isEmpty)
+    }
+
+    @Test func 찾기만_한_새_버전도_표시하고_받아_둔_것이_있으면_그것이_먼저다() {
+        // Sparkle 이 스스로 받을 수 없는 업데이트는 "찾기만 한 것"으로 옵니다. 그때도 점은 켭니다.
+        let controller = makeController()
+        controller.showAvailable(version: "2.0.0")
+        #expect(controller.availableVersion == "2.0.0")
+        #expect(controller.indicatedVersion == "2.0.0")
+        #expect(!controller.canInstallPendingUpdate)
+
+        var installs = 0
+        controller.holdInstall(version: "1.2.2") { installs += 1 }
+        #expect(controller.indicatedVersion == "1.2.2")
+        controller.performIndicatedUpdate()
+        #expect(installs == 1)
+
         controller.updateCycleDidFinish()
-        #expect(!controller.needsQuietTimer)
+        #expect(controller.indicatedVersion == "2.0.0")
+        controller.clearAvailable()
+        #expect(controller.indicatedVersion == nil)
+    }
+
+    @Test func 찾기만_한_것을_눌러도_설치_동작은_실행하지_않는다() {
+        // 이때는 Sparkle 의 안내 창을 엽니다(테스트 호스트에서는 업데이터가 꺼져 있어 아무 일도 없습니다).
+        let controller = makeController()
+        controller.showAvailable(version: "2.0.0")
+        controller.performIndicatedUpdate()
+        #expect(!controller.installInProgress)
+        #expect(scheduled.items.isEmpty)
+        #expect(controller.indicatedVersion == "2.0.0")
+    }
+
+    @Test func Sparkle의_업데이트_주기가_끝나면_받아_둔_것을_치운다() {
+        // 주기가 끝나면(설치 도우미와의 연결이 끊기는 등) 받아 둔 설치 동작은 더 쓸 수 없습니다.
+        // 남겨 두면 눌러도 아무 일 없는 단추와 꺼지지 않는 점이 남고, "지금 확인"도 가려집니다.
+        let controller = makeController()
+        var installs = 0
+        controller.holdInstall(version: "1.2.2") { installs += 1 }
+        controller.updateCycleDidFinish()
+        #expect(controller.pendingVersion == nil)
+        #expect(controller.indicatedVersion == nil)
+        #expect(!controller.held.isHolding)
+        controller.installPendingUpdateNow()
+        controller.performIndicatedUpdate()
+        #expect(installs == 0)
+    }
+
+    @Test func 설치하는_중에_주기가_끝나면_설치하는_중도_끝난다() {
+        let controller = makeController()
+        controller.holdInstall(version: "1.2.2") {}
+        controller.installPendingUpdateNow()
+        controller.updateCycleDidFinish()
+        #expect(!controller.installInProgress)
+        // 걸어 둔 "다시 보기"가 뒤늦게 돌아도 그대로입니다.
+        clock.advance(31)
+        scheduled.runAll()
+        #expect(!controller.installInProgress)
+        #expect(controller.pendingVersion == nil)
+    }
+
+    @Test func 새로_받으면_앞의_설치하는_중은_잊는다() {
+        let controller = makeController()
+        var first = 0
+        var second = 0
+        controller.holdInstall(version: "1.2.2") { first += 1 }
+        controller.installPendingUpdateNow()
+        controller.holdInstall(version: "1.2.3") { second += 1 }
+        #expect(controller.pendingVersion == "1.2.3")
+        #expect(!controller.installInProgress)
+        #expect(controller.canInstallPendingUpdate)
+        controller.installPendingUpdateNow()
+        #expect(first == 1)
+        #expect(second == 1)
+    }
+
+    @Test func 시험용_스위치가_켜져_있으면_받아_두자마자_설치하되_맡기는_호출_안에서는_하지_않는다() {
+        // Sparkle 은 대리자가 "내가 설치하겠다"고 답한 뒤에만 설치 동작을 쓰게 합니다.
+        let controller = makeController(installsOnArrival: true)
+        var installs = 0
+        controller.holdInstall(version: "0.9.2") { installs += 1 }
+        #expect(installs == 0)
+        #expect(scheduled.delays == [0])
+        scheduled.runAll()
+        #expect(installs == 1)
+        #expect(controller.installInProgress)
+    }
+
+    @Test func 시험용_스위치는_실행_인자로만_켜진다() {
+        let key = UpdateController.installOnArrivalArgument
+        #expect(!UpdateController.installsOnArrival(arguments: [:]))
+        #expect(UpdateController.installsOnArrival(arguments: [key: "YES"]))
+        #expect(UpdateController.installsOnArrival(arguments: [key: "1"]))
+        #expect(UpdateController.installsOnArrival(arguments: [key: true]))
+        #expect(!UpdateController.installsOnArrival(arguments: [key: "NO"]))
+        #expect(!UpdateController.installsOnArrival(arguments: [key: false]))
+        #expect(!UpdateController.installsOnArrival(arguments: ["UpdateInstallSettleSeconds": "5"]))
+        // 이 테스트 호스트는 그 인자 없이 켜졌습니다. (읽는 곳은 실행 인자뿐이라 저장된 설정에 같은 이름이 있어도 켜지지 않습니다.)
+        #expect(!UpdateController.installsOnArrival())
     }
 
     @Test func Sparkle이_부르는_대리자_메서드가_모두_있다() {
@@ -873,59 +496,53 @@ struct UpdateControllerTests {
         let controller = makeController()
         for name in [
             "updater:willInstallUpdateOnQuit:immediateInstallationBlock:",
-            "updater:shouldPostponeRelaunchForUpdate:untilInvokingBlock:",
-            "updaterWillRelaunchApplication:",
             "updater:didFinishUpdateCycleForUpdateCheck:error:",
-            "updater:didAbortWithError:"
+            "updater:didAbortWithError:",
+            "supportsGentleScheduledUpdateReminders",
+            "standardUserDriverShouldHandleShowingScheduledUpdate:andInImmediateFocus:",
+            "standardUserDriverWillHandleShowingUpdate:forUpdate:state:",
+            "standardUserDriverDidReceiveUserAttentionForUpdate:",
+            "standardUserDriverWillFinishUpdateSession"
         ] {
             #expect(controller.responds(to: NSSelectorFromString(name)), "\(name)")
         }
     }
 
-    @Test func Sparkle의_업데이트_주기가_끝나면_붙잡은_것을_치운다() {
-        // 주기가 끝나면(설치 도우미와의 연결이 끊기는 등) 받아 둔 설치 동작은 더 쓸 수 없습니다.
-        // 남겨 두면 설정 창에 눌러도 아무 일 없는 단추가 남고, "지금 확인"도 가려집니다.
-        let controller = makeController(settle: 0)
-        controller.quietProbe = { true }
-        var installs = 0
-        controller.holdInstall(version: "1.2.1") { installs += 1 }
-        controller.updateCycleDidFinish()
-        #expect(controller.pendingVersion == nil)
-        #expect(!controller.gate.hasPendingInstall)
-        controller.reevaluateQuietness()
-        #expect(installs == 0)
+    @Test func 스스로_설치하던_때의_대리자_메서드는_없다() {
+        // 설치를 미루거나 끄는 순간을 가로채던 것들. 남아 있으면 Sparkle 이 계속 부릅니다.
+        let controller = makeController()
+        for name in [
+            "updater:shouldPostponeRelaunchForUpdate:untilInvokingBlock:",
+            "updaterWillRelaunchApplication:"
+        ] {
+            #expect(!controller.responds(to: NSSelectorFromString(name)), "\(name)")
+        }
+    }
+
+    @Test func 창을_스스로_띄우지_않는다() {
+        // 스스로 받을 수 없는 업데이트를 찾았을 때: 앱을 방금 켠 때라도 안내 창 대신 표시로만 알립니다.
+        let controller = makeController()
+        #expect(controller.supportsGentleScheduledUpdateReminders)
     }
 }
 
 @MainActor
 struct UpdateTerminationWiringTests {
-    private let clock = UpdateTestClock()
-
-    @Test func 앱_대리자는_업데이트가_막으라고_하면_종료를_취소한다() {
-        // AppDelegate.applicationShouldTerminate 가 실제로 물어보는지 (이 연결이 빠지면 집중 도중에 다시 켜질 수 있습니다)
+    @Test func 앱_대리자는_업데이트를_받아_두고_있어도_종료를_막지_않는다() {
+        // 1.2.1 까지는 스스로 시작한 설치가 집중을 끊지 않도록 종료를 취소하는 길이 있었습니다.
+        // 이제 설치는 사용자가 누른 것뿐이라 종료를 막을 일이 없습니다. (이 대리자에는 타이머가 없으므로 곧바로 종료)
         let controller = UpdateController(
             configuration: UpdaterConfiguration(info: [:]),
-            gate: UpdateInstallGate(settleTime: 0, installTimeout: 30, now: { [clock] in clock.time }),
-            now: { [clock] in clock.time }
+            held: HeldUpdate(),
+            installsOnArrival: false,
+            schedule: { _, _ in }
         )
-        controller.automaticallyChecks = true // 앱에서는 Sparkle 의 값을 받아 적습니다
-        var quiet = true
-        controller.quietProbe = { quiet }
-        controller.holdInstall(version: "1.2.1") {}
-        controller.reevaluateQuietness()
-        controller.sparkleWillRelaunch()
-        quiet = false
-
         let delegate = AppDelegate()
         delegate.updates = controller
-        // 앱 안에서 부른 종료(팝오버의 "종료")는 이 상태에서도 막지 않습니다. 물어본 것만으로 상태가 바뀌지도 않습니다.
-        delegate.terminationRequestProbe = { .fromThisApp }
         #expect(delegate.applicationShouldTerminate(NSApplication.shared) == .terminateNow)
-        #expect(controller.gate.isInstallingOnItsOwn)
-        // Sparkle 의 설치 도우미처럼 다른 프로세스가 끄는 종료는 막습니다.
-        delegate.terminationRequestProbe = { .fromAnotherProcess }
-        #expect(delegate.applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
-        // 막을 일이 없으면 예전처럼 끝냅니다 (이 대리자에는 타이머가 없으므로 곧바로 종료).
+        controller.holdInstall(version: "1.2.2") {}
+        #expect(delegate.applicationShouldTerminate(NSApplication.shared) == .terminateNow)
+        controller.installPendingUpdateNow()
         #expect(delegate.applicationShouldTerminate(NSApplication.shared) == .terminateNow)
     }
 }
