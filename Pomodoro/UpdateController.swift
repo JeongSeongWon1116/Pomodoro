@@ -27,7 +27,8 @@ final class UpdateController: NSObject, ObservableObject {
     let held: HeldUpdate
 
     @Published private(set) var canCheckForUpdates = false
-    /// 찾았지만 받아 두지 못한 새 버전 (Sparkle 이 스스로 받을 수 없는 업데이트일 때만 값이 있음. 누르면 안내 창이 뜹니다)
+    /// 찾았지만 곧바로 설치할 수 없는 새 버전. 누르면 Sparkle 의 안내 창이 떠서 거기서 이어 갑니다.
+    /// (스스로 받을 수 없는 업데이트, 설치 도우미가 이미 떠 있어 이어 가는 경우, 관리자 암호가 필요해 미뤄진 경우)
     @Published private(set) var availableVersion: String?
     /// 받아 두고 설치를 기다리는 버전
     @Published private(set) var pendingVersion: String?
@@ -169,8 +170,7 @@ final class UpdateController: NSObject, ObservableObject {
         controller.checkForUpdates(nil)
     }
 
-    /// 받아 둔 업데이트의 설치 동작을 맡아 둡니다. 여기서는 실행하지 않습니다 —
-    /// Sparkle은 대리자가 "내가 설치하겠다"고 답한 뒤에만 설치 동작을 쓰게 합니다.
+    /// 받아 둔 업데이트의 설치 동작을 맡아 둡니다. 여기서는 실행하지 않습니다 — 사용자가 누를 때 실행합니다.
     func holdInstall(version: String, _ install: @escaping () -> Void) {
         log.notice("holding update \(version, privacy: .public) until the user installs it")
         pendingVersion = version
@@ -179,10 +179,9 @@ final class UpdateController: NSObject, ObservableObject {
             install()
         }
         refreshInstallState()
-        // 시험용 스위치: 대리자 호출이 끝난 뒤에(위의 까닭) 단추를 누른 것과 같은 길로 설치합니다.
-        if installsOnArrival {
-            schedule(0) { [weak self] in self?.installPendingUpdateNow() }
-        }
+        // 시험용 스위치: 단추를 누른 것과 같은 길로 곧바로 설치합니다.
+        // (Sparkle 이 준 설치 동작은 스스로 다음 차례로 넘겨 실행하므로, 대리자 호출 안에서 불러도 됩니다 — SPUAutomaticUpdateDriver.m)
+        if installsOnArrival { installPendingUpdateNow() }
     }
 
     /// 사용자가 "업데이트"(팝오버)나 "지금 설치하고 다시 켜기"(설정)를 눌렀을 때.
@@ -206,8 +205,10 @@ final class UpdateController: NSObject, ObservableObject {
         }
     }
 
-    /// Sparkle의 업데이트 주기가 끝났거나 오류로 중단됐을 때. 받아 둔 설치 동작은 그 주기의 것이라 더 쓸 수 없으므로 치웁니다.
-    /// 주기는 설치 도우미의 오류나 연결 끊김으로 끝나고 그때 도우미도 스스로 끝나므로, 그 업데이트는 대개 다음 확인 때 다시 받습니다.
+    /// Sparkle의 업데이트 주기가 끝났거나 오류로 중단됐을 때. 받아 둔 설치 동작은 그 주기의 것이라 더 쓸 수 없으므로 치웁니다
+    /// (점과 단추가 사라집니다). 주기는 설치 도우미의 오류나 연결 끊김으로 끝납니다. 도우미까지 끝났으면 다음 확인 때 다시 받고,
+    /// 연결만 끊겨 도우미가 남아 있으면 앱을 끌 때 설치됩니다 — 그 경우 다음 정해진 확인은 늦을 수 있고(Sparkle 은 설치를 기다리는
+    /// 동안 확인 간격을 늘립니다), "지금 확인"을 누르면 안내 창에서 이어 갑니다.
     func updateCycleDidFinish() {
         if held.isHolding { log.notice("update cycle finished: dropping the held install") }
         held.discard()
@@ -220,7 +221,7 @@ final class UpdateController: NSObject, ObservableObject {
         if installInProgress != held.isInstalling { installInProgress = held.isInstalling }
     }
 
-    /// 스스로 받아 둘 수 없는 새 버전을 찾았을 때(아래 알리는 방식). 메뉴 막대의 표시만 켭니다.
+    /// 곧바로 설치할 수 없는 새 버전을 찾았을 때(아래 알리는 방식). 메뉴 막대의 표시만 켭니다.
     func showAvailable(version: String) {
         availableVersion = version
     }
@@ -258,8 +259,8 @@ extension UpdateController: SPUUpdaterDelegate {
 extension UpdateController: SPUStandardUserDriverDelegate {
     nonisolated var supportsGentleScheduledUpdateReminders: Bool { true }
 
-    // Sparkle 이 스스로 받아 둘 수 없는 업데이트를 정해진 확인에서 찾았을 때입니다. 앱을 방금 켰을 때에도 안내 창을 띄우지 않고
-    // 메뉴 막대의 표시로만 알립니다. 표시 옆의 "업데이트"를 누르면 그때 안내 창이 앞에 뜹니다.
+    // 정해진 확인에서 Sparkle 이 안내 창을 보여 주려 할 때입니다(스스로 받을 수 없는 업데이트, 설치를 이어 가야 하는 경우).
+    // 앱을 방금 켰을 때에도 창을 띄우지 않고 메뉴 막대의 표시로만 알립니다. 표시 옆의 "업데이트"를 누르면 그때 안내 창이 앞에 뜹니다.
     nonisolated func standardUserDriverShouldHandleShowingScheduledUpdate(_ update: SUAppcastItem, andInImmediateFocus immediateFocus: Bool) -> Bool {
         false
     }

@@ -217,7 +217,7 @@ struct UpdateSettingsSection: View {
     let disabledReason: String?
     @Binding var automaticallyChecks: Bool
     let lastCheckText: String
-    /// 찾았지만 받아 두지 못한 새 버전 (Sparkle 이 스스로 받을 수 없는 업데이트일 때)
+    /// 찾았지만 곧바로 설치할 수 없는 새 버전 (Sparkle 의 안내 창에서 이어 가는 업데이트)
     let availableVersion: String?
     /// 받아 두고 설치를 기다리는 버전
     let pendingVersion: String?
@@ -265,6 +265,6 @@ struct UpdateSettingsSection: View {
         if !automaticallyChecks {
             return "자동 확인이 꺼져 있습니다. \"지금 확인\"을 누를 때만 확인합니다."
         }
-        return "새 버전이 나오면 받아 두고 메뉴 막대 아이콘에 점으로 알립니다. 설치는 \"업데이트\"를 누를 때 합니다."
+        return "새 버전이 나오면 받아 두고 메뉴 막대 아이콘에 점으로 알립니다. \"업데이트\"를 누르면 설치하고 다시 켭니다. 누르지 않고 앱을 끄면 그때 설치됩니다."
     }
 }

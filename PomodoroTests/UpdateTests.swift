@@ -156,8 +156,16 @@ struct UpdateSettingsCaptionTests {
     @Test func 평소에는_받아_두고_표시한다고_적고_스스로_설치한다고_적지_않는다() {
         let text = UpdateSettingsSection.caption(hasPending: false, automaticallyChecks: true)
         #expect(text.contains("받아 두고") && text.contains("메뉴 막대 아이콘"))
-        #expect(text.contains("누를 때"))
+        #expect(text.contains("누르면 설치"))
         #expect(!text.contains("스스로 설치") && !text.contains("1분쯤"))
+    }
+
+    @Test func 누르지_않아도_앱을_끄면_설치된다는_것을_받아_두기_전에도_적는다() {
+        // 받아 둔 업데이트는 앱이 끝날 때 Sparkle 이 설치합니다. 점이 켜지기 전에 읽는 글에도 있어야 놀라지 않습니다.
+        let text = UpdateSettingsSection.caption(hasPending: false, automaticallyChecks: true)
+        #expect(text.contains("앱을 끄면 그때 설치"))
+        // 자동 확인이 꺼져 있으면 받지도 않으므로 그 말이 없습니다.
+        #expect(!UpdateSettingsSection.caption(hasPending: false, automaticallyChecks: false).contains("앱을 끄면"))
     }
 
     @Test func 받아_둔_것이_있으면_누르면_설치하고_끄면_그때_설치된다고_적는다() {
@@ -466,16 +474,15 @@ struct UpdateControllerTests {
         #expect(second == 1)
     }
 
-    @Test func 시험용_스위치가_켜져_있으면_받아_두자마자_설치하되_맡기는_호출_안에서는_하지_않는다() {
-        // Sparkle 은 대리자가 "내가 설치하겠다"고 답한 뒤에만 설치 동작을 쓰게 합니다.
+    @Test func 시험용_스위치가_켜져_있으면_받아_두자마자_단추와_같은_길로_설치한다() {
         let controller = makeController(installsOnArrival: true)
         var installs = 0
         controller.holdInstall(version: "0.9.2") { installs += 1 }
-        #expect(installs == 0)
-        #expect(scheduled.delays == [0])
-        scheduled.runAll()
         #expect(installs == 1)
+        #expect(controller.pendingVersion == "0.9.2")
         #expect(controller.installInProgress)
+        // 단추를 눌렀을 때와 같이, 먹지 않았을 때를 위한 "다시 보기"도 걸립니다.
+        #expect(scheduled.delays == [31])
     }
 
     @Test func 시험용_스위치는_실행_인자로만_켜진다() {

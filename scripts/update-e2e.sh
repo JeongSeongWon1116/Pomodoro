@@ -6,7 +6,8 @@
 # 시험용 번들 id(Jeong.Pomodoro.updatetest)와 그 자리에서 만든 일회용 서명 키로 세 버전(0.9.0, 0.9.1, 0.9.2)을
 # 빌드하고, localhost 에 업데이트 목록을 띄운 뒤 두 가지를 본다.
 #   1) 0.9.0 을 숨긴 채(창 없음)로 켠다 → 0.9.1 을 스스로 받는다. 받아 두기만 하고 스스로 설치하지 않는다
-#      (예전에 스스로 설치하던 조건 — 창 없이 조용한 채로 1분 — 보다 길게 지켜본다). 앱이 끝날 때 설치된다.
+#      (앱의 로그에 "holding update"가 찍힌 때부터, 예전에 스스로 설치하던 조건 — 창 없이 조용한 채로 1분 —
+#      보다 길게 지켜본다). 앱이 끝날 때 설치된다.
 #   2) 0.9.1 을 켠다 → 0.9.2 를 받아, "업데이트"를 누른 것과 같은 길로 설치하고 다시 켜진다.
 #      단추를 실제로 누르지는 못하므로 시험용 실행 인자(-UpdateInstallHeldOnArrival YES)를 준다:
 #      받아 두자마자 단추와 같은 함수를 부른다. 평소의 앱에서는 이 인자가 없어 받아 두기만 한다(1에서 본다).
@@ -17,7 +18,7 @@
 # 외장 디스크에 놓인 앱을 Sparkle 이 바꾸려 하면 macOS 가 "이동식 볼륨의 파일에 접근" 허락을 묻고, 답할 때까지 설치가 멈춘다
 # (임시 서명은 빌드마다 달라서 매번 다시 묻는다).
 # 남는 것: 위 폴더(다음 실행 때 옆으로 옮긴다), ~/Library/Containers/Jeong.Pomodoro.updatetest (시험용 앱의 자료).
-# 필요한 것: Xcode, python3, ed25519 를 아는 openssl(Homebrew 의 openssl 3).
+# 필요한 것: Xcode, python3, ed25519 를 아는 openssl(Homebrew 의 openssl 3), 앱의 로그를 읽는 /usr/bin/log.
 # 어떻게 불렸든(bash scripts/…, sh …) macOS 의 /bin/bash 로 돈다. PATH 에 먼저 잡히는 Homebrew 의 bash(5.x)는
 # CoreFoundation 을 쓰는 gettext 에 물려 있어, 갈라져 나온 하위 셸이 로캘을 되돌리다가 드물게 죽는다
 # (2026-10-10: 릴리스 예행이 테스트 직후 SIGSEGV 로 끝남).
@@ -30,7 +31,7 @@ export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Develope
 TEST_ID="Jeong.Pomodoro.updatetest"
 PORT="${UPDATE_E2E_PORT:-18731}"
 FEED="http://localhost:$PORT"
-HOLD=75    # 받아 둔 뒤 이만큼(초) 지켜본다. 그동안 스스로 설치하면 실패다 (1.2.1 까지는 조용한 채로 60초 뒤, 10초마다 재서 설치했다)
+HOLD=90    # 받아 둔 때부터 이만큼(초) 지켜본다. 그동안 스스로 설치하면 실패다 (1.2.1 까지는 받아 둔 뒤 조용한 채로 60초가 지나면, 10초마다 재서 설치했다)
 BUILD_HOME="${POMODORO_BUILD_HOME:-$HOME/Library/Developer/Pomodoro-build}"
 WORK="$BUILD_HOME/update-e2e"
 BIN="$BUILD_HOME/dd/SourcePackages/artifacts/sparkle/Sparkle/bin"
@@ -99,6 +100,12 @@ within() { # within <초> <명령...> — 그 시간 안에 참이 되면 0, 아
   done
 }
 downloaded() { grep -q "GET /$1 " "$WORK/http.log"; }
+# 앱이 그 버전을 받아 두었다고 로그에 적었는지 (UpdateController.holdInstall). 이 시험이 시작한 뒤의 로그만 본다.
+STARTED="$(date '+%Y-%m-%d %H:%M:%S')"
+holding() {
+  /usr/bin/log show --start "$STARTED" --style compact --predicate "subsystem == \"$TEST_ID\" AND category == \"update\"" 2>/dev/null \
+    | grep -q "holding update $1 until"
+}
 is_version() { [ "$(version)" = "$1" ]; }
 running_as() { [ "$(version)" = "$1" ] && [ -n "$(app_pids)" ]; }
 # 시험용 앱과, 그 묶음 안에서 도는 Sparkle 의 설치 도우미까지 모두 끝났는지
@@ -121,13 +128,16 @@ say "1) 0.9.0 을 숨긴 채로 켠다 → 0.9.1 을 스스로 받되 설치하�
 open -n -j "$APP" "${ARGS[@]}"
 wait_for 60 "0.9.0 이 0.9.1 을 내려받지 않음" downloaded "Pomodoro-0.9.1.zip"
 echo "내려받음"
+# 받아 두었다고 앱이 적을 때까지 기다린다. 여기에 이르지 않으면(설치 동작을 맡지 않으면) 점도 단추도 생기지 않는다.
+wait_for 60 "0.9.0 이 0.9.1 을 받아 두지 않음 (로그에 holding update 가 없음)" holding 0.9.1
+echo "받아 둠"
 PIDS_BEFORE="$(app_pids | tr '\n' ' ')"
 [ -n "$PIDS_BEFORE" ] || die "받아 둔 채 기다려야 할 앱이 꺼져 있음"
 # 창이 없고 타이머도 대기다 — 예전에는 이 상태가 1분 이어지면 스스로 설치하고 다시 켜졌다. 이제는 그대로 있어야 한다.
 if within "$HOLD" is_version 0.9.1; then die "누르지 않았는데 스스로 설치했다 (설치 자리가 0.9.1 이 됨)"; fi
 is_version 0.9.0 || die "설치 자리의 버전이 이상함: '$(version)'"
 [ "$(app_pids | tr '\n' ' ')" = "$PIDS_BEFORE" ] || die "받아 둔 채 기다려야 할 앱이 꺼졌거나 다시 켜졌다 (pid '$PIDS_BEFORE' → '$(app_pids | tr '\n' ' ')')"
-echo "받아 두고 ${HOLD}초 동안 스스로 설치하지 않았다 → 앱을 끝낸다"
+echo "받아 둔 뒤 ${HOLD}초 동안 스스로 설치하지 않았다 → 앱을 끝낸다"
 stop_app
 wait_for 30 "앱이 끝난 뒤에도 0.9.1 이 설치되지 않음" is_version 0.9.1
 echo "앱이 끝나자 설치됐다"
