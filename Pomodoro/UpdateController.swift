@@ -1,12 +1,12 @@
 // File: UpdateController.swift
-// Description: 자동 업데이트(Sparkle)를 켜고, 설정 창이 볼 상태를 내놓습니다.
-// 받아 둔 업데이트는 타이머가 쉬고 있고 창이 없는 상태가 한동안 이어졌을 때 스스로 설치하고 다시 켭니다(UpdateInstallGate).
+// Description: 자동 업데이트(Sparkle)를 켜고, 메뉴 막대 아이콘과 설정 창이 볼 상태를 내놓습니다.
+// 새 버전은 미리 받아 두고 메뉴 막대 아이콘에 표시만 합니다. 앱이 켜져 있는 동안 스스로 설치하지 않습니다 — 사용자가
+// "업데이트"를 누르면 그때 설치하고 다시 켭니다(HeldUpdate). 누르지 않은 채 앱을 끄면 Sparkle 이 그때 설치합니다.
 
 import AppKit
 import Combine
 import os
 import Sparkle
-import UserNotifications
 
 @MainActor
 final class UpdateController: NSObject, ObservableObject {
@@ -18,21 +18,17 @@ final class UpdateController: NSObject, ObservableObject {
     nonisolated static let builtForDebugging = false
     #endif
 
-    /// 조용함이 이만큼(초) 이어져야 받아 둔 업데이트를 스스로 설치합니다.
-    /// 사용자 기본값 `UpdateInstallSettleSeconds`로 바꿀 수 있습니다(scripts/update-e2e.sh 가 시험을 빨리 돌리려고 씁니다).
-    nonisolated static let settleTimeKey = "UpdateInstallSettleSeconds"
-    nonisolated static let defaultSettleTime: TimeInterval = 60
-    /// Sparkle이 "이제 끄고 다시 켠다"고 알린 뒤(재시도에서는 설치 동작을 다시 실행한 뒤) 이만큼(초) 안에,
-    /// 다른 프로세스가 보낸 종료만 Sparkle의 종료로 봅니다.
-    nonisolated static let relaunchGrace: TimeInterval = 10
+    /// 시험용 실행 인자. `-UpdateInstallHeldOnArrival YES`로 켜면 업데이트를 받아 두자마자 "업데이트"를 누른 것처럼 설치합니다.
+    /// scripts/update-e2e.sh 가 단추를 누르는 대신 씁니다. 실행 인자로만 읽고 저장된 설정은 보지 않으므로,
+    /// 설치 뒤에 다시 켜진 앱이나 평소에 켠 앱에서는 꺼져 있습니다.
+    nonisolated static let installOnArrivalArgument = "UpdateInstallHeldOnArrival"
 
     let configuration: UpdaterConfiguration
-    let gate: UpdateInstallGate
-    /// 지금이 조용한 때인지(UpdateQuietness) 재는 것. AppDelegate가 넣어 줍니다.
-    var quietProbe: @MainActor () -> Bool = { false }
+    let held: HeldUpdate
 
     @Published private(set) var canCheckForUpdates = false
-    /// 찾았지만 받지 않은 새 버전 (자동 설치를 껐을 때, 창을 앞에 띄우지 않고 알릴 때만 값이 있음)
+    /// 찾았지만 곧바로 설치할 수 없는 새 버전. 누르면 Sparkle 의 안내 창이 떠서 거기서 이어 갑니다.
+    /// (스스로 받을 수 없는 업데이트, 설치 도우미가 이미 떠 있어 이어 가는 경우, 관리자 암호가 필요해 미뤄진 경우)
     @Published private(set) var availableVersion: String?
     /// 받아 두고 설치를 기다리는 버전
     @Published private(set) var pendingVersion: String?
@@ -41,44 +37,34 @@ final class UpdateController: NSObject, ObservableObject {
     @Published private(set) var lastCheckDate: Date?
     @Published var automaticallyChecks = false {
         didSet {
-            applyAutomaticInstallPolicy()
             guard !syncingFromUpdater, let updater, updater.automaticallyChecksForUpdates != automaticallyChecks else { return }
             updater.automaticallyChecksForUpdates = automaticallyChecks
-        }
-    }
-    @Published var automaticallyInstalls = true {
-        didSet {
-            applyAutomaticInstallPolicy()
-            guard !syncingFromUpdater, let updater, updater.automaticallyDownloadsUpdates != automaticallyInstalls else { return }
-            updater.automaticallyDownloadsUpdates = automaticallyInstalls
+            preferDownloadingUpdates()
         }
     }
 
     private let isRunningTests: Bool
     private let isDebugBuild: Bool
-    // 깨어 있는 동안만 가는 시계(초)
-    private let now: () -> TimeInterval
+    private let installsOnArrival: Bool
+    // 잠시 뒤에 할 일을 맡기는 것 (테스트에서는 기다리지 않고 손으로 실행합니다)
+    private let schedule: @MainActor (TimeInterval, @escaping @MainActor () -> Void) -> Void
     private var controller: SPUStandardUpdaterController?
     private var startError: String?
     private var observations = Set<AnyCancellable>()
     // Sparkle 쪽에서 바뀐 값을 받아 적는 중인지 (받은 값을 Sparkle에 되쓰지 않기 위함)
     private var syncingFromUpdater = false
-    private var quietTimer: Timer?
-    // Sparkle의 종료 요청이 곧 올 것으로 보는 때: Sparkle이 "이제 끄고 다시 켠다"고 알린 때, 또는 그 뒤의 재시도를 실행한 때
-    private var relaunchAnnouncedAt: TimeInterval?
-    // Sparkle이 지금 붙잡고 있는 설치에 대해 이미 알렸는지. Sparkle은 설치 하나에 한 번만 알리고 미룰지도 한 번만 묻습니다.
-    private var relaunchWasAnnounced = false
-    private let reminderNotificationId = "pomodoro_update"
-    // 업데이트가 왜 설치됐는지(또는 안 됐는지)를 나중에 볼 수 있게 남깁니다 (콘솔 앱에서 category "update").
+    // 업데이트를 언제 받아 두었고 언제 설치했는지를 나중에 볼 수 있게 남깁니다 (콘솔 앱에서 category "update").
     private let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Pomodoro", category: "update")
-    private var lastLoggedQuiet: Bool?
 
     private var updater: SPUUpdater? { controller?.updater }
 
     var isEnabled: Bool { controller != nil }
 
-    /// 받아 둔 업데이트를 사용자가 "지금 설치"할 수 있는지
-    var canInstallPendingUpdate: Bool { pendingVersion != nil && gate.hasPendingInstall && !installInProgress }
+    /// 메뉴 막대 아이콘에 표시할 새 버전. 받아 둔 것이 먼저이고, 없으면 찾기만 한 것. 둘 다 없으면 nil(표시하지 않음).
+    var indicatedVersion: String? { pendingVersion ?? availableVersion }
+
+    /// 받아 둔 업데이트를 사용자가 지금 설치할 수 있는지
+    var canInstallPendingUpdate: Bool { pendingVersion != nil && held.isHolding && !installInProgress }
 
     /// 업데이트를 쓰지 않을 때 그 이유. 쓰고 있으면 nil.
     var statusText: String? {
@@ -97,22 +83,34 @@ final class UpdateController: NSObject, ObservableObject {
         return configuration.disabledReason
     }
 
+    /// 실행 인자에 시험용 스위치(`installOnArrivalArgument`)가 켜져 있는지.
+    nonisolated static func installsOnArrival(
+        arguments: [String: Any] = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
+    ) -> Bool {
+        switch arguments[installOnArrivalArgument] {
+        case let flag as Bool: return flag
+        case let text as String: return (text as NSString).boolValue
+        default: return false
+        }
+    }
+
     init(
         configuration: UpdaterConfiguration,
         isRunningTests: Bool = DataController.isRunningTests,
         isDebugBuild: Bool = UpdateController.builtForDebugging,
-        gate: UpdateInstallGate? = nil,
-        now: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
+        held: HeldUpdate? = nil,
+        installsOnArrival: Bool = UpdateController.installsOnArrival(),
+        schedule: @escaping @MainActor (TimeInterval, @escaping @MainActor () -> Void) -> Void = { delay, work in
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { MainActor.assumeIsolated { work() } }
+        }
     ) {
         self.configuration = configuration
         self.isRunningTests = isRunningTests
         self.isDebugBuild = isDebugBuild
-        self.now = now
-        let configured = UserDefaults.standard.double(forKey: Self.settleTimeKey)
-        self.gate = gate ?? UpdateInstallGate(settleTime: configured >= 1 ? configured : Self.defaultSettleTime, now: now)
+        self.held = held ?? HeldUpdate()
+        self.installsOnArrival = installsOnArrival
+        self.schedule = schedule
         super.init()
-        // 처음 값(자동 확인 꺼짐)도 규칙을 따르게 합니다. 앱은 start() 에서 Sparkle 의 값을 받아 적으며 다시 맞춥니다.
-        applyAutomaticInstallPolicy()
     }
 
     /// 업데이터를 켭니다(`whyNotStarting`이 이유를 대면 아무것도 하지 않습니다).
@@ -130,17 +128,14 @@ final class UpdateController: NSObject, ObservableObject {
             return
         }
         self.controller = controller
-        // Sparkle 쪽에서 바뀌는 값(업데이트 안내 창의 "앞으로 자동으로 설치" 등)도 따라가도록 구독합니다.
+        preferDownloadingUpdates()
+        // Sparkle 쪽에서 바뀌는 값도 따라가도록 구독합니다.
         // 알림이 늦게 도착할 수 있으므로, 받은 값이 아니라 그때의 Sparkle 값을 읽어 맞춥니다.
         updater.publisher(for: \.canCheckForUpdates)
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.syncFromUpdater() }
             .store(in: &observations)
         updater.publisher(for: \.automaticallyChecksForUpdates)
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.syncFromUpdater() }
-            .store(in: &observations)
-        updater.publisher(for: \.automaticallyDownloadsUpdates)
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.syncFromUpdater() }
             .store(in: &observations)
@@ -157,20 +152,15 @@ final class UpdateController: NSObject, ObservableObject {
         defer { syncingFromUpdater = false }
         if canCheckForUpdates != updater.canCheckForUpdates { canCheckForUpdates = updater.canCheckForUpdates }
         if automaticallyChecks != updater.automaticallyChecksForUpdates { automaticallyChecks = updater.automaticallyChecksForUpdates }
-        if automaticallyInstalls != updater.automaticallyDownloadsUpdates { automaticallyInstalls = updater.automaticallyDownloadsUpdates }
         if lastCheckDate != updater.lastUpdateCheckDate { lastCheckDate = updater.lastUpdateCheckDate }
-        // 처음 값이 Sparkle 의 값과 같으면 위의 didSet 이 돌지 않으므로 여기서도 맞춥니다.
-        applyAutomaticInstallPolicy()
     }
 
-    // 받아 둔 것을 스스로 설치해도 되는지: 자동 확인과 자동 설치가 모두 켜져 있을 때만.
-    // 끄면 붙잡아 둔 것을 스스로 설치하지 않습니다. 버리지는 않습니다 — 다시 켜면 이어서 하고, "지금 설치"도 됩니다.
-    // Sparkle 2.10.0 도 자동 확인이 꺼져 있으면 자동 설치를 꺼진 것으로 읽지만(SPUUpdaterSettings.m), 설정 창의 문구가
-    // Sparkle 의 속에 기대지 않도록 여기서 정합니다.
-    private func applyAutomaticInstallPolicy() {
-        let allowed = automaticallyChecks && automaticallyInstalls
-        if gate.allowsAutomaticInstall != allowed { gate.allowsAutomaticInstall = allowed }
-        refreshQuietTimer()
+    // 새 버전은 늘 미리 받아 둡니다 — 그래야 한 번 눌러 설치됩니다. 1.2.1 까지 있던 설정의 "새 버전을 자동으로 받아 설치"를
+    // 꺼 둔 적이 있으면 그 값이 남아 있으므로 켭니다(그 스위치는 없어졌습니다).
+    // 자동 확인이 꺼져 있으면 Sparkle 은 받지도 않으므로(SPUUpdaterSettings.m) 건드리지 않습니다.
+    private func preferDownloadingUpdates() {
+        guard let updater, updater.automaticallyChecksForUpdates, !updater.automaticallyDownloadsUpdates else { return }
+        updater.automaticallyDownloadsUpdates = true
     }
 
     /// 사용자가 "지금 확인"을 눌렀을 때. 메뉴 바 앱이라 창이 앞에 오도록 앱을 먼저 활성화합니다.
@@ -180,134 +170,64 @@ final class UpdateController: NSObject, ObservableObject {
         controller.checkForUpdates(nil)
     }
 
-    /// 받아 둔 업데이트의 설치 동작을 붙잡아 둡니다. 여기서는 실행하지 않습니다 —
-    /// Sparkle은 대리자가 "내가 설치하겠다"고 답한 뒤에만 설치 동작을 쓰게 합니다.
+    /// 받아 둔 업데이트의 설치 동작을 맡아 둡니다. 여기서는 실행하지 않습니다 — 사용자가 누를 때 실행합니다.
     func holdInstall(version: String, _ install: @escaping () -> Void) {
-        log.notice("holding update \(version, privacy: .public) until quiet for \(self.gate.settleTime, privacy: .public) s")
+        log.notice("holding update \(version, privacy: .public) until the user installs it")
         pendingVersion = version
-        lastLoggedQuiet = nil
-        relaunchAnnouncedAt = nil
-        relaunchWasAnnounced = false
-        gate.hold { [weak self] in
+        held.hold { [weak self] in
             self?.log.notice("installing held update \(version, privacy: .public) now")
-            self?.heldInstallWillRun()
             install()
         }
-        gateDidChange()
+        refreshInstallState()
+        // 시험용 스위치: 단추를 누른 것과 같은 길로 곧바로 설치합니다.
+        // (Sparkle 이 준 설치 동작은 스스로 다음 차례로 넘겨 실행하므로, 대리자 호출 안에서 불러도 됩니다 — SPUAutomaticUpdateDriver.m)
+        if installsOnArrival { installPendingUpdateNow() }
     }
 
-    // 문지기가 설치 동작을 실행하기 직전에. 종료를 한 번 막은 뒤의 재시도에는 Sparkle의 알림이 다시 오지 않으므로
-    // (설치 도우미에게 종료 요청만 다시 보내게 합니다), 스스로 다시 실행하는 지금을 알린 때로 삼습니다.
-    private func heldInstallWillRun() {
-        if relaunchWasAnnounced { relaunchAnnouncedAt = now() }
-    }
-
-    /// 타이머 상태나 창이 바뀌었을 때, 그리고 붙잡고 있는 동안 주기적으로 불러 지금 조용한지를 다시 잽니다.
-    func reevaluateQuietness() {
-        if gate.hasPendingInstall {
-            let quiet = quietProbe()
-            if quiet != lastLoggedQuiet {
-                log.notice("quiet for update: \(quiet, privacy: .public)")
-                lastLoggedQuiet = quiet
-            }
-            gate.update(quiet: quiet)
-        }
-        gateDidChange()
-    }
-
-    /// 사용자가 설정에서 "지금 설치하고 다시 켜기"를 눌렀을 때.
+    /// 사용자가 "업데이트"(팝오버)나 "지금 설치하고 다시 켜기"(설정)를 눌렀을 때.
     func installPendingUpdateNow() {
+        guard held.isHolding else { return }
         log.notice("user asked to install the held update now")
-        gate.installNow()
-        gateDidChange()
-    }
-
-    /// Sparkle이 설치를 넘기기 직전에 "미룰까"를 물을 때(한 번만 묻습니다). 스스로 시작한 설치인데 그 사이 조용하지 않게
-    /// 됐으면 참을 돌려주고, Sparkle이 준 "이어서 하기"를 대신 붙잡아 둡니다.
-    func shouldPostponeRelaunch(resume: @escaping () -> Void) -> Bool {
-        guard gate.isInstallingOnItsOwn, !quietProbe() else { return false }
-        log.notice("postponed install: no longer quiet")
-        lastLoggedQuiet = nil
-        let version = pendingVersion ?? "?"
-        gate.hold { [weak self] in
-            self?.log.notice("resuming postponed install of \(version, privacy: .public)")
-            self?.heldInstallWillRun()
-            resume()
+        if held.installNow() {
+            // 설치가 먹지 않아 앱이 꺼지지 않았으면 단추를 다시 누를 수 있어야 하므로, 기다리는 시간이 지난 뒤에 다시 봅니다.
+            schedule(held.installTimeout + 1) { [weak self] in self?.refreshInstallState() }
         }
-        gateDidChange()
-        return true
+        refreshInstallState()
     }
 
-    /// Sparkle이 "이제 앱을 끄고 다시 켠다"고 알렸을 때.
-    func sparkleWillRelaunch() {
-        relaunchWasAnnounced = true
-        relaunchAnnouncedAt = now()
+    /// 메뉴 막대 표시 옆의 "업데이트"를 눌렀을 때. 받아 둔 것이 있으면 설치하고 다시 켜고,
+    /// 찾기만 한 것이면 Sparkle 의 안내 창을 앞에 띄웁니다.
+    func performIndicatedUpdate() {
+        if pendingVersion != nil {
+            installPendingUpdateNow()
+        } else if availableVersion != nil {
+            checkForUpdates()
+        }
     }
 
-    /// 앱이 꺼지려 할 때 AppDelegate가 묻습니다. 문지기가 스스로 시작한 설치로 Sparkle이 방금 끄는 중인데 그 사이
-    /// 조용하지 않게 됐으면(집중 시작, 창 열림) 참을 돌려주고 설치를 다시 붙잡습니다.
-    /// Sparkle의 설치 도우미는 다른 프로세스에서 종료를 요청하므로 그런 요청만, 그것도 Sparkle이 끈다고 알린 직후에만 봅니다 —
-    /// 앱 안에서 누른 "종료", 로그아웃·시스템 종료, "지금 설치"는 막지 않습니다.
-    func shouldCancelTermination(_ request: TerminationRequest) -> Bool {
-        guard request == .fromAnotherProcess,
-              let announcedAt = relaunchAnnouncedAt, now() - announcedAt < Self.relaunchGrace,
-              gate.isInstallingOnItsOwn, !quietProbe()
-        else { return false }
-        log.notice("cancelled termination for update: no longer quiet")
-        lastLoggedQuiet = nil
-        gate.installWasInterrupted()
-        gateDidChange()
-        return true
-    }
-
-    /// Sparkle의 업데이트 주기가 끝났거나 오류로 중단됐을 때. 받아 둔 설치 동작은 그 주기의 것이라 더 쓸 수 없으므로 치웁니다.
-    /// 주기는 설치 도우미의 오류나 연결 끊김으로 끝나고 그때 도우미도 스스로 끝나므로, 그 업데이트는 대개 다음 확인 때 다시 받습니다.
+    /// Sparkle의 업데이트 주기가 끝났거나 오류로 중단됐을 때. 받아 둔 설치 동작은 그 주기의 것이라 더 쓸 수 없으므로 치웁니다
+    /// (점과 단추가 사라집니다). 주기는 설치 도우미의 오류나 연결 끊김으로 끝납니다. 도우미까지 끝났으면 다음 확인 때 다시 받고,
+    /// 연결만 끊겨 도우미가 남아 있으면 앱을 끌 때 설치됩니다 — 그 경우 다음 정해진 확인은 늦을 수 있고(Sparkle 은 설치를 기다리는
+    /// 동안 확인 간격을 늘립니다), "지금 확인"을 누르면 안내 창에서 이어 갑니다.
     func updateCycleDidFinish() {
-        if gate.hasPendingInstall { log.notice("update cycle finished: dropping the held install") }
-        gate.discard()
+        if held.isHolding { log.notice("update cycle finished: dropping the held install") }
+        held.discard()
         pendingVersion = nil
-        gateDidChange()
+        refreshInstallState()
     }
 
-    // 문지기를 건드린 뒤에: 설정 창이 볼 값을 맞추고, 다시 재는 타이머를 켜거나 끕니다.
-    private func gateDidChange() {
-        if installInProgress != gate.isInstalling { installInProgress = gate.isInstalling }
-        refreshQuietTimer()
+    /// 설정 창과 팝오버가 볼 "설치하는 중" 값을 맞춥니다.
+    func refreshInstallState() {
+        if installInProgress != held.isInstalling { installInProgress = held.isInstalling }
     }
 
-    /// 10초마다 다시 재야 하는지. 창이 열리고 닫히는 것처럼 알림이 오지 않는 변화를 놓치지 않도록 스스로 설치할 것을
-    /// 붙잡고 있는 동안에, 그리고 시작한 설치가 먹지 않았을 때 그것을 알아채도록 설치 중인 동안에 잽니다.
-    var needsQuietTimer: Bool {
-        gate.hasPendingInstall && (gate.allowsAutomaticInstall || gate.isInstalling)
-    }
-
-    private func refreshQuietTimer() {
-        if needsQuietTimer {
-            guard quietTimer == nil else { return }
-            let timer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
-                Task { @MainActor in self?.reevaluateQuietness() }
-            }
-            // 붙잡은 채로 며칠씩 갈 수 있으므로(선택을 기다리는 화면도 조용한 때가 아닙니다), 깨어나는 때를 느슨하게 둡니다.
-            timer.tolerance = 3
-            quietTimer = timer
-        } else {
-            quietTimer?.invalidate()
-            quietTimer = nil
-        }
-    }
-
-    private func showReminder(version: String) {
+    /// 곧바로 설치할 수 없는 새 버전을 찾았을 때(아래 알리는 방식). 메뉴 막대의 표시만 켭니다.
+    func showAvailable(version: String) {
         availableVersion = version
-        let content = UNMutableNotificationContent()
-        content.title = "Pomodoro \(version) 업데이트가 있습니다"
-        content.body = "설정 > 일반 > 지금 확인에서 설치할 수 있습니다."
-        let request = UNNotificationRequest(identifier: reminderNotificationId, content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(request)
     }
 
-    private func clearReminder() {
+    func clearAvailable() {
         availableVersion = nil
-        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [reminderNotificationId])
     }
 }
 
@@ -315,21 +235,11 @@ final class UpdateController: NSObject, ObservableObject {
 
 extension UpdateController: SPUUpdaterDelegate {
     // 자동으로 받아 둔 업데이트는 원래 앱을 끌 때 설치됩니다. 메뉴 바 앱은 몇 주씩 켜 두므로 설치 동작을 받아 두었다가,
-    // 조용함이 이어지면 스스로 설치하고 다시 켭니다. 그 전에 앱을 끄면 Sparkle이 그때 설치합니다.
+    // 사용자가 "업데이트"를 누르면 그때 설치하고 다시 켭니다. 누르지 않고 앱을 끄면 Sparkle이 그때 설치합니다.
     // (참을 돌려주면 설치할 때까지 Sparkle의 업데이트 확인이 멈춥니다 — 그동안 "지금 확인"은 쓸 수 없고 더 새 버전도 찾지 않습니다.)
     func updater(_ updater: SPUUpdater, willInstallUpdateOnQuit item: SUAppcastItem, immediateInstallationBlock immediateInstallHandler: @escaping () -> Void) -> Bool {
         holdInstall(version: item.displayVersionString, immediateInstallHandler)
-        // 이 호출이 끝난 뒤에 조용함을 세기 시작합니다.
-        Task { @MainActor [weak self] in self?.reevaluateQuietness() }
         return true
-    }
-
-    func updater(_ updater: SPUUpdater, shouldPostponeRelaunchForUpdate item: SUAppcastItem, untilInvokingBlock installHandler: @escaping () -> Void) -> Bool {
-        shouldPostponeRelaunch(resume: installHandler)
-    }
-
-    func updaterWillRelaunchApplication(_ updater: SPUUpdater) {
-        sparkleWillRelaunch()
     }
 
     func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: Error?) {
@@ -337,29 +247,9 @@ extension UpdateController: SPUUpdaterDelegate {
     }
 
     // 오류로 중단될 때도 치웁니다. (자동으로 받는 경로에서는 오류가 있는 중단 뒤에 주기 끝 알림도 오므로 대개 겹칩니다.
-    // 붙잡고 있는 동안에는 다른 확인이 끼어들지 못해, 멀쩡히 붙잡은 것을 여기서 치우는 일은 없습니다.)
+    // 받아 두고 있는 동안에는 다른 확인이 끼어들지 못해, 멀쩡히 받아 둔 것을 여기서 치우는 일은 없습니다.)
     func updater(_ updater: SPUUpdater, didAbortWithError error: Error) {
         updateCycleDidFinish()
-    }
-}
-
-extension TerminationRequest {
-    /// 'why?' = kAEQuitReason: 로그아웃·재시동·시스템 종료가 종료 이벤트에 붙이는 이유. Swift 에 이름이 나와 있지 않아 값으로 씁니다.
-    static let quitReasonKeyword = AEKeyword(0x7768_793F)
-
-    /// 종료를 처리하는 순간의 Apple 이벤트로 가립니다. 이벤트가 없으면 앱 안에서 부른 종료입니다.
-    static func classify(event: NSAppleEventDescriptor?) -> TerminationRequest {
-        guard let event else { return .fromThisApp }
-        let isQuit = event.eventClass == AEEventClass(kCoreEventClass) && event.eventID == AEEventID(kAEQuitApplication)
-        // 이유는 이벤트의 속성으로 옵니다. 매개변수로 붙여 보내는 곳이 있어도 시스템의 종료로 봅니다.
-        let hasReason = event.attributeDescriptor(forKeyword: quitReasonKeyword) != nil
-            || event.paramDescriptor(forKeyword: quitReasonKeyword) != nil
-        return classify(isQuitEvent: isQuit, hasQuitReason: hasReason)
-    }
-
-    /// 지금 처리 중인 종료 요청 (applicationShouldTerminate 안에서 읽습니다).
-    @MainActor static var current: TerminationRequest {
-        classify(event: NSAppleEventManager.shared().currentAppleEvent)
     }
 }
 
@@ -369,23 +259,23 @@ extension TerminationRequest {
 extension UpdateController: SPUStandardUserDriverDelegate {
     nonisolated var supportsGentleScheduledUpdateReminders: Bool { true }
 
-    // 자동 설치를 꺼 둔 경우의 알림입니다. 앱을 방금 켰을 때처럼 창이 앞에 뜰 수 있으면 Sparkle이 안내 창을 그대로 보여 주고,
-    // 아니면 알림과 설정 창의 한 줄로만 알립니다.
+    // 정해진 확인에서 Sparkle 이 안내 창을 보여 주려 할 때입니다(스스로 받을 수 없는 업데이트, 설치를 이어 가야 하는 경우).
+    // 앱을 방금 켰을 때에도 창을 띄우지 않고 메뉴 막대의 표시로만 알립니다. 표시 옆의 "업데이트"를 누르면 그때 안내 창이 앞에 뜹니다.
     nonisolated func standardUserDriverShouldHandleShowingScheduledUpdate(_ update: SUAppcastItem, andInImmediateFocus immediateFocus: Bool) -> Bool {
-        immediateFocus
+        false
     }
 
     nonisolated func standardUserDriverWillHandleShowingUpdate(_ handleShowingUpdate: Bool, forUpdate update: SUAppcastItem, state: SPUUserUpdateState) {
         guard !handleShowingUpdate else { return }
         let version = update.displayVersionString
-        MainActor.assumeIsolated { showReminder(version: version) }
+        MainActor.assumeIsolated { showAvailable(version: version) }
     }
 
     nonisolated func standardUserDriverDidReceiveUserAttention(forUpdate update: SUAppcastItem) {
-        MainActor.assumeIsolated { clearReminder() }
+        MainActor.assumeIsolated { clearAvailable() }
     }
 
     nonisolated func standardUserDriverWillFinishUpdateSession() {
-        MainActor.assumeIsolated { clearReminder() }
+        MainActor.assumeIsolated { clearAvailable() }
     }
 }

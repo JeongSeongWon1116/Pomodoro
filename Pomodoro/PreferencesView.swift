@@ -193,7 +193,6 @@ struct GeneralSettingsTab: View {
             UpdateSettingsSection(
                 disabledReason: updates.statusText,
                 automaticallyChecks: $updates.automaticallyChecks,
-                automaticallyInstalls: $updates.automaticallyInstalls,
                 lastCheckText: lastCheckText,
                 availableVersion: updates.availableVersion,
                 pendingVersion: updates.pendingVersion,
@@ -217,9 +216,8 @@ struct UpdateSettingsSection: View {
     /// 업데이트를 쓰지 않는 빌드이면 그 이유, 쓰고 있으면 nil
     let disabledReason: String?
     @Binding var automaticallyChecks: Bool
-    @Binding var automaticallyInstalls: Bool
     let lastCheckText: String
-    /// 찾았지만 받지 않은 새 버전 (자동 설치를 껐을 때)
+    /// 찾았지만 곧바로 설치할 수 없는 새 버전 (Sparkle 의 안내 창에서 이어 가는 업데이트)
     let availableVersion: String?
     /// 받아 두고 설치를 기다리는 버전
     let pendingVersion: String?
@@ -238,9 +236,6 @@ struct UpdateSettingsSection: View {
                     .foregroundStyle(.secondary)
             } else {
                 Toggle("자동으로 업데이트 확인", isOn: $automaticallyChecks)
-                // Sparkle 은 자동 확인이 꺼져 있으면 자동 설치를 꺼진 것으로 다룹니다(켜도 받아들이지 않습니다).
-                Toggle("새 버전을 자동으로 받아 설치", isOn: $automaticallyInstalls)
-                    .disabled(!automaticallyChecks)
                 LabeledContent("마지막 확인", value: lastCheckText)
                 if let pendingVersion {
                     LabeledContent("받아 둔 버전 \(pendingVersion)") {
@@ -254,7 +249,7 @@ struct UpdateSettingsSection: View {
                     Button("지금 확인", action: checkNow)
                         .disabled(!canCheckNow)
                 }
-                Text(Self.caption(hasPending: pendingVersion != nil, automaticallyChecks: automaticallyChecks, automaticallyInstalls: automaticallyInstalls, installing: installing))
+                Text(Self.caption(hasPending: pendingVersion != nil, automaticallyChecks: automaticallyChecks, installing: installing))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -262,22 +257,14 @@ struct UpdateSettingsSection: View {
     }
 
     /// 아래 설명 한 줄. 지금 설정에서 실제로 일어나는 일만 적습니다.
-    nonisolated static func caption(hasPending: Bool, automaticallyChecks: Bool, automaticallyInstalls: Bool, installing: Bool = false) -> String {
+    nonisolated static func caption(hasPending: Bool, automaticallyChecks: Bool, installing: Bool = false) -> String {
         if hasPending {
             if installing { return "설치를 시작했습니다. 앱이 곧 꺼졌다 다시 켜집니다." }
-            // 자동 확인이 꺼져 있으면 자동 설치도 꺼진 것으로 다뤄집니다.
-            if !automaticallyChecks {
-                return "자동 확인이 꺼져 있어 스스로 설치하지 않습니다. 위 단추를 누르거나 앱을 끄면 설치됩니다. 설치할 때까지는 새로 확인하지 않습니다."
-            }
-            return automaticallyInstalls
-                ? "타이머가 대기 중이고 팝오버와 창이 모두 닫힌 채로 1분쯤 지나면 스스로 설치하고 다시 켭니다. 그 전에 앱을 끄면 그때 설치됩니다. 설치할 때까지는 새로 확인하지 않습니다."
-                : "자동 설치가 꺼져 있어 스스로 설치하지 않습니다. 위 단추를 누르거나 앱을 끄면 설치됩니다. 설치할 때까지는 새로 확인하지 않습니다."
+            return "새 버전을 받아 두었습니다. 위 단추나 메뉴 막대 아이콘을 눌러 나오는 \"업데이트\"를 누르면 설치하고 다시 켭니다. 누르지 않고 앱을 끄면 그때 설치됩니다. 설치할 때까지는 새로 확인하지 않습니다."
         }
         if !automaticallyChecks {
             return "자동 확인이 꺼져 있습니다. \"지금 확인\"을 누를 때만 확인합니다."
         }
-        return automaticallyInstalls
-            ? "새 버전을 받으면, 타이머가 대기 중이고 팝오버와 창이 모두 닫힌 채로 1분쯤 지났을 때 앱을 다시 켜면서 설치합니다. 그 전에 앱을 끄면 그때 설치됩니다."
-            : "자동 설치가 꺼져 있습니다. 새 버전이 있으면 알려 주기만 합니다."
+        return "새 버전이 나오면 받아 두고 메뉴 막대 아이콘에 점으로 알립니다. \"업데이트\"를 누르면 설치하고 다시 켭니다. 누르지 않고 앱을 끄면 그때 설치됩니다."
     }
 }

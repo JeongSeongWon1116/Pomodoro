@@ -7,6 +7,7 @@ import SwiftUI
 struct PopoverView: View {
     @EnvironmentObject var viewModel: PomodoroViewModel
     @ObservedObject private var settings = AppSettings.shared
+    @ObservedObject private var updates = UpdateController.shared
     @Environment(\.openWindow) private var openWindow
 
     private var isAwaitingChoice: Bool { viewModel.timerState == .awaitingChoice }
@@ -80,6 +81,18 @@ struct PopoverView: View {
                     NSApplication.shared.terminate(nil)
                 }
             }
+
+            // 새 버전이 있을 때만 보이는 한 줄. 메뉴 막대 아이콘의 점과 짝입니다.
+            if let version = updates.indicatedVersion {
+                UpdateRow(
+                    version: version,
+                    downloaded: updates.pendingVersion != nil,
+                    installing: updates.installInProgress
+                ) {
+                    viewModel.closePopover()
+                    updates.performIndicatedUpdate()
+                }
+            }
         }
         .padding()
         // 높이는 내용(할 일·보상 칸, 선택 화면)에 맞춰 달라집니다.
@@ -127,6 +140,39 @@ struct PopoverView: View {
         }
     }
 
+}
+
+/// 팝오버 맨 아래의 "새 버전" 줄. 상태를 값으로 받아, 업데이터 없이도 그려 볼 수 있습니다.
+struct UpdateRow: View {
+    let version: String
+    /// 받아 두었는지. 받아 두었으면 누르자마자 설치하고 앱이 다시 켜집니다. 아니면 Sparkle 의 안내 창이 뜹니다.
+    let downloaded: Bool
+    /// 설치를 시작해 앱이 꺼지기를 기다리는 중인지
+    let installing: Bool
+    let update: () -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            UpdateDot()
+            Text("새 버전 \(version)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button(Self.buttonTitle(installing: installing), action: update)
+                .controlSize(.small)
+                .disabled(installing)
+                .help(Self.help(downloaded: downloaded))
+        }
+    }
+
+    nonisolated static func buttonTitle(installing: Bool) -> String {
+        installing ? "설치하는 중…" : "업데이트"
+    }
+
+    /// 누르면 무슨 일이 일어나는지. 받아 둔 것은 곧바로 앱을 껐다 켜므로 그렇게 적습니다.
+    nonisolated static func help(downloaded: Bool) -> String {
+        downloaded ? "설치하고 앱을 다시 켭니다" : "새 버전 안내 창을 엽니다"
+    }
 }
 
 /// 글을 적는 칸. 지난 집중에 적었던 글이 있으면 칸 옆의 단추로 골라 넣을 수 있습니다.
