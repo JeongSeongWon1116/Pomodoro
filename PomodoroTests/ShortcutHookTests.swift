@@ -65,6 +65,16 @@ struct ShortcutHookTests {
         #expect(recorder.names == [start])
     }
 
+    @Test func 휴식_중에_복귀하면_시작_단축어를_실행한다() {
+        viewModel.startFocusSession()
+        runOutTheClock()
+        viewModel.startBreakAfterFocus()
+        #expect(recorder.names == [start, end])
+        clock.advance(60)
+        viewModel.returnToFocus()
+        #expect(recorder.names == [start, end, start])
+    }
+
     @Test func 집중_시간이_다_되면_끝_단축어를_실행하고_휴식을_골라도_다시_실행하지_않는다() {
         viewModel.startFocusSession()
         runOutTheClock()

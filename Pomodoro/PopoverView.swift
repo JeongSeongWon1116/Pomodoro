@@ -51,6 +51,13 @@ struct PopoverView: View {
                     .frame(maxWidth: .infinity)
             }
 
+            // 휴식 중: 다시 계획하지 않고 하던 일로 바로 돌아간다 (휴식은 지금까지로 기록)
+            if viewModel.canReturnToFocus {
+                Button("복귀 — 바로 집중 시작") { viewModel.returnToFocus() }
+                    .frame(maxWidth: .infinity)
+                    .help("휴식을 여기서 마치고, 적어 둔 할 일과 다음 시작점 그대로 집중을 시작합니다")
+            }
+
             HStack {
                 Button("건너뛰기") { viewModel.skipToNextSession() }
                     .disabled(viewModel.timerState == .idle || isAwaitingChoice)
@@ -116,7 +123,10 @@ struct PopoverView: View {
                 NoteField(title: "끝나면 받을 보상", text: $viewModel.focusReward,
                           suggestions: viewModel.rewardSuggestions, help: "지난 보상에서 고르기")
             } else {
+                if let suggestion = viewModel.breakSuggestion { NoteLine(label: "추천", text: suggestion) }
                 if !reward.isEmpty { NoteLine(label: "보상", text: reward) }
+                let task = viewModel.focusTask.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !task.isEmpty { NoteLine(label: "하던 일", text: task) }
                 if !viewModel.resumeHint.isEmpty { NoteLine(label: "다음 시작점", text: viewModel.resumeHint) }
             }
         }

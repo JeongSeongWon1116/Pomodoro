@@ -202,6 +202,29 @@ class PomodoroViewModel: ObservableObject {
         runShortcut(settings.focusStartShortcut)
     }
 
+    /// 휴식 중(돌거나 · 멈췄거나 · 준비만 된 휴식)에 "복귀"를 보일지. 전환 관리가 켜졌을 때만.
+    var canReturnToFocus: Bool {
+        settings.transitionManagementEnabled
+            && (currentState == .shortBreak || currentState == .longBreak)
+            && timerState != .awaitingChoice
+    }
+
+    /// 복귀: 휴식을 지금까지로 기록하고(시작하지 않은 휴식은 기록하지 않음) 바로 집중을 시작합니다.
+    /// 할 일·보상·다음 시작점은 그대로 두므로 다시 계획하지 않아도 됩니다. 집중 횟수는 바뀌지 않습니다.
+    func returnToFocus() {
+        guard canReturnToFocus else { return }
+        logSession()
+        timerSubscription?.cancel()
+        startSession(.focus)
+    }
+
+    /// 휴식 중에 보여 줄 짧은 휴식 거리. 전환 관리가 켜졌고 휴식 중일 때만 있습니다.
+    var breakSuggestion: String? {
+        guard settings.transitionManagementEnabled,
+              currentState == .shortBreak || currentState == .longBreak else { return nil }
+        return BreakSuggestion.pick(max(0, completedFocusSessions - 1))
+    }
+
     func resetToIdle() {
         guard timerState != .idle || currentState != .idle else { return }
         let focusWasInProgress = isFocusInProgress
@@ -493,14 +516,18 @@ class PomodoroViewModel: ObservableObject {
     }
 
     /// 세션 전환 알림 (종료 + 시작을 하나로 통합)
+    // 전환 관리가 켜져 있으면 끝까지 마친 집중은 선택을 기다리므로(awaitFocusChoice) 집중 → 휴식은 이 알림을 거치지 않습니다.
+    // 그래서 휴식 추천은 팝오버에서만 보이고, 여기서는 휴식 → 집중의 "이어서"만 붙습니다.
     private func showSessionTransitionNotification(ended: PomodoroState, next: PomodoroState, autoStarting: Bool) {
         // 테스트 호스트에서는 사용 중인 앱과 같은 번들 ID로 알림이 뜨지 않도록 건너뜁니다.
         if DataController.isRunningTests { return }
         let content = UNMutableNotificationContent()
-        content.title = "\(ended.description) 종료!"
-        content.body = autoStarting
-            ? "\(next.description) 세션을 시작합니다."
-            : "\(next.description) 세션이 준비되었습니다. 메뉴 바에서 시작하세요."
+        let text = NotificationText.sessionTransition(
+            ended: ended, next: next, autoStarting: autoStarting,
+            breakSuggestion: nil,
+            resumeHint: settings.transitionManagementEnabled ? resumeHint : "")
+        content.title = text.title
+        content.body = text.body
         // 알림음은 NSSound로 직접 재생하므로 시스템 알림음과 겹치지 않게 끕니다.
         content.sound = nil
 
@@ -512,10 +539,9 @@ class PomodoroViewModel: ObservableObject {
     private func showFocusEndedNotification() {
         if DataController.isRunningTests { return }
         let content = UNMutableNotificationContent()
-        content.title = "\(PomodoroState.focus.description) 종료!"
-        let reward = focusReward.trimmingCharacters(in: .whitespacesAndNewlines)
-        let prompt = "메뉴 바에서 휴식을 시작하거나 10분 연장하세요."
-        content.body = reward.isEmpty ? prompt : "보상: \(reward)\n\(prompt)"
+        let text = NotificationText.focusEnded(reward: focusReward)
+        content.title = text.title
+        content.body = text.body
         content.sound = nil
 
         let request = UNNotificationRequest(identifier: sessionNotificationId, content: content, trigger: nil)
