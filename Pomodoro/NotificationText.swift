@@ -13,7 +13,8 @@ enum NotificationText {
     /// 집중 시간이 다 되어 선택(휴식 / 연장)을 기다릴 때
     nonisolated static func focusEnded(reward: String) -> Content {
         let reward = reward.trimmingCharacters(in: .whitespacesAndNewlines)
-        let prompt = "계속할까요, 쉴까요? 메뉴 바에서 고르세요."
+        let minutes = Int(PomodoroViewModel.focusExtension / 60)
+        let prompt = "\(minutes)분 더 할까요, 쉴까요? 메뉴 바에서 고르세요."
         return Content(
             title: "\(PomodoroState.focus.description)이 끝났어요",
             body: reward.isEmpty ? prompt : "보상: \(reward)\n\(prompt)"

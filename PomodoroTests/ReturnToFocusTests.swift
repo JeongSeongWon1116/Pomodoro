@@ -88,7 +88,17 @@ struct ReturnToFocusTests {
         viewModel.returnToFocus()
         #expect(viewModel.currentState == .focus)
         #expect(viewModel.timerState == .running)
-        #expect(try loggedEntries().map(\.sessionType) == [.focus, .shortBreak])
+        let logs = try loggedEntries()
+        #expect(logs.map(\.sessionType) == [.focus, .shortBreak])
+        #expect(abs((logs.last?.duration ?? 0) - 30) < 0.5, "휴식은 돈 시간만큼 — 멈춘 시간은 빼고")
+        #expect(abs((logs.last?.pausedDuration ?? 0) - 600) < 0.5)
+
+        // 복귀한 집중은 처음부터, 정지 흔적 없이 흐른다
+        let full = TimeInterval(settings.focusDurationInMinutes * 60)
+        #expect(viewModel.timeRemaining == full)
+        clock.advance(90)
+        viewModel.tick()
+        #expect(abs(viewModel.timeRemaining - (full - 90)) < 0.5)
     }
 
     @Test func 준비만_된_휴식에서_복귀하면_휴식_기록_없이_집중이_시작된다() throws {

@@ -25,7 +25,7 @@ struct NotificationTextTests {
     @Test func 집중이_끝나면_계속할지_쉴지_묻는다() {
         let text = NotificationText.focusEnded(reward: "")
         #expect(text.title == "집중이 끝났어요")
-        #expect(text.body.contains("계속할까요, 쉴까요?"))
+        #expect(text.body.contains("\(Int(PomodoroViewModel.focusExtension / 60))분 더 할까요, 쉴까요?"))
         #expect(!text.body.contains("보상"))
         expectGentle(text)
     }
@@ -82,6 +82,14 @@ struct NotificationTextTests {
             breakSuggestion: nil, resumeHint: "")
         #expect(manual.body.contains("준비되면 메뉴 바에서 집중을 시작하세요"))
         #expect(!manual.body.contains("이어서"))
+    }
+
+    @Test func 상태_이름은_모두_받침으로_끝난다_조사_이_을이_맞다() {
+        for state in [PomodoroState.focus, .shortBreak, .longBreak] {
+            let last = state.description.unicodeScalars.last!.value
+            #expect((0xAC00...0xD7A3).contains(last), "\(state.description)은 한글로 끝난다")
+            #expect((last - 0xAC00) % 28 != 0, "\(state.description)에 받침이 없으면 이·을을 바꿔야 한다")
+        }
     }
 
     // MARK: - 휴식 추천

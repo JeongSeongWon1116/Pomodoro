@@ -322,13 +322,10 @@ class PomodoroViewModel: ObservableObject {
 
         if !skipped {
             playSound()
-            // 알림은 상태가 넘어가기 전에 뜨므로, 다가올 휴식의 추천을 여기서 셉니다(breakSuggestion 과 같은 차례).
-            let focusesAfter = completedFocusSessions + (endedSessionType == .focus && !countsAsSkipped ? 1 : 0)
             showSessionTransitionNotification(
                 ended: endedSessionType,
                 next: nextSessionType,
-                autoStarting: shouldAutoStart,
-                breakSuggestion: BreakSuggestion.pick(max(0, focusesAfter - 1))
+                autoStarting: shouldAutoStart
             )
         }
 
@@ -519,13 +516,15 @@ class PomodoroViewModel: ObservableObject {
     }
 
     /// 세션 전환 알림 (종료 + 시작을 하나로 통합)
-    private func showSessionTransitionNotification(ended: PomodoroState, next: PomodoroState, autoStarting: Bool, breakSuggestion: String) {
+    // 전환 관리가 켜져 있으면 끝까지 마친 집중은 선택을 기다리므로(awaitFocusChoice) 집중 → 휴식은 이 알림을 거치지 않습니다.
+    // 그래서 휴식 추천은 팝오버에서만 보이고, 여기서는 휴식 → 집중의 "이어서"만 붙습니다.
+    private func showSessionTransitionNotification(ended: PomodoroState, next: PomodoroState, autoStarting: Bool) {
         // 테스트 호스트에서는 사용 중인 앱과 같은 번들 ID로 알림이 뜨지 않도록 건너뜁니다.
         if DataController.isRunningTests { return }
         let content = UNMutableNotificationContent()
         let text = NotificationText.sessionTransition(
             ended: ended, next: next, autoStarting: autoStarting,
-            breakSuggestion: settings.transitionManagementEnabled ? breakSuggestion : nil, // 휴식으로 넘어갈 때만 쓰인다
+            breakSuggestion: nil,
             resumeHint: settings.transitionManagementEnabled ? resumeHint : "")
         content.title = text.title
         content.body = text.body
