@@ -1,8 +1,10 @@
 [English](Readme.md) | 한국어
 
-#  Pomodoro Timer
+# Morrowisp — macOS를 위한 차분한 뽀모도로 타이머
 
 규칙적인 하루 리듬을 돕는 차분한 macOS 메뉴 막대 뽀모도로입니다. 집중하고, 쉬고, 하던 일로 돌아오는 흐름을 부드럽게 이어 줍니다.
+
+앱 화면은 시스템 언어에 따라 영어와 한국어를 지원합니다. 한국어 외의 언어에서는 영어로 표시합니다. 설치 파일 이름은 기존 설치와 업데이트의 연속성을 위해 `Pomodoro.app`으로 유지합니다.
 
 ## ✨ 주요 기능
 
@@ -87,3 +89,7 @@
 - [x] app으로 release 하기 — GitHub 릴리스(zip)와 자동 업데이트 ([docs/RELEASE.ko.md](docs/RELEASE.ko.md))
 - [ ] Apple 공증 (Developer ID가 있어야 합니다. 지금은 받은 앱을 처음 열 때 한 번 허용해야 합니다)
 - [x] 집중 세션에 방해금지 모드가 자동으로 실행되는 기능 — 단축어 연동으로 ([docs/SHORTCUTS.ko.md](docs/SHORTCUTS.ko.md))
+
+## 라이선스
+
+[MIT](LICENSE) — Copyright (c) 2026 Seongwon Jeong.

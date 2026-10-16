@@ -56,9 +56,9 @@ struct DailyMissionTests {
     }
 
     @Test func 안내_문구() {
-        #expect(DailyMissionText.title == "오늘의 메인 미션")
-        #expect(DailyMissionText.encouragement == "이것만 끝내면 오늘은 충분해요")
-        #expect(DailyMissionText.done == "끝냄")
+        #expect(DailyMissionText(locale: Locale(identifier: "ko")).title == "오늘의 메인 미션")
+        #expect(DailyMissionText(locale: Locale(identifier: "ko")).encouragement == "이것만 끝내면 오늘은 충분해요")
+        #expect(DailyMissionText(locale: Locale(identifier: "ko")).done == "끝냄")
     }
 
     @Test func 미션_입력은_편집을_끝낼_때_최종값만_한번_내보낸다() {

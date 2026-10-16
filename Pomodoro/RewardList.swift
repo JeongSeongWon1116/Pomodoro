@@ -7,9 +7,9 @@ enum RewardSize: String, Codable, CaseIterable, Identifiable {
     var id: Self { self }
     var title: String {
         switch self {
-        case .small: "작은"
-        case .medium: "중간"
-        case .large: "큰"
+        case .small: String(localized: "Small")
+        case .medium: String(localized: "Medium")
+        case .large: String(localized: "Large")
         }
     }
 }
@@ -20,14 +20,17 @@ struct RewardItem: Codable, Equatable, Identifiable {
     var size: RewardSize
 }
 
-enum RewardListText {
-    static let title = "보상 목록"
-    static let history = "지난 보상"
-    static let choose = "보상 목록과 지난 보상에서 고르기"
-    static let add = "더하기"
-    static let remove = "지우기"
-    static let name = "보상 이름"
-    static let newReward = "새 보상"
+struct RewardListText {
+    let locale: Locale
+
+    init(locale: Locale = .current) { self.locale = locale }
+    var title: String { String(localized: "Reward list", bundle: AppLocalization.bundle(for: locale), locale: locale) }
+    var history: String { String(localized: "Past rewards", bundle: AppLocalization.bundle(for: locale), locale: locale) }
+    var choose: String { String(localized: "Choose from your reward list and past rewards", bundle: AppLocalization.bundle(for: locale), locale: locale) }
+    var add: String { String(localized: "Add", bundle: AppLocalization.bundle(for: locale), locale: locale) }
+    var remove: String { String(localized: "Remove", bundle: AppLocalization.bundle(for: locale), locale: locale) }
+    var name: String { String(localized: "Reward name", bundle: AppLocalization.bundle(for: locale), locale: locale) }
+    var newReward: String { String(localized: "New reward", bundle: AppLocalization.bundle(for: locale), locale: locale) }
 }
 
 /// 메뉴 표시와 구분선도 실제로 남은 항목으로 결정하는 순수 구성 함수입니다.
@@ -59,17 +62,29 @@ final class RewardListStore: ObservableObject {
     private let defaults: UserDefaults?
     @Published private(set) var items: [RewardItem]
 
-    init(defaults: UserDefaults?) {
+    init(defaults: UserDefaults?, locale: Locale = .current) {
         self.defaults = defaults
         items = defaults?.data(forKey: Self.key)
-            .flatMap { try? JSONDecoder().decode([RewardItem].self, from: $0) } ?? Self.examples
+            .flatMap { try? JSONDecoder().decode([RewardItem].self, from: $0) } ?? Self.examples(locale: locale)
     }
 
-    private static var examples: [RewardItem] {
+    private static func examples(locale: Locale) -> [RewardItem] {
         let groups: [(RewardSize, [String])] = [
-            (.small, ["물 한 잔", "음악 한 곡", "짧은 영상 하나"]),
-            (.medium, ["산책", "식사", "드라마 한 편"]),
-            (.large, ["외식", "취미 시간", "긴 휴식"])
+            (.small, [
+                String(localized: "A glass of water", bundle: AppLocalization.bundle(for: locale), locale: locale),
+                String(localized: "A song", bundle: AppLocalization.bundle(for: locale), locale: locale),
+                String(localized: "A short video", bundle: AppLocalization.bundle(for: locale), locale: locale)
+            ]),
+            (.medium, [
+                String(localized: "A walk", bundle: AppLocalization.bundle(for: locale), locale: locale),
+                String(localized: "A meal", bundle: AppLocalization.bundle(for: locale), locale: locale),
+                String(localized: "An episode of a show", bundle: AppLocalization.bundle(for: locale), locale: locale)
+            ]),
+            (.large, [
+                String(localized: "A meal out", bundle: AppLocalization.bundle(for: locale), locale: locale),
+                String(localized: "Time for a hobby", bundle: AppLocalization.bundle(for: locale), locale: locale),
+                String(localized: "Long break", bundle: AppLocalization.bundle(for: locale), locale: locale)
+            ])
         ]
         return groups.flatMap { size, names in names.map { RewardItem(name: $0, size: size) } }
     }
@@ -104,23 +119,23 @@ struct RewardListSettings: View {
     @ObservedObject var store: RewardListStore
 
     var body: some View {
-        Section(RewardListText.title) {
+        Section(RewardListText().title) {
             ForEach(RewardSize.allCases) { size in
                 VStack(alignment: .leading, spacing: 6) {
                     Text(size.title).font(.caption).foregroundStyle(.secondary)
                     ForEach(store.items(in: size)) { item in
                         HStack {
-                            TextField(RewardListText.name, text: Binding(
+                            TextField(RewardListText().name, text: Binding(
                                 get: { store.items.first(where: { $0.id == item.id })?.name ?? "" },
                                 set: { store.rename(item.id, to: $0) }
                             ))
                             .textFieldStyle(.roundedBorder)
                             Button { store.remove(item.id) } label: { Image(systemName: "minus.circle") }
-                                .help(RewardListText.remove)
-                                .accessibilityLabel(RewardListText.remove)
+                                .help(RewardListText().remove)
+                                .accessibilityLabel(RewardListText().remove)
                         }
                     }
-                    Button(RewardListText.add) { store.add(RewardListText.newReward, size: size) }
+                    Button(RewardListText().add) { store.add(RewardListText().newReward, size: size) }
                         .controlSize(.small)
                 }
             }
@@ -135,7 +150,7 @@ struct RewardField: View {
     let suggestions: [String]
 
     var body: some View {
-        NoteField(title: "끝나면 받을 보상", text: $text, suggestions: suggestions,
-                  help: RewardListText.choose, rewards: store.items)
+        NoteField(title: String(localized: "A reward for when you finish"), text: $text, suggestions: suggestions,
+                  help: RewardListText().choose, rewards: store.items)
     }
 }

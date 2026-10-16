@@ -23,7 +23,7 @@ struct StatusBarView: View {
 
             if viewModel.timerState == .awaitingChoice {
                 // 집중이 끝나 휴식/연장 선택을 기다리는 중
-                Text("선택")
+                Text("Choose")
                     .font(.system(size: 11, weight: .medium))
             } else if viewModel.timerState == .running || viewModel.timerState == .paused {
                 if settings.showTimeInMenuBar {
@@ -46,7 +46,7 @@ struct UpdateDot: View {
         Circle()
             .fill(Color.red)
             .frame(width: 6, height: 6)
-            .accessibilityLabel("새 버전이 있습니다")
+            .accessibilityLabel("A new version is available")
     }
 }
 

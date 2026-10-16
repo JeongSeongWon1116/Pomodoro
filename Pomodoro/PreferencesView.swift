@@ -9,15 +9,15 @@ struct PreferencesView: View {
     var body: some View {
         TabView {
             TimerSettingsTab()
-                .tabItem { Label("타이머", systemImage: "timer") }
+                .tabItem { Label("Timer", systemImage: "timer") }
             NotificationSettingsTab()
-                .tabItem { Label("알림", systemImage: "bell") }
+                .tabItem { Label("Notifications", systemImage: "bell") }
             ObsidianSettingsTab()
                 .tabItem { Label("Obsidian", systemImage: "doc.text") }
             ShortcutSettingsTab()
-                .tabItem { Label("단축어", systemImage: "square.2.layers.3d") }
+                .tabItem { Label("Shortcuts", systemImage: "square.2.layers.3d") }
             GeneralSettingsTab()
-                .tabItem { Label("일반", systemImage: "gearshape") }
+                .tabItem { Label("General", systemImage: "gearshape") }
         }
         .frame(width: 440, height: 340)
     }
@@ -30,21 +30,21 @@ struct TimerSettingsTab: View {
 
     var body: some View {
         Form {
-            Section("세션 길이") {
-                Stepper("집중 시간: \(settings.focusDurationInMinutes)분",
+            Section("Session lengths") {
+                Stepper("Focus: \(settings.focusDurationInMinutes.formatted()) min",
                         value: $settings.focusDurationInMinutes, in: 1...120)
-                Stepper("짧은 휴식: \(settings.shortBreakDurationInMinutes)분",
+                Stepper("Short break: \(settings.shortBreakDurationInMinutes.formatted()) min",
                         value: $settings.shortBreakDurationInMinutes, in: 1...60)
-                Stepper("긴 휴식: \(settings.longBreakDurationInMinutes)분",
+                Stepper("Long break: \(settings.longBreakDurationInMinutes.formatted()) min",
                         value: $settings.longBreakDurationInMinutes, in: 1...60)
-                Stepper("긴 휴식 간격: 집중 \(settings.longBreakInterval)회마다",
+                Stepper("Long break every \(settings.longBreakInterval.formatted()) focus sessions",
                         value: $settings.longBreakInterval, in: 2...10)
             }
-            Section("세션 전환") {
-                Toggle("전환 관리 (할 일·보상 적기, 집중이 끝나면 선택 기다리기)", isOn: $settings.transitionManagementEnabled)
-                Toggle("집중이 끝나면 휴식 자동 시작", isOn: $settings.autoStartBreaks)
-                Toggle("휴식이 끝나면 집중 자동 시작", isOn: $settings.autoStartFocus)
-                Text("전환 관리를 켜면, 끝까지 마친 집중은 저절로 넘어가지 않고 메뉴 바에서 휴식 시작이나 10분 연장을 고를 때까지 기다립니다(휴식 자동 시작은 건너뛴 집중에만 적용). 끄면 할 일·보상 칸과 선택 화면이 없어지고 예전처럼 동작합니다. 자동 시작을 끄면 세션이 끝났을 때 대기 상태로 멈추고, 메뉴 바에서 직접 시작할 수 있습니다.")
+            Section("Session transitions") {
+                Toggle("Transition support (task and reward notes, a choice after focus)", isOn: $settings.transitionManagementEnabled)
+                Toggle("Start breaks automatically after focus", isOn: $settings.autoStartBreaks)
+                Toggle("Start focus automatically after breaks", isOn: $settings.autoStartFocus)
+                Text("With transition support on, a completed focus session waits for you to choose a break or 10 more minutes in the menu bar. Automatic breaks apply only to skipped focus sessions. Turning it off hides task and reward fields and the choice screen. With automatic starts off, each session waits for you to start it from the menu bar.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -65,9 +65,9 @@ struct NotificationSettingsTab: View {
 
     var body: some View {
         Form {
-            Section("알림음") {
-                Picker("세션 종료 알림음", selection: $settings.notificationSoundName) {
-                    Text(AppSettings.soundOff).tag(AppSettings.soundOff)
+            Section("Notification sound") {
+                Picker("Session end sound", selection: $settings.notificationSoundName) {
+                    Text("None").tag(AppSettings.soundOff)
                     Divider()
                     ForEach(AppSettings.availableSounds, id: \.self) { sound in
                         Text(sound).tag(sound)
@@ -77,7 +77,7 @@ struct NotificationSettingsTab: View {
                     guard newValue != AppSettings.soundOff else { return }
                     NSSound(named: newValue)?.play()
                 }
-                Button("미리 듣기") {
+                Button("Preview sound") {
                     guard settings.notificationSoundName != AppSettings.soundOff else { return }
                     NSSound(named: settings.notificationSoundName)?.play()
                 }
@@ -88,10 +88,10 @@ struct NotificationSettingsTab: View {
                     HStack {
                         Image(systemName: "bell.badge.fill")
                             .foregroundStyle(.orange)
-                        Text("배너 알림을 받으려면 시스템 설정에서 알림을 허용하세요.")
+                        Text("Allow notifications in System Settings to receive banners.")
                             .font(.caption)
                         Spacer()
-                        Button("알림 설정 열기") {
+                        Button("Open notification settings") {
                             if let url = URL(string: "x-apple.systempreferences:com.apple.preference.notifications") {
                                 openURL(url)
                             }
@@ -115,22 +115,22 @@ struct ObsidianSettingsTab: View {
 
     var body: some View {
         Form {
-            Section("데일리 노트 기록") {
-                Toggle("세션이 끝나면 데일리 노트에 기록", isOn: $obsidian.isEnabled)
+            Section("Daily notes") {
+                Toggle("Write to daily notes when sessions end", isOn: $obsidian.isEnabled)
                 if obsidian.isEnabled {
                     HStack {
                         Image(systemName: obsidian.isFolderSelected ? "folder.fill" : "folder.badge.questionmark")
                             .foregroundStyle(obsidian.isFolderSelected ? Color.accentColor : .orange)
-                        Text(obsidian.folderName ?? "폴더가 선택되지 않았습니다")
+                        Text(obsidian.folderName ?? String(localized: "No folder selected"))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                         Spacer()
-                        Button("폴더 선택") { obsidian.chooseFolder() }
+                        Button("Choose folder") { obsidian.chooseFolder() }
                     }
                 }
             }
             Section {
-                Text("데일리 노트(yyyy-MM-dd.md)의 \"\(ObsidianExporter.sectionHeading)\" 섹션에 세션 기록과 하루 통계가 자동으로 기록됩니다. 노트의 다른 내용은 건드리지 않습니다.")
+                Text("Session records and daily totals are added to the \"\(ObsidianExporter.sectionHeading)\" section of daily notes (yyyy-MM-dd.md). The rest of each note stays as it is.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -146,12 +146,12 @@ struct ShortcutSettingsTab: View {
 
     var body: some View {
         Form {
-            Section("집중할 때 실행할 단축어") {
-                shortcutRow("집중을 시작할 때", name: $settings.focusStartShortcut)
-                shortcutRow("집중이 끝날 때", name: $settings.focusEndShortcut)
+            Section("Shortcuts for focus") {
+                shortcutRow(String(localized: "When focus starts"), name: $settings.focusStartShortcut)
+                shortcutRow(String(localized: "When focus ends"), name: $settings.focusEndShortcut)
             }
             Section {
-                Text("단축어 앱에 있는 단축어의 이름을 그대로 적습니다(예: 방해금지 모드를 켜는 단축어와 끄는 단축어). 비워 두면 실행하지 않습니다. 연장하면 시작 단축어를 다시 실행하고, 건너뛰기·초기화·종료로 집중을 그만둘 때도 끝 단축어를 실행합니다.")
+                Text("Enter the exact names from the Shortcuts app, such as shortcuts that turn Do Not Disturb on and off. Leave a field empty to skip it. Extending focus runs the start shortcut again. Skipping, resetting, or quitting focus also runs the end shortcut.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -161,11 +161,11 @@ struct ShortcutSettingsTab: View {
 
     private func shortcutRow(_ title: String, name: Binding<String>) -> some View {
         LabeledContent(title) {
-            TextField(title, text: name, prompt: Text("단축어 이름"))
+            TextField(title, text: name, prompt: Text("Shortcut name"))
                 .labelsHidden()
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 170)
-            Button("실행해 보기") { URLShortcutRunner().run(named: name.wrappedValue) }
+            Button("Try running") { URLShortcutRunner().run(named: name.wrappedValue) }
                 .disabled(name.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
     }
@@ -184,14 +184,14 @@ struct GeneralSettingsTab: View {
     }
 
     private var lastCheckText: String {
-        updates.lastCheckDate?.formatted(date: .abbreviated, time: .shortened) ?? "아직 없음"
+        updates.lastCheckDate?.formatted(date: .abbreviated, time: .shortened) ?? String(localized: "Not yet")
     }
 
     var body: some View {
         Form {
             Section {
-                Toggle("로그인 시 자동 실행", isOn: $settings.launchAtLogin)
-                Toggle("메뉴 바에 남은 시간 표시", isOn: $settings.showTimeInMenuBar)
+                Toggle("Launch at login", isOn: $settings.launchAtLogin)
+                Toggle("Show remaining time in the menu bar", isOn: $settings.showTimeInMenuBar)
             }
             UpdateSettingsSection(
                 disabledReason: updates.statusText,
@@ -205,9 +205,9 @@ struct GeneralSettingsTab: View {
                 checkNow: { updates.checkForUpdates() },
                 installNow: { updates.installPendingUpdateNow() }
             )
-            Section("정보") {
-                LabeledContent("버전", value: versionString)
-                Link("GitHub에서 보기", destination: URL(string: "https://github.com/jeongseongwon1116/pomodoro")!)
+            Section("About") {
+                LabeledContent("Version", value: versionString)
+                Link("View on GitHub", destination: URL(string: "https://github.com/jeongseongwon1116/pomodoro")!)
             }
         }
         .formStyle(.grouped)
@@ -232,24 +232,24 @@ struct UpdateSettingsSection: View {
     let installNow: () -> Void
 
     var body: some View {
-        Section("업데이트") {
+        Section("Updates") {
             if let disabledReason {
-                Text("자동 업데이트를 쓰지 않습니다 — \(disabledReason).")
+                Text("Automatic updates are unavailable — \(disabledReason).")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
-                Toggle("자동으로 업데이트 확인", isOn: $automaticallyChecks)
-                LabeledContent("마지막 확인", value: lastCheckText)
+                Toggle("Check for updates automatically", isOn: $automaticallyChecks)
+                LabeledContent("Last checked", value: lastCheckText)
                 if let pendingVersion {
-                    LabeledContent("받아 둔 버전 \(pendingVersion)") {
-                        Button(installing ? "설치하는 중…" : "지금 설치하고 다시 켜기", action: installNow)
+                    LabeledContent("Downloaded version \(pendingVersion)") {
+                        Button(installing ? String(localized: "Installing…") : String(localized: "Install and reopen now"), action: installNow)
                             .disabled(!canInstallNow)
                     }
                 } else {
                     if let availableVersion {
-                        Text("새 버전 \(availableVersion)이 있습니다.")
+                        Text("Version \(availableVersion) is available.")
                     }
-                    Button("지금 확인", action: checkNow)
+                    Button("Check now", action: checkNow)
                         .disabled(!canCheckNow)
                 }
                 Text(Self.caption(hasPending: pendingVersion != nil, automaticallyChecks: automaticallyChecks, installing: installing))
@@ -260,14 +260,14 @@ struct UpdateSettingsSection: View {
     }
 
     /// 아래 설명 한 줄. 지금 설정에서 실제로 일어나는 일만 적습니다.
-    nonisolated static func caption(hasPending: Bool, automaticallyChecks: Bool, installing: Bool = false) -> String {
+    nonisolated static func caption(hasPending: Bool, automaticallyChecks: Bool, installing: Bool = false, locale: Locale = .current) -> String {
         if hasPending {
-            if installing { return "설치를 시작했습니다. 앱이 곧 꺼졌다 다시 켜집니다." }
-            return "새 버전을 받아 두었습니다. 위 단추나 메뉴 막대 아이콘을 눌러 나오는 \"업데이트\"를 누르면 설치하고 다시 켭니다. 누르지 않고 앱을 끄면 그때 설치됩니다. 설치할 때까지는 새로 확인하지 않습니다."
+            if installing { return String(localized: "Installation has started. The app will close and reopen shortly.", bundle: AppLocalization.bundle(for: locale), locale: locale) }
+            return String(localized: "A new version is downloaded. Use the button above or Update in the menu bar popover to install and reopen. It also installs when you quit. Further checks wait until installation.", bundle: AppLocalization.bundle(for: locale), locale: locale)
         }
         if !automaticallyChecks {
-            return "자동 확인이 꺼져 있습니다. \"지금 확인\"을 누를 때만 확인합니다."
+            return String(localized: "Automatic checks are off. Updates are checked only when you choose Check now.", bundle: AppLocalization.bundle(for: locale), locale: locale)
         }
-        return "새 버전이 나오면 받아 두고 메뉴 막대 아이콘에 점으로 알립니다. \"업데이트\"를 누르면 설치하고 다시 켭니다. 누르지 않고 앱을 끄면 그때 설치됩니다."
+        return String(localized: "New versions are downloaded and shown as a dot on the menu bar icon. Choose Update to install and reopen. A downloaded update also installs when you quit.", bundle: AppLocalization.bundle(for: locale), locale: locale)
     }
 }

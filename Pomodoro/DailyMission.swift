@@ -9,12 +9,15 @@ struct DailyMission: Codable, Equatable {
     var doneAt: Date?
 }
 
-enum DailyMissionText {
-    static let title = "오늘의 메인 미션"
-    static let placeholder = "오늘 끝내고 싶은 한 가지"
-    static let encouragement = "이것만 끝내면 오늘은 충분해요"
-    static let done = "끝냄"
-    static let undo = "끝냄 표시 지우기"
+struct DailyMissionText {
+    let locale: Locale
+
+    init(locale: Locale = .current) { self.locale = locale }
+    var title: String { String(localized: "Today's main mission", bundle: AppLocalization.bundle(for: locale), locale: locale) }
+    var placeholder: String { String(localized: "One thing you would like to finish today", bundle: AppLocalization.bundle(for: locale), locale: locale) }
+    var encouragement: String { String(localized: "Finishing this is enough for today", bundle: AppLocalization.bundle(for: locale), locale: locale) }
+    var done: String { String(localized: "Done", bundle: AppLocalization.bundle(for: locale), locale: locale) }
+    var undo: String { String(localized: "Mark as not done", bundle: AppLocalization.bundle(for: locale), locale: locale) }
 }
 
 @MainActor
@@ -127,9 +130,9 @@ struct DailyMissionView: View {
             let day = context.date
             let mission = store.mission(for: day)
             VStack(alignment: .leading, spacing: 4) {
-                Text(DailyMissionText.title).font(.caption).foregroundStyle(.secondary)
+                Text(DailyMissionText().title).font(.caption).foregroundStyle(.secondary)
                 HStack {
-                    TextField(DailyMissionText.placeholder, text: Binding(
+                    TextField(DailyMissionText().placeholder, text: Binding(
                         get: { store.mission(for: day).text },
                         set: {
                             editor.setText($0, in: store, for: day)
@@ -146,14 +149,14 @@ struct DailyMissionView: View {
                         if mission.done {
                             Image(systemName: "checkmark")
                         } else {
-                            Text(DailyMissionText.done)
+                            Text(DailyMissionText().done)
                         }
                     }
-                    .accessibilityLabel(mission.done ? DailyMissionText.undo : DailyMissionText.done)
+                    .accessibilityLabel(mission.done ? DailyMissionText().undo : DailyMissionText().done)
                     .disabled(mission.text.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
                 if !mission.text.isEmpty {
-                    Text(DailyMissionText.encouragement)
+                    Text(DailyMissionText().encouragement)
                         .font(.caption2).foregroundStyle(.secondary)
                 }
             }

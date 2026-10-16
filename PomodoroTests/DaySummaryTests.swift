@@ -32,7 +32,7 @@ struct DaySummaryTests {
         #expect(result.focusCount == 2)
         #expect(result.focusMinutes == 80)
         #expect(result.extensionCount == 3)
-        #expect(result.text == "오늘 집중 2번 · 80분 · 연장 3번")
+        #expect(DaySummaryText.line(result, locale: Locale(identifier: "ko")) == "오늘 집중 2번 · 80분 · 연장 3번")
     }
 
     @Test func 로컬_자정은_포함하고_다음_자정은_제외한다() throws {
@@ -48,7 +48,7 @@ struct DaySummaryTests {
         let notes = [a.id: TransitionDetails(task: " 초안 "), b.id: TransitionDetails(task: "초안"), c.id: TransitionDetails(task: "교정")]
         let result = DaySummary.make(entries: [a, b, c], notes: notes, calendar: calendar, now: now)
         #expect(result.mainTask == "초안")
-        #expect(result.text.hasSuffix("주로: 초안"))
+        #expect(DaySummaryText.line(result, locale: Locale(identifier: "ko")).hasSuffix("주로: 초안"))
         #expect(DaySummary.make(entries: [a, c], notes: notes, calendar: calendar, now: now).mainTask == "교정")
         #expect(DaySummary.make(entries: [c, a], notes: notes, calendar: calendar, now: now).mainTask == "교정")
     }
@@ -58,7 +58,7 @@ struct DaySummaryTests {
         #expect(result.focusCount == 0)
         #expect(result.focusMinutes == 0)
         #expect(result.mainTask == nil)
-        #expect(result.text == "오늘 첫 집중을 시작해 볼까요")
+        #expect(DaySummaryText.line(result, locale: Locale(identifier: "ko")) == "오늘 첫 집중을 시작해 볼까요")
     }
 
     @Test func 초를_합친_뒤_분으로_내린다() {

@@ -60,18 +60,18 @@ struct NoteFieldMenuTitleTests {
 struct TransitionDetailsLinesTests {
     @Test func 적은_것만_이름표와_함께_차례로_낸다() {
         let details = TransitionDetails(task: "논문 3장", reward: "", nextStartingPoint: " 3.2절부터 ", extensionCount: 0)
-        #expect(details.labeledLines.map(\.label) == ["할 일", "다음 시작점"])
-        #expect(details.labeledLines.map(\.text) == ["논문 3장", "3.2절부터"])
+        #expect(details.labeledLines(locale: Locale(identifier: "ko")).map(\.label) == ["할 일", "다음 시작점"])
+        #expect(details.labeledLines(locale: Locale(identifier: "ko")).map(\.text) == ["논문 3장", "3.2절부터"])
     }
 
     @Test func 연장한_횟수도_한_줄로_낸다() {
         let details = TransitionDetails(task: "", reward: "커피", nextStartingPoint: "", extensionCount: 2)
-        #expect(details.labeledLines.map(\.label) == ["보상", "연장"])
-        #expect(details.labeledLines.last?.text == "2회")
+        #expect(details.labeledLines(locale: Locale(identifier: "ko")).map(\.label) == ["보상", "연장"])
+        #expect(details.labeledLines(locale: Locale(identifier: "ko")).last?.text == "2회")
     }
 
     @Test func 적은_것이_없으면_줄이_없다() {
-        #expect(TransitionDetails().labeledLines.isEmpty)
+        #expect(TransitionDetails().labeledLines(locale: Locale(identifier: "ko")).isEmpty)
     }
 }
 

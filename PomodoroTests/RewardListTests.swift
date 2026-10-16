@@ -5,14 +5,14 @@ import Testing
 @MainActor
 struct RewardListTests {
     @Test func 세_크기의_기본_보상() {
-        let store = RewardListStore(defaults: nil)
+        let store = RewardListStore(defaults: nil, locale: Locale(identifier: "ko"))
         #expect(store.items(in: .small).map(\.name) == ["물 한 잔", "음악 한 곡", "짧은 영상 하나"])
         #expect(store.items(in: .medium).map(\.name) == ["산책", "식사", "드라마 한 편"])
         #expect(store.items(in: .large).map(\.name) == ["외식", "취미 시간", "긴 휴식"])
     }
 
     @Test func 크기별로_더하고_이름을_바꾸고_지운다() throws {
-        let store = RewardListStore(defaults: nil)
+        let store = RewardListStore(defaults: nil, locale: Locale(identifier: "ko"))
         store.add(" 커피 ", size: .small)
         let item = try #require(store.items(in: .small).last)
         #expect(item.name == "커피")

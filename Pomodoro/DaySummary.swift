@@ -48,11 +48,13 @@ struct DaySummary: Equatable {
 }
 
 enum DaySummaryText {
-    static let empty = "오늘 첫 집중을 시작해 볼까요"
-    static func line(_ summary: DaySummary) -> String {
-        guard summary.hasFocus else { return empty }
-        var text = "오늘 집중 \(summary.focusCount)번 · \(summary.focusMinutes)분 · 연장 \(summary.extensionCount)번"
-        if let task = summary.mainTask { text += " · 주로: \(task)" }
+    static func empty(locale: Locale = .current) -> String {
+        String(localized: "Ready for your first focus session today?", bundle: AppLocalization.bundle(for: locale), locale: locale)
+    }
+    static func line(_ summary: DaySummary, locale: Locale = .current) -> String {
+        guard summary.hasFocus else { return empty(locale: locale) }
+        var text = String(localized: "Focus sessions today: \(summary.focusCount.formatted(.number.locale(locale))) · \(summary.focusMinutes.formatted(.number.locale(locale))) min · Extensions: \(summary.extensionCount.formatted(.number.locale(locale)))", bundle: AppLocalization.bundle(for: locale), locale: locale)
+        if let task = summary.mainTask { text += String(localized: " · Mostly: \(task)", bundle: AppLocalization.bundle(for: locale), locale: locale) }
         return text
     }
 }

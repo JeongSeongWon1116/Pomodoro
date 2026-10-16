@@ -78,8 +78,8 @@ struct LogChartView: View {
 
     private var chartTitle: String {
         switch period {
-        case .all: return "전체 집중 기록 (월별)"
-        default: return "\(period.dateRangeLabel(offset: offset)) 집중 시간 분석"
+        case .all: return String(localized: "All focus history (by month)")
+        default: return String(localized: "Focus time for \(period.dateRangeLabel(offset: offset))")
         }
     }
 
@@ -89,43 +89,43 @@ struct LogChartView: View {
                 .font(.title2)
                 .padding()
 
-            Text("총 집중 시간: \(formatTimeInterval(totalFocusTimeForPeriod))")
+            Text("Total focus time: \(formatTimeInterval(totalFocusTimeForPeriod))")
                 .font(.headline)
                 .foregroundStyle(.secondary)
                 .padding(.bottom)
 
             if chartData.isEmpty {
-                ContentUnavailableView("선택된 기간에 기록이 없습니다", systemImage: "chart.bar.xaxis")
+                ContentUnavailableView("No records for this period", systemImage: "chart.bar.xaxis")
             } else {
                 let xUnit: Calendar.Component = period == .all ? .month : .day
                 let xCount = period == .monthly ? 7 : 1
 
                 Chart(chartData) { data in
                     BarMark(
-                        x: .value("Date", data.date, unit: xUnit),
-                        y: .value("Minutes", data.focusDuration / 60)
-                    ).foregroundStyle(by: .value("Type", PomodoroState.focus.rawValue))
+                        x: .value(String(localized: "Date"), data.date, unit: xUnit),
+                        y: .value(String(localized: "Minutes"), data.focusDuration / 60)
+                    ).foregroundStyle(by: .value(String(localized: "Type"), PomodoroState.focus.description))
 
                     BarMark(
-                        x: .value("Date", data.date, unit: xUnit),
-                        y: .value("Minutes", data.shortBreakDuration / 60)
-                    ).foregroundStyle(by: .value("Type", PomodoroState.shortBreak.rawValue))
+                        x: .value(String(localized: "Date"), data.date, unit: xUnit),
+                        y: .value(String(localized: "Minutes"), data.shortBreakDuration / 60)
+                    ).foregroundStyle(by: .value(String(localized: "Type"), PomodoroState.shortBreak.description))
 
                     BarMark(
-                        x: .value("Date", data.date, unit: xUnit),
-                        y: .value("Minutes", data.longBreakDuration / 60)
-                    ).foregroundStyle(by: .value("Type", PomodoroState.longBreak.rawValue))
+                        x: .value(String(localized: "Date"), data.date, unit: xUnit),
+                        y: .value(String(localized: "Minutes"), data.longBreakDuration / 60)
+                    ).foregroundStyle(by: .value(String(localized: "Type"), PomodoroState.longBreak.description))
                 }
                 .chartForegroundStyleScale([
-                    PomodoroState.focus.rawValue: PomodoroState.focus.color,
-                    PomodoroState.shortBreak.rawValue: PomodoroState.shortBreak.color,
-                    PomodoroState.longBreak.rawValue: PomodoroState.longBreak.color
+                    PomodoroState.focus.description: PomodoroState.focus.color,
+                    PomodoroState.shortBreak.description: PomodoroState.shortBreak.color,
+                    PomodoroState.longBreak.description: PomodoroState.longBreak.color
                 ])
                 .chartYAxis {
                     AxisMarks { value in
                         AxisGridLine()
                         if let minutes = value.as(Int.self) {
-                            AxisValueLabel("\(minutes)분")
+                            AxisValueLabel("\(minutes.formatted()) min")
                         }
                     }
                 }
@@ -152,9 +152,9 @@ struct LogChartView: View {
         let hours = Int(interval) / 3600
         let minutes = (Int(interval) % 3600) / 60
         if hours > 0 {
-            return "\(hours)시간 \(minutes)분"
+            return String(localized: "\(hours.formatted()) hr \(minutes.formatted()) min")
         } else {
-            return "\(minutes)분"
+            return String(localized: "\(minutes.formatted()) min")
         }
     }
 }

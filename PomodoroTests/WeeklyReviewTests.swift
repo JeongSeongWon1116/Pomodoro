@@ -58,7 +58,7 @@ struct WeeklyReviewTests {
         let reopened = WeeklyReviewStore(defaults: defaults)
         #expect(reopened.memo(for: date(2021, 1, 3), calendar: calendar) == "산책 물 마시기")
         #expect(reopened.memo(for: date(2021, 1, 4), calendar: calendar).isEmpty)
-        #expect(WeeklyReviewText.memo == "이번 주에 도움이 된 것")
+        #expect(WeeklyReviewText(locale: Locale(identifier: "ko")).memo == "이번 주에 도움이 된 것")
     }
 
     @Test func 미션은_Obsidian_섹션_맨_위에서_갱신되고_다른_내용은_남는다() {

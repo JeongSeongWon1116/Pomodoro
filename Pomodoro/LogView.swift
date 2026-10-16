@@ -24,9 +24,9 @@ struct LogView: View {
     var body: some View {
         NavigationSplitView {
             VStack(spacing: 0) {
-                Picker("기간 선택", selection: periodBinding) {
+                Picker("Choose period", selection: periodBinding) {
                     ForEach(TimePeriod.allCases) { period in
-                        Text(period.rawValue).tag(period)
+                        Text(period.title).tag(period)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -39,22 +39,22 @@ struct LogView: View {
                     AllRecordsSummaryView()
                 }
             }
-            .navigationTitle("집중 기록")
+            .navigationTitle("Focus history")
             .frame(minWidth: 320)
             .toolbar {
                 ToolbarItem {
                     Button(role: .destructive) {
                         showingDeleteAlert = true
                     } label: {
-                        Label("모든 로그 삭제", systemImage: "trash")
+                        Label("Delete all records", systemImage: "trash")
                     }
                 }
             }
-            .alert("모든 로그를 삭제하시겠습니까?", isPresented: $showingDeleteAlert) {
-                Button("삭제", role: .destructive) { deleteAllLogs() }
-                Button("취소", role: .cancel) {}
+            .alert("Delete all records?", isPresented: $showingDeleteAlert) {
+                Button("Delete", role: .destructive) { deleteAllLogs() }
+                Button("Cancel", role: .cancel) {}
             } message: {
-                Text("이 동작은 되돌릴 수 없습니다.")
+                Text("This cannot be undone.")
             }
         } detail: {
             VStack(spacing: 0) {
@@ -153,32 +153,32 @@ struct AllRecordsSummaryView: View {
             VStack(spacing: 16) {
                 Spacer(minLength: 20)
                 StatCard(
-                    title: "총 집중 세션",
-                    value: "\(totalFocusSessions)회",
+                    title: String(localized: "Total focus sessions"),
+                    value: String(localized: "Sessions: \(totalFocusSessions.formatted())"),
                     systemImage: "timer",
                     color: .blue
                 )
                 StatCard(
-                    title: "총 집중 시간",
+                    title: String(localized: "Total focus time"),
                     value: formatTime(totalFocusTime),
                     systemImage: "brain.head.profile",
                     color: .blue
                 )
                 StatCard(
-                    title: "총 휴식 시간",
+                    title: String(localized: "Total break time"),
                     value: formatTime(totalBreakTime),
                     systemImage: "cup.and.saucer",
                     color: .green
                 )
                 StatCard(
-                    title: "일 평균 집중 시간",
+                    title: String(localized: "Average daily focus time"),
                     value: activeDayCount > 0 ? formatTime(dailyAverageFocusTime) : "-",
                     systemImage: "clock.arrow.circlepath",
                     color: .orange
                 )
                 StatCard(
-                    title: "일 평균 집중 세션",
-                    value: activeDayCount > 0 ? String(format: "%.1f회", dailyAverageSessions) : "-",
+                    title: String(localized: "Average daily focus sessions"),
+                    value: activeDayCount > 0 ? String(localized: "Sessions: \(dailyAverageSessions.formatted(.number.precision(.fractionLength(1))))") : "-",
                     systemImage: "calendar.badge.clock",
                     color: .orange
                 )
@@ -193,9 +193,9 @@ struct AllRecordsSummaryView: View {
         let hours = Int(interval) / 3600
         let minutes = (Int(interval) % 3600) / 60
         if hours > 0 {
-            return "\(hours)시간 \(minutes)분"
+            return String(localized: "\(hours.formatted()) hr \(minutes.formatted()) min")
         } else {
-            return "\(minutes)분"
+            return String(localized: "\(minutes.formatted()) min")
         }
     }
 }
@@ -301,16 +301,17 @@ struct LogEntryRow: View {
 
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
         return formatter
     }()
 
     private var durationText: String {
         let minutes = Int(log.duration / 60)
         let seconds = Int(log.duration) % 60
-        var text = "\(minutes)분"
+        var text = String(localized: "\(minutes.formatted()) min")
         if seconds > 0 {
-            text += " \(seconds)초"
+            text += String(localized: " \(seconds.formatted()) sec")
         }
         return text
     }
@@ -320,9 +321,9 @@ struct LogEntryRow: View {
         let minutes = Int(log.pausedDuration / 60)
         let seconds = Int(log.pausedDuration) % 60
         if minutes > 0 {
-            return "\(minutes)분 정지"
+            return String(localized: "Paused for \(minutes.formatted()) min")
         } else {
-            return "\(seconds)초 정지"
+            return String(localized: "Paused for \(seconds.formatted()) sec")
         }
     }
 
@@ -337,9 +338,9 @@ struct LogEntryRow: View {
                 .foregroundStyle(log.sessionType.color)
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: 2) {
-                Text(log.sessionType.rawValue).fontWeight(.bold)
+                Text(log.sessionType.description).fontWeight(.bold)
                 // 종료 시각은 활동 시간뿐 아니라 일시정지된 시간도 포함해야 합니다.
-                Text("\(LogEntryRow.timeFormatter.string(from: log.startTime)) - \(LogEntryRow.timeFormatter.string(from: log.startTime.addingTimeInterval(log.duration + log.pausedDuration)))")
+                Text(verbatim: "\(LogEntryRow.timeFormatter.string(from: log.startTime)) - \(LogEntryRow.timeFormatter.string(from: log.startTime.addingTimeInterval(log.duration + log.pausedDuration)))")
                     .font(.caption).foregroundStyle(.secondary)
                 ForEach(details?.labeledLines ?? [], id: \.label) { line in
                     // 긴 글은 두 줄까지 접어 보여 줍니다.
@@ -376,7 +377,7 @@ struct LogSectionHeader: View {
         HStack {
             Text(day.formatted(.dateTime.year().month().day().weekday(.wide)))
             Spacer()
-            Text("총 집중: \(Int(totalFocusTime / 60))분")
+            Text("Total focus: \(Int(totalFocusTime / 60).formatted()) min")
                 .foregroundStyle(.secondary)
         }
         .font(.headline)
@@ -390,6 +391,13 @@ struct LogSectionHeader: View {
 enum TimePeriod: String, CaseIterable, Identifiable {
     case weekly = "이번 주", monthly = "이번 달", all = "전체 기록"
     var id: Self { self }
+    var title: String {
+        switch self {
+        case .weekly: String(localized: "This week")
+        case .monthly: String(localized: "This month")
+        case .all: String(localized: "All records")
+        }
+    }
 
     func predicate(offset: Int = 0) -> Predicate<FocusLogEntry>? {
         let calendar = Calendar.current
@@ -424,16 +432,16 @@ enum TimePeriod: String, CaseIterable, Identifiable {
                   let startDate = calendar.date(byAdding: .weekOfYear, value: offset, to: startOfThisWeek),
                   let endDate = calendar.date(byAdding: .day, value: 6, to: startDate)
             else { return "" }
-            formatter.dateFormat = "M.d"
+            formatter.setLocalizedDateFormatFromTemplate("Md")
             return "\(formatter.string(from: startDate)) - \(formatter.string(from: endDate))"
         case .monthly:
             guard let startOfThisMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now)),
                   let startDate = calendar.date(byAdding: .month, value: offset, to: startOfThisMonth)
             else { return "" }
-            formatter.dateFormat = "yyyy년 M월"
+            formatter.setLocalizedDateFormatFromTemplate("yyyyMMMM")
             return formatter.string(from: startDate)
         case .all:
-            return "전체 기록"
+            return String(localized: "All records")
         }
     }
 }

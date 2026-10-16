@@ -16,12 +16,12 @@ struct PomodoroApp: App {
     var body: some Scene {
         // **FIX**: Window를 사용하여 단일 윈도우만 열리도록 합니다.
         // WindowGroup은 여러 윈도우를 허용하지만, Window는 단일 인스턴스만 허용합니다.
-        Window("집중 기록", id: "log-window") {
+        Window("Focus history", id: "log-window") {
             LogView()
         }
         .modelContainer(container) // 전체 뷰 계층에 공유 ModelContainer를 주입합니다.
 
-        Window("설정", id: "settings-window") {
+        Window("Settings", id: "settings-window") {
             PreferencesView()
         }
         .windowResizability(.contentSize)

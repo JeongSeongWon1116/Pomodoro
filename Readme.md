@@ -1,10 +1,10 @@
 English | [한국어](Readme.ko.md)
 
-# Pomodoro
+# Morrowisp — a calm Pomodoro timer for macOS
 
 A calm macOS menu bar Pomodoro timer for a steady daily rhythm of focus, rest, and returning to your work.
 
-**Language: the app UI is in Korean for now.** Korean labels below help you find the corresponding controls.
+The app supports English and Korean and follows your system language. Other languages use English. Korean labels below help you find the corresponding controls.
 
 <!-- TODO: Add a screenshot of the menu bar popover when one is available. -->
 
@@ -20,6 +20,8 @@ A calm macOS menu bar Pomodoro timer for a steady daily rhythm of focus, rest, a
    ```
 
 3. Later versions are downloaded automatically and indicated by a red dot on the menu bar icon. Click **Update (업데이트)** in the popover to install and reopen the app. A downloaded update also installs when you quit. It does not install on its own while the app stays open. Update controls are under **Settings > General > Updates (설정 > 일반 > 업데이트)**.
+
+The installed app is still named `Pomodoro.app` to preserve continuity with existing installations and updates.
 
 ## Requirements
 
@@ -50,7 +52,7 @@ Today's completed-session count includes only finished focus sessions. Focus min
 
 ## Privacy
 
-Your history and notes are stored locally on this Mac, using SwiftData and local preferences. Pomodoro uses the network for update checks and downloads. Automatic update checks can be turned off in settings.
+Your history and notes are stored locally on this Mac, using SwiftData and local preferences. Morrowisp uses the network for update checks and downloads. Automatic update checks can be turned off in settings.
 
 If you enable Obsidian integration, the app writes to the folder you select. Shortcuts run through the macOS Shortcuts app; what they do depends on the shortcuts you choose.
 
@@ -73,4 +75,4 @@ Source version: **1.4.0**. See [CHANGELOG.md](CHANGELOG.md) for the history; old
 
 ## License
 
-No license has been chosen yet.
+[MIT](LICENSE) — Copyright (c) 2026 Seongwon Jeong.

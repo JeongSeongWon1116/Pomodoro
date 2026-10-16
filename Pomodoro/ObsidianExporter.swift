@@ -42,8 +42,8 @@ final class ObsidianExporter: ObservableObject {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
-        panel.prompt = "선택"
-        panel.message = "데일리 노트가 저장되는 Obsidian 폴더를 선택하세요"
+        panel.prompt = String(localized: "Choose")
+        panel.message = String(localized: "Choose the Obsidian folder that holds your daily notes")
         guard panel.runModal() == .OK, let url = panel.url else { return }
         saveBookmark(for: url)
         syncTodayMission()

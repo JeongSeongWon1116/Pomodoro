@@ -1,17 +1,17 @@
 [한국어](SHORTCUTS.ko.md)
 
-# Shortcuts integration
+# Morrowisp — Shortcuts integration
 
-Pomodoro can run shortcuts you have created in the macOS **Shortcuts** app when focus begins and ends. Examples include turning Do Not Disturb (a Focus mode) on or off, playing or stopping music, and changing lights.
+Morrowisp can run shortcuts you have created in the macOS **Shortcuts** app when focus begins and ends. Examples include turning Do Not Disturb (a Focus mode) on or off, playing or stopping music, and changing lights.
 
-The app UI is currently in Korean; the labels below include the text you will see.
+The app UI supports English and Korean; the labels below include the Korean text as a reference.
 
 ## Setup
 
 1. Create two shortcuts in Shortcuts. For Do Not Disturb, for example:
    - **방해금지 켜기** — use the Set Focus action to turn Do Not Disturb on.
    - **방해금지 끄기** — use the Set Focus action to turn Do Not Disturb off.
-2. Click the Pomodoro menu bar icon → gear (settings) → **Shortcuts (단축어)**.
+2. Click the Morrowisp menu bar icon → gear (settings) → **Shortcuts (단축어)**.
 3. Enter each shortcut's **exact name** in **When focus starts (집중을 시작할 때)** and **When focus ends (집중이 끝날 때)**. Leave a field empty to do nothing for that event.
 4. Click **Try running (실행해 보기)** to check that the shortcut runs.
 
@@ -33,6 +33,6 @@ The app UI is currently in Korean; the labels below include the text you will se
 - The app opens `shortcuts://run-shortcut?name=<이름>` to run a shortcut. `<이름>` represents its name. This integration does not change the app's entitlements.
 - The URL is opened without requesting that Shortcuts come to the foreground. Shortcuts may still open its own windows, and once launched, it remains running.
 - If the named shortcut does not exist, Shortcuts displays an error. Correct the name or clear the field.
-- Pomodoro cannot tell whether a shortcut has finished or succeeded. If end and start requests arrive almost together—for example, when you choose another 10 minutes immediately after focus ends—the later request may finish first.
+- Morrowisp cannot tell whether a shortcut has finished or succeeded. If end and start requests arrive almost together—for example, when you choose another 10 minutes immediately after focus ends—the later request may finish first.
 - Quitting during focus delays exit briefly, for up to two seconds, while the end shortcut's launch request is handed off.
 - A force quit or crash does not run the end shortcut. If your shortcut enabled Do Not Disturb, you will need to turn it off yourself.

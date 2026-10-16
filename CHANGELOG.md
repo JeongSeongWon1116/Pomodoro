@@ -4,6 +4,13 @@ Older entries are in Korean.
 
 이 프로젝트는 [유의적 버전(Semantic Versioning)](https://semver.org/lang/ko/)을 따릅니다.
 
+## [Unreleased]
+
+### Changed
+- Renamed the app to **Morrowisp**, keeping the installed `Pomodoro.app` name and existing update and data identifiers.
+- Added English and Korean app interfaces that follow the system language. Obsidian note output and shortcut names remain unchanged.
+- Adopted the **MIT License**.
+
 ## [1.4.0] - 2026-10-16
 
 ### 추가

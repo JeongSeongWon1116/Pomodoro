@@ -148,13 +148,13 @@ struct HeldUpdateTests {
 
 struct UpdateSettingsCaptionTests {
     @Test func 자동_확인이_꺼져_있으면_알려_준다고_하지_않는다() {
-        let text = UpdateSettingsSection.caption(hasPending: false, automaticallyChecks: false)
+        let text = UpdateSettingsSection.caption(hasPending: false, automaticallyChecks: false, locale: Locale(identifier: "ko"))
         #expect(text.contains("자동 확인이 꺼져"))
         #expect(!text.contains("알립니다"))
     }
 
     @Test func 평소에는_받아_두고_표시한다고_적고_스스로_설치한다고_적지_않는다() {
-        let text = UpdateSettingsSection.caption(hasPending: false, automaticallyChecks: true)
+        let text = UpdateSettingsSection.caption(hasPending: false, automaticallyChecks: true, locale: Locale(identifier: "ko"))
         #expect(text.contains("받아 두고") && text.contains("메뉴 막대 아이콘"))
         #expect(text.contains("누르면 설치"))
         #expect(!text.contains("스스로 설치") && !text.contains("1분쯤"))
@@ -162,15 +162,15 @@ struct UpdateSettingsCaptionTests {
 
     @Test func 누르지_않아도_앱을_끄면_설치된다는_것을_받아_두기_전에도_적는다() {
         // 받아 둔 업데이트는 앱이 끝날 때 Sparkle 이 설치합니다. 점이 켜지기 전에 읽는 글에도 있어야 놀라지 않습니다.
-        let text = UpdateSettingsSection.caption(hasPending: false, automaticallyChecks: true)
+        let text = UpdateSettingsSection.caption(hasPending: false, automaticallyChecks: true, locale: Locale(identifier: "ko"))
         #expect(text.contains("앱을 끄면 그때 설치"))
         // 자동 확인이 꺼져 있으면 받지도 않으므로 그 말이 없습니다.
-        #expect(!UpdateSettingsSection.caption(hasPending: false, automaticallyChecks: false).contains("앱을 끄면"))
+        #expect(!UpdateSettingsSection.caption(hasPending: false, automaticallyChecks: false, locale: Locale(identifier: "ko")).contains("앱을 끄면"))
     }
 
     @Test func 받아_둔_것이_있으면_누르면_설치하고_끄면_그때_설치된다고_적는다() {
         for checks in [true, false] {
-            let text = UpdateSettingsSection.caption(hasPending: true, automaticallyChecks: checks)
+            let text = UpdateSettingsSection.caption(hasPending: true, automaticallyChecks: checks, locale: Locale(identifier: "ko"))
             #expect(text.contains("누르면 설치하고 다시 켭니다"))
             #expect(text.contains("앱을 끄면 그때 설치"))
             #expect(text.contains("새로 확인하지 않습니다"))
@@ -179,7 +179,7 @@ struct UpdateSettingsCaptionTests {
     }
 
     @Test func 설치를_시작했으면_그렇다고_적는다() {
-        let text = UpdateSettingsSection.caption(hasPending: true, automaticallyChecks: true, installing: true)
+        let text = UpdateSettingsSection.caption(hasPending: true, automaticallyChecks: true, installing: true, locale: Locale(identifier: "ko"))
         #expect(text.contains("설치를 시작했습니다"))
         #expect(!text.contains("누르면"))
     }
@@ -187,13 +187,13 @@ struct UpdateSettingsCaptionTests {
 
 struct UpdateRowTests {
     @Test func 설치하는_중이면_단추의_글이_바뀐다() {
-        #expect(UpdateRow.buttonTitle(installing: false) == "업데이트")
-        #expect(UpdateRow.buttonTitle(installing: true) == "설치하는 중…")
+        #expect(UpdateRow.buttonTitle(installing: false, locale: Locale(identifier: "ko")) == "업데이트")
+        #expect(UpdateRow.buttonTitle(installing: true, locale: Locale(identifier: "ko")) == "설치하는 중…")
     }
 
     @Test func 받아_둔_것은_누르면_앱이_다시_켜진다고_알려_준다() {
-        #expect(UpdateRow.help(downloaded: true).contains("다시 켭니다"))
-        #expect(UpdateRow.help(downloaded: false).contains("안내 창"))
+        #expect(UpdateRow.help(downloaded: true, locale: Locale(identifier: "ko")).contains("다시 켭니다"))
+        #expect(UpdateRow.help(downloaded: false, locale: Locale(identifier: "ko")).contains("안내 창"))
     }
 }
 
@@ -289,24 +289,24 @@ struct UpdateControllerTests {
     // 켤지 말지: 셋 가운데 하나라도 걸리면 켜지 않습니다. 한 조건씩만 걸어 봅니다
     // (테스트는 개발 빌드로 돌기 때문에, 한꺼번에 보면 다른 조건이 가려 줍니다).
     @Test func 테스트_호스트에서는_업데이터를_켜지_않는다() {
-        #expect(UpdateController.whyNotStarting(isRunningTests: true, isDebugBuild: false, configuration: usable) != nil)
+        #expect(UpdateController.whyNotStarting(isRunningTests: true, isDebugBuild: false, configuration: usable, locale: Locale(identifier: "ko")) != nil)
     }
 
     @Test func 개발_빌드에서는_켜지_않는다() {
         // Xcode에서 실행한 개발 빌드가 릴리스를 받아 자기 자신을 바꾸면 안 됩니다.
-        let reason = UpdateController.whyNotStarting(isRunningTests: false, isDebugBuild: true, configuration: usable)
+        let reason = UpdateController.whyNotStarting(isRunningTests: false, isDebugBuild: true, configuration: usable, locale: Locale(identifier: "ko"))
         #expect(reason?.contains("개발 빌드") == true)
     }
 
     @Test func 쓸_수_없는_설정이면_켜지_않고_이유를_알려_준다() {
         let config = UpdaterConfiguration(info: [:])
-        let reason = UpdateController.whyNotStarting(isRunningTests: false, isDebugBuild: false, configuration: config)
+        let reason = UpdateController.whyNotStarting(isRunningTests: false, isDebugBuild: false, configuration: config, locale: Locale(identifier: "ko"))
         #expect(reason != nil)
         #expect(reason == config.disabledReason)
     }
 
     @Test func 걸리는_것이_없으면_켠다() {
-        #expect(UpdateController.whyNotStarting(isRunningTests: false, isDebugBuild: false, configuration: usable) == nil)
+        #expect(UpdateController.whyNotStarting(isRunningTests: false, isDebugBuild: false, configuration: usable, locale: Locale(identifier: "ko")) == nil)
     }
 
     @Test func 지금_이_테스트_호스트의_업데이터는_꺼져_있다() {

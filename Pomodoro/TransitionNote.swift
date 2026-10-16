@@ -14,12 +14,23 @@ struct TransitionDetails: Equatable {
     var extensionCount = 0
 
     /// 적은 글을 이름표와 함께 차례로 냅니다 (기록 창의 줄). 비어 있는 것은 빠집니다.
-    var labeledLines: [(label: String, text: String)] {
+    var labeledLines: [(label: String, text: String)] { labeledLines(locale: .current) }
+
+    func labeledLines(locale: Locale) -> [(label: String, text: String)] {
         let trim = { (text: String) in text.trimmingCharacters(in: .whitespacesAndNewlines) }
-        var lines = [("할 일", trim(task)), ("보상", trim(reward)), ("다음 시작점", trim(nextStartingPoint))]
+        var lines = [
+            (String(localized: "Task", bundle: AppLocalization.bundle(for: locale), locale: locale), trim(task)),
+            (String(localized: "Reward", bundle: AppLocalization.bundle(for: locale), locale: locale), trim(reward)),
+            (String(localized: "Next starting point", bundle: AppLocalization.bundle(for: locale), locale: locale), trim(nextStartingPoint))
+        ]
             .filter { !$0.1.isEmpty }
             .map { (label: $0.0, text: $0.1) }
-        if extensionCount > 0 { lines.append((label: "연장", text: "\(extensionCount)회")) }
+        if extensionCount > 0 {
+            lines.append((
+                label: String(localized: "Extensions", bundle: AppLocalization.bundle(for: locale), locale: locale),
+                text: String(localized: "×\(extensionCount.formatted(.number.locale(locale)))", bundle: AppLocalization.bundle(for: locale), locale: locale)
+            ))
+        }
         return lines
     }
 

@@ -3,15 +3,18 @@ import Combine
 import SwiftUI
 import SwiftData
 
-enum WeeklyReviewText {
-    static let title = "이번 주"
-    static let period = "오늘까지 지난 7일"
-    static let date = "날짜"
-    static let mission = "메인 미션"
-    static let done = "끝냄"
-    static let count = "집중 수"
-    static let minutes = "집중 분"
-    static let memo = "이번 주에 도움이 된 것"
+struct WeeklyReviewText {
+    let locale: Locale
+
+    init(locale: Locale = .current) { self.locale = locale }
+    var title: String { String(localized: "This week", bundle: AppLocalization.bundle(for: locale), locale: locale) }
+    var period: String { String(localized: "The past 7 days, including today", bundle: AppLocalization.bundle(for: locale), locale: locale) }
+    var date: String { String(localized: "Date", bundle: AppLocalization.bundle(for: locale), locale: locale) }
+    var mission: String { String(localized: "Main mission", bundle: AppLocalization.bundle(for: locale), locale: locale) }
+    var done: String { String(localized: "Done", bundle: AppLocalization.bundle(for: locale), locale: locale) }
+    var count: String { String(localized: "Focus sessions", bundle: AppLocalization.bundle(for: locale), locale: locale) }
+    var minutes: String { String(localized: "Focus minutes", bundle: AppLocalization.bundle(for: locale), locale: locale) }
+    var memo: String { String(localized: "What helped this week", bundle: AppLocalization.bundle(for: locale), locale: locale) }
 }
 
 enum WeeklyReview {
@@ -77,16 +80,16 @@ struct WeeklyReviewView: View {
                                          missions: missions.missions, calendar: .current, now: date)
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text(WeeklyReviewText.title).font(.headline)
-                    Text(WeeklyReviewText.period).font(.caption).foregroundStyle(.secondary)
+                    Text(WeeklyReviewText().title).font(.headline)
+                    Text(WeeklyReviewText().period).font(.caption).foregroundStyle(.secondary)
                 }
                 Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 6) {
                     GridRow {
-                        Text(WeeklyReviewText.date)
-                        Text(WeeklyReviewText.mission).frame(maxWidth: .infinity, alignment: .leading)
-                        Text(WeeklyReviewText.done)
-                        Text(WeeklyReviewText.count)
-                        Text(WeeklyReviewText.minutes)
+                        Text(WeeklyReviewText().date)
+                        Text(WeeklyReviewText().mission).frame(maxWidth: .infinity, alignment: .leading)
+                        Text(WeeklyReviewText().done)
+                        Text(WeeklyReviewText().count)
+                        Text(WeeklyReviewText().minutes)
                     }
                     .foregroundStyle(.secondary)
                     ForEach(rows) { row in
@@ -95,17 +98,17 @@ struct WeeklyReviewView: View {
                             Text(row.mission.text.isEmpty ? "—" : row.mission.text)
                                 .lineLimit(1).help(row.mission.text)
                             if row.mission.done {
-                                Image(systemName: "checkmark").accessibilityLabel(WeeklyReviewText.done)
+                                Image(systemName: "checkmark").accessibilityLabel(WeeklyReviewText().done)
                             } else {
-                                Text("—")
+                                Text(verbatim: "—")
                             }
-                            Text("\(row.summary.focusCount)번").monospacedDigit()
-                            Text("\(row.summary.focusMinutes)분").monospacedDigit()
+                            Text("Focus: \(row.summary.focusCount.formatted())").monospacedDigit()
+                            Text("\(row.summary.focusMinutes.formatted()) min").monospacedDigit()
                         }
                     }
                 }
                 .font(.caption)
-                TextField(WeeklyReviewText.memo, text: Binding(
+                TextField(WeeklyReviewText().memo, text: Binding(
                     get: { review.memo(for: date) },
                     set: { review.setMemo($0, for: date) }
                 ))

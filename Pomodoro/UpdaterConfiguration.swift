@@ -19,10 +19,10 @@ struct UpdaterConfiguration: Equatable {
         feedURL = url
 
         if url == nil {
-            disabledReason = "업데이트 주소가 없는 빌드입니다"
+            disabledReason = String(localized: "This build has no update URL")
         } else if Data(base64Encoded: key)?.count != 32 {
             // 키가 없으면 받은 업데이트가 진짜인지 확인할 수 없으므로 아예 켜지 않습니다.
-            disabledReason = "업데이트 서명 키가 없는 빌드입니다"
+            disabledReason = String(localized: "This build has no update signing key")
         } else {
             disabledReason = nil
         }

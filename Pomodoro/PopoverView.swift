@@ -20,7 +20,7 @@ struct PopoverView: View {
             HStack(spacing: 6) {
                 Image(systemName: isAwaitingChoice ? "bell.badge" : viewModel.currentState.symbolName)
                     .foregroundStyle(viewModel.currentState.color)
-                Text(isAwaitingChoice ? "\(viewModel.currentState.description) 끝" : viewModel.currentState.description)
+                Text(isAwaitingChoice ? String(localized: "\(viewModel.currentState.description) ended") : viewModel.currentState.description)
                     .fontWeight(.semibold)
             }
             .font(.headline)
@@ -50,22 +50,22 @@ struct PopoverView: View {
             .buttonStyle(.plain)
 
             if isAwaitingChoice {
-                Button("\(Int(PomodoroViewModel.focusExtension / 60))분 더 집중") { viewModel.extendFocus() }
+                Button("Focus for \(Int(PomodoroViewModel.focusExtension / 60).formatted()) more min") { viewModel.extendFocus() }
                     .frame(maxWidth: .infinity)
             }
 
             // 휴식 중: 다시 계획하지 않고 하던 일로 바로 돌아간다 (휴식은 지금까지로 기록)
             if viewModel.canReturnToFocus {
-                Button("복귀 — 바로 집중 시작") { viewModel.returnToFocus() }
+                Button("Return — start focusing") { viewModel.returnToFocus() }
                     .frame(maxWidth: .infinity)
-                    .help("휴식을 여기서 마치고, 적어 둔 할 일과 다음 시작점 그대로 집중을 시작합니다")
+                    .help("End this break and start focusing with your task and next starting point")
             }
 
             HStack {
-                Button("건너뛰기") { viewModel.skipToNextSession() }
+                Button("Skip") { viewModel.skipToNextSession() }
                     .disabled(viewModel.timerState == .idle || isAwaitingChoice)
                 Spacer()
-                Button("초기화") { viewModel.resetToIdle() }
+                Button("Reset") { viewModel.resetToIdle() }
                     .disabled(viewModel.timerState == .idle && viewModel.currentState == .idle)
             }
             .padding(.horizontal, 4)
@@ -77,7 +77,7 @@ struct PopoverView: View {
             Divider()
 
             HStack {
-                Button("로그 보기") {
+                Button("View history") {
                     viewModel.closePopover()
                     openWindow(id: "log-window")
                 }
@@ -88,9 +88,9 @@ struct PopoverView: View {
                 } label: {
                     Image(systemName: "gearshape")
                 }
-                .help("설정")
+                .help("Settings")
                 Spacer()
-                Button("종료") {
+                Button("Quit") {
                     // 진행 중인 세션은 종료 과정(AppDelegate.applicationShouldTerminate)에서 기록합니다.
                     NSApplication.shared.terminate(nil)
                 }
@@ -120,21 +120,21 @@ struct PopoverView: View {
         let reward = viewModel.focusReward.trimmingCharacters(in: .whitespacesAndNewlines)
         VStack(alignment: .leading, spacing: 6) {
             if isAwaitingChoice {
-                if !reward.isEmpty { NoteLine(label: "보상", text: reward) }
-                TextField("다음에 이어서 시작할 자리", text: $viewModel.nextStartingPoint)
+                if !reward.isEmpty { NoteLine(label: String(localized: "Reward"), text: reward) }
+                TextField("Where to pick up next time", text: $viewModel.nextStartingPoint)
                     .textFieldStyle(.roundedBorder)
             } else if viewModel.currentState == .idle || viewModel.currentState == .focus {
-                if !viewModel.resumeHint.isEmpty { NoteLine(label: "이어서", text: viewModel.resumeHint) }
-                NoteField(title: "할 일", text: $viewModel.focusTask,
-                          suggestions: viewModel.taskSuggestions, help: "지난 할 일에서 고르기")
+                if !viewModel.resumeHint.isEmpty { NoteLine(label: String(localized: "Pick up from"), text: viewModel.resumeHint) }
+                NoteField(title: String(localized: "Task"), text: $viewModel.focusTask,
+                          suggestions: viewModel.taskSuggestions, help: String(localized: "Choose from past tasks"))
                 RewardField(store: settings.rewardList, text: $viewModel.focusReward,
                             suggestions: viewModel.rewardSuggestions)
             } else {
-                if let suggestion = viewModel.breakSuggestion { NoteLine(label: "추천", text: suggestion) }
-                if !reward.isEmpty { NoteLine(label: "보상", text: reward) }
+                if let suggestion = viewModel.breakSuggestion { NoteLine(label: String(localized: "Suggestion"), text: suggestion) }
+                if !reward.isEmpty { NoteLine(label: String(localized: "Reward"), text: reward) }
                 let task = viewModel.focusTask.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !task.isEmpty { NoteLine(label: "하던 일", text: task) }
-                if !viewModel.resumeHint.isEmpty { NoteLine(label: "다음 시작점", text: viewModel.resumeHint) }
+                if !task.isEmpty { NoteLine(label: String(localized: "Your task"), text: task) }
+                if !viewModel.resumeHint.isEmpty { NoteLine(label: String(localized: "Next starting point"), text: viewModel.resumeHint) }
             }
         }
     }
@@ -150,10 +150,10 @@ struct PopoverView: View {
 
     private var buttonTitle: String {
         switch viewModel.timerState {
-        case .running: "일시정지"
-        case .paused: "재개"
-        case .idle: viewModel.currentState == .idle ? "시작" : "\(viewModel.currentState.description) 시작"
-        case .awaitingChoice: "휴식 시작"
+        case .running: String(localized: "Pause")
+        case .paused: String(localized: "Resume")
+        case .idle: viewModel.currentState == .idle ? String(localized: "Start") : String(localized: "Start \(viewModel.currentState.description)")
+        case .awaitingChoice: String(localized: "Start break")
         }
     }
 
@@ -171,7 +171,7 @@ struct UpdateRow: View {
     var body: some View {
         HStack(spacing: 6) {
             UpdateDot()
-            Text("새 버전 \(version)")
+            Text("New version \(version)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
@@ -182,13 +182,13 @@ struct UpdateRow: View {
         }
     }
 
-    nonisolated static func buttonTitle(installing: Bool) -> String {
-        installing ? "설치하는 중…" : "업데이트"
+    nonisolated static func buttonTitle(installing: Bool, locale: Locale = .current) -> String {
+        installing ? String(localized: "Installing…", bundle: AppLocalization.bundle(for: locale), locale: locale) : String(localized: "Update", bundle: AppLocalization.bundle(for: locale), locale: locale)
     }
 
     /// 누르면 무슨 일이 일어나는지. 받아 둔 것은 곧바로 앱을 껐다 켜므로 그렇게 적습니다.
-    nonisolated static func help(downloaded: Bool) -> String {
-        downloaded ? "설치하고 앱을 다시 켭니다" : "새 버전 안내 창을 엽니다"
+    nonisolated static func help(downloaded: Bool, locale: Locale = .current) -> String {
+        downloaded ? String(localized: "Install and reopen the app", bundle: AppLocalization.bundle(for: locale), locale: locale) : String(localized: "Open the new version window", bundle: AppLocalization.bundle(for: locale), locale: locale)
     }
 }
 
@@ -218,7 +218,7 @@ struct NoteField: View {
                     }
                     if menu.showsHistoryDivider {
                         Divider()
-                        Text(RewardListText.history)
+                        Text(RewardListText().history)
                     }
                     ForEach(menu.suggestions, id: \.self) { suggestion in
                         Button(Self.menuTitle(suggestion)) { pick(suggestion) }
@@ -259,7 +259,7 @@ struct NoteLine: View {
     let text: String
 
     var body: some View {
-        Text("\(label): \(text)")
+        Text(verbatim: "\(label): \(text)")
             .font(.caption)
             .foregroundStyle(.secondary)
             .lineLimit(2)
@@ -280,6 +280,6 @@ struct CycleDotsView: View {
                     .frame(width: 8, height: 8)
             }
         }
-        .help("긴 휴식까지의 집중 사이클")
+        .help("Focus sessions leading to a long break")
     }
 }

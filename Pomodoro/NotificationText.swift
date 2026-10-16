@@ -11,13 +11,13 @@ enum NotificationText {
     }
 
     /// 집중 시간이 다 되어 선택(휴식 / 연장)을 기다릴 때
-    nonisolated static func focusEnded(reward: String) -> Content {
+    nonisolated static func focusEnded(reward: String, locale: Locale = .current) -> Content {
         let reward = reward.trimmingCharacters(in: .whitespacesAndNewlines)
         let minutes = Int(PomodoroViewModel.focusExtension / 60)
-        let prompt = "\(minutes)분 더 할까요, 쉴까요? 메뉴 바에서 고르세요."
+        let prompt = String(localized: "Another \(minutes.formatted(.number.locale(locale))) minutes, or a break? Choose in the menu bar.", bundle: AppLocalization.bundle(for: locale), locale: locale)
         return Content(
-            title: "\(PomodoroState.focus.description)이 끝났어요",
-            body: reward.isEmpty ? prompt : "보상: \(reward)\n\(prompt)"
+            title: String(localized: "\(PomodoroState.focus.localizedDescription(locale: locale)) has ended", bundle: AppLocalization.bundle(for: locale), locale: locale),
+            body: reward.isEmpty ? prompt : String(localized: "Reward: \(reward)\n\(prompt)", bundle: AppLocalization.bundle(for: locale), locale: locale)
         )
     }
 
@@ -28,37 +28,43 @@ enum NotificationText {
         next: PomodoroState,
         autoStarting: Bool,
         breakSuggestion: String?,
-        resumeHint: String
+        resumeHint: String,
+        locale: Locale = .current
     ) -> Content {
         // 상태 이름(집중 · 짧은 휴식 · 긴 휴식)은 모두 받침으로 끝나 "이 · 을"을 씁니다.
         var body: String
         if next == .focus {
-            body = autoStarting ? "집중을 시작합니다." : "준비되면 메뉴 바에서 집중을 시작하세요."
+            body = autoStarting ? String(localized: "Starting focus.", bundle: AppLocalization.bundle(for: locale), locale: locale) : String(localized: "When you are ready, start focusing from the menu bar.", bundle: AppLocalization.bundle(for: locale), locale: locale)
             let hint = resumeHint.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !hint.isEmpty { body += "\n이어서: \(hint)" }
+            if !hint.isEmpty { body += String(localized: "\nPick up from: \(hint)", bundle: AppLocalization.bundle(for: locale), locale: locale) }
         } else {
             body = autoStarting
-                ? "\(next.description)을 시작합니다."
-                : "\(next.description)이 준비되었어요. 메뉴 바에서 시작하세요."
-            if let suggestion = breakSuggestion, !suggestion.isEmpty { body += "\n추천: \(suggestion)" }
+                ? String(localized: "\(next.localizedDescription(locale: locale)) is starting.", bundle: AppLocalization.bundle(for: locale), locale: locale)
+                : String(localized: "\(next.localizedDescription(locale: locale)) is ready. Start from the menu bar.", bundle: AppLocalization.bundle(for: locale), locale: locale)
+            if let suggestion = breakSuggestion, !suggestion.isEmpty { body += String(localized: "\nSuggestion: \(suggestion)", bundle: AppLocalization.bundle(for: locale), locale: locale) }
         }
-        return Content(title: "\(ended.description)이 끝났어요", body: body)
+        return Content(title: String(localized: "\(ended.localizedDescription(locale: locale)) has ended", bundle: AppLocalization.bundle(for: locale), locale: locale), body: body)
     }
 }
 
 /// 짧고 끝이 있는 휴식 거리. 강한 자극으로 흐르지 않게 몸을 움직이는 것 위주입니다.
 enum BreakSuggestion {
-    nonisolated static let all = [
-        "물 한 잔 마시기",
-        "자리에서 일어나 스트레칭",
-        "창밖 보기",
-        "화장실 다녀오기",
-        "가벼운 간식",
-        "짧은 산책",
-    ]
+    nonisolated static var all: [String] { suggestions() }
+
+    nonisolated static func suggestions(locale: Locale = .current) -> [String] {
+        [
+            String(localized: "Drink a glass of water", bundle: AppLocalization.bundle(for: locale), locale: locale),
+            String(localized: "Stand up and stretch", bundle: AppLocalization.bundle(for: locale), locale: locale),
+            String(localized: "Look out the window", bundle: AppLocalization.bundle(for: locale), locale: locale),
+            String(localized: "Take a bathroom break", bundle: AppLocalization.bundle(for: locale), locale: locale),
+            String(localized: "Have a light snack", bundle: AppLocalization.bundle(for: locale), locale: locale),
+            String(localized: "Take a short walk", bundle: AppLocalization.bundle(for: locale), locale: locale),
+        ]
+    }
 
     /// index 번째 추천 (한 바퀴 돌면 처음으로). 마친 집중 수를 넣으면 휴식마다 바뀝니다.
-    nonisolated static func pick(_ index: Int) -> String {
+    nonisolated static func pick(_ index: Int, locale: Locale = .current) -> String {
+        let all = suggestions(locale: locale)
         let n = all.count
         return all[((index % n) + n) % n]
     }

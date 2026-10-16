@@ -9,7 +9,17 @@ import AppKit
 
 enum PomodoroState: String, Codable, CaseIterable {
     case idle = "대기", focus = "집중", shortBreak = "짧은 휴식", longBreak = "긴 휴식"
-    var description: String { self.rawValue }
+    // Keep the original raw values for existing SwiftData records and Obsidian notes.
+    var description: String { localizedDescription() }
+
+    nonisolated func localizedDescription(locale: Locale = .current) -> String {
+        switch self {
+        case .idle: String(localized: "Ready", bundle: AppLocalization.bundle(for: locale), locale: locale)
+        case .focus: String(localized: "Focus", bundle: AppLocalization.bundle(for: locale), locale: locale)
+        case .shortBreak: String(localized: "Short break", bundle: AppLocalization.bundle(for: locale), locale: locale)
+        case .longBreak: String(localized: "Long break", bundle: AppLocalization.bundle(for: locale), locale: locale)
+        }
+    }
     var emoji: String {
         switch self {
         case .idle: "⏳"
@@ -125,7 +135,7 @@ class PomodoroViewModel: ObservableObject {
 
     var timeRemainingString: String {
         let totalSeconds = max(0, Int(timeRemaining.rounded(.up)))
-        return String(format: "%02d:%02d", totalSeconds / 60, totalSeconds % 60)
+        return String(format: "%02d:%02d", locale: Locale.current, totalSeconds / 60, totalSeconds % 60)
     }
 
     var progress: Double {

@@ -1,10 +1,10 @@
 [한국어](RELEASE.ko.md)
 
-# Releases and automatic updates
+# Morrowisp — Releases and automatic updates
 
-Pomodoro is distributed through GitHub Releases. Installed copies use [Sparkle](https://sparkle-project.org) to download new versions. Installation happens when the user requests it or quits with an update ready.
+Morrowisp is distributed through GitHub Releases. Installed copies use [Sparkle](https://sparkle-project.org) to download new versions. Installation happens when the user requests it or quits with an update ready.
 
-This guide preserves the original commands, paths, and keys. `/Volumes/C/project/Pomodoro` is the original maintainer's checkout path; substitute your own checkout location when running the commands. Placeholders such as `<버전>` (version) and `<파일>` (file) need your own values. App controls are currently in Korean.
+This guide preserves the original commands, paths, and keys. `/Volumes/C/project/Pomodoro` is the original maintainer's checkout path; substitute your own checkout location when running the commands. Placeholders such as `<버전>` (version) and `<파일>` (file) need your own values. App controls support English and Korean.
 
 ## Update behavior
 

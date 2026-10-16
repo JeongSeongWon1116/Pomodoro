@@ -71,15 +71,15 @@ final class UpdateController: NSObject, ObservableObject {
         if isEnabled { return nil }
         return Self.whyNotStarting(isRunningTests: isRunningTests, isDebugBuild: isDebugBuild, configuration: configuration)
             ?? startError
-            ?? "업데이트를 시작하지 않았습니다"
+            ?? String(localized: "Updates have not started")
     }
 
     /// 업데이터를 켜지 않는 이유. 켜도 되면 nil.
     /// 단위 테스트의 호스트(네트워크에 나가거나 창을 띄우면 안 됨), Xcode에서 실행한 개발 빌드(릴리스로 자기 자신을
     /// 바꾸면 안 됨), 주소·서명 키가 없는 빌드에서는 켜지 않습니다.
-    nonisolated static func whyNotStarting(isRunningTests: Bool, isDebugBuild: Bool, configuration: UpdaterConfiguration) -> String? {
-        if isRunningTests { return "테스트 중에는 업데이트를 확인하지 않습니다" }
-        if isDebugBuild { return "개발 빌드는 업데이트를 확인하지 않습니다" }
+    nonisolated static func whyNotStarting(isRunningTests: Bool, isDebugBuild: Bool, configuration: UpdaterConfiguration, locale: Locale = .current) -> String? {
+        if isRunningTests { return String(localized: "Updates are not checked during tests", bundle: AppLocalization.bundle(for: locale), locale: locale) }
+        if isDebugBuild { return String(localized: "Development builds do not check for updates", bundle: AppLocalization.bundle(for: locale), locale: locale) }
         return configuration.disabledReason
     }
 
@@ -124,7 +124,7 @@ final class UpdateController: NSObject, ObservableObject {
             // 설정이 잘못되면(주소, 키, 설치 도우미) Sparkle이 시작을 거부합니다. 경고 창 대신 설정 창에 이유를 보여 줍니다.
             try updater.start()
         } catch {
-            startError = "업데이트를 시작하지 못했습니다: \(error.localizedDescription)"
+            startError = String(localized: "Could not start updates: \(error.localizedDescription)")
             return
         }
         self.controller = controller

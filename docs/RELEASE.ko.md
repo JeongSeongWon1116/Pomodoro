@@ -1,8 +1,8 @@
 [English](RELEASE.md)
 
-# 릴리스와 자동 업데이트
+# Morrowisp — 릴리스와 자동 업데이트
 
-Pomodoro는 GitHub 릴리스로 배포하고, 설치된 앱은 [Sparkle](https://sparkle-project.org)로 새 버전을 스스로 받아 둡니다. 설치는 사용자가 누를 때, 또는 누르지 않은 채 앱을 끌 때 합니다.
+Morrowisp는 GitHub 릴리스로 배포하고, 설치된 앱은 [Sparkle](https://sparkle-project.org)로 새 버전을 스스로 받아 둡니다. 설치는 사용자가 누를 때, 또는 누르지 않은 채 앱을 끌 때 합니다.
 
 ## 어떻게 도는가
 
