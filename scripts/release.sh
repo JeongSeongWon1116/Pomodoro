@@ -106,6 +106,11 @@ xcb -only-testing:MorrowispTests test > "$BUILD_HOME/release-test.log" 2>&1 || d
 RESULTS="$(env LC_ALL=C grep -a -c "^Test case '" "$BUILD_HOME/release-test.log" || true)"
 FAILED="$(env LC_ALL=C grep -a -c "' failed on" "$BUILD_HOME/release-test.log" || true)"
 PASSED=$(( ${RESULTS:-0} - ${FAILED:-0} ))
+# 공유 스킴(2.0.0)부터 Swift Testing은 줄마다가 아니라 요약 한 줄만 찍는다: "Test run with N tests in M suites passed"
+if [ "$PASSED" -le 0 ]; then
+  PASSED="$(env LC_ALL=C grep -a -o "Test run with [0-9]* tests in [0-9]* suites passed" "$BUILD_HOME/release-test.log" | tail -1 | awk '{print $4}')"
+  PASSED="${PASSED:-0}"
+fi
 [ "$PASSED" -gt 0 ] || die "통과한 테스트를 세지 못했습니다: $BUILD_HOME/release-test.log"
 echo "$PASSED 건 통과"
 
