@@ -1,4 +1,4 @@
-// File: PomodoroApp.swift
+// File: MorrowispApp.swift
 // Description: 앱의 메인 진입점입니다.
 // AppDelegate와 WindowGroup을 사용하여 앱의 생명주기와 UI를 관리합니다.
 
@@ -6,7 +6,7 @@ import SwiftUI
 import SwiftData
 
 @main
-struct PomodoroApp: App {
+struct MorrowispApp: App {
     // AppKit의 생명주기를 관리하기 위해 AppDelegate를 사용합니다.
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 

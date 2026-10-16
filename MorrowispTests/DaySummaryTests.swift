@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 import Testing
-@testable import Pomodoro
+@testable import Morrowisp
 
 @MainActor
 struct DaySummaryTests {

@@ -5,7 +5,7 @@
 import Testing
 import AppKit
 import Foundation
-@testable import Pomodoro
+@testable import Morrowisp
 
 /// 테스트가 손으로 돌리는 시계 (앱은 깨어 있는 동안만 가는 시계를 씁니다)
 @MainActor
@@ -201,7 +201,7 @@ struct UpdaterConfigurationTests {
 
     // 32바이트를 base64 로 적은 것 (실제 키가 아닙니다. 0x00 ~ 0x1f)
     private let sampleKey = Data((0..<32).map { UInt8($0) }).base64EncodedString()
-    private let feed = "https://example.com/appcast.xml"
+    private let feed = "https://example.com/morrowisp-appcast.xml"
 
     @Test func 주소와_키가_있으면_쓴다() {
         let config = UpdaterConfiguration(info: ["SUFeedURL": feed, "SUPublicEDKey": sampleKey])
@@ -223,8 +223,8 @@ struct UpdaterConfigurationTests {
     }
 
     @Test func 채워지지_않은_빌드_설정_자리표시는_쓰지_않는다() {
-        #expect(!UpdaterConfiguration(info: ["SUFeedURL": "$(POMODORO_FEED_URL)", "SUPublicEDKey": sampleKey]).isUsable)
-        #expect(!UpdaterConfiguration(info: ["SUFeedURL": feed, "SUPublicEDKey": "$(POMODORO_ED_PUBLIC_KEY)"]).isUsable)
+        #expect(!UpdaterConfiguration(info: ["SUFeedURL": "$(MORROWISP_FEED_URL)", "SUPublicEDKey": sampleKey]).isUsable)
+        #expect(!UpdaterConfiguration(info: ["SUFeedURL": feed, "SUPublicEDKey": "$(MORROWISP_ED_PUBLIC_KEY)"]).isUsable)
     }
 
     @Test func 키가_32바이트가_아니면_쓰지_않는다() {
@@ -234,16 +234,16 @@ struct UpdaterConfigurationTests {
     }
 
     @Test func 웹_주소가_아니면_쓰지_않는다() {
-        #expect(!UpdaterConfiguration(info: ["SUFeedURL": "file:///tmp/appcast.xml", "SUPublicEDKey": sampleKey]).isUsable)
-        #expect(!UpdaterConfiguration(info: ["SUFeedURL": "appcast.xml", "SUPublicEDKey": sampleKey]).isUsable)
+        #expect(!UpdaterConfiguration(info: ["SUFeedURL": "file:///tmp/morrowisp-appcast.xml", "SUPublicEDKey": sampleKey]).isUsable)
+        #expect(!UpdaterConfiguration(info: ["SUFeedURL": "morrowisp-appcast.xml", "SUPublicEDKey": sampleKey]).isUsable)
     }
 
     @Test func 암호화하지_않은_주소는_이_컴퓨터를_가리킬_때만_쓴다() {
         // http 는 중간에서 업데이트 목록을 바꾸거나 막을 수 있습니다. 시험용(localhost)만 받습니다.
-        #expect(!UpdaterConfiguration(info: ["SUFeedURL": "http://example.com/appcast.xml", "SUPublicEDKey": sampleKey]).isUsable)
-        #expect(!UpdaterConfiguration(info: ["SUFeedURL": "http://localhost.example.com/appcast.xml", "SUPublicEDKey": sampleKey]).isUsable)
-        #expect(UpdaterConfiguration(info: ["SUFeedURL": "http://localhost:18731/appcast.xml", "SUPublicEDKey": sampleKey]).isUsable)
-        #expect(UpdaterConfiguration(info: ["SUFeedURL": "http://127.0.0.1:18731/appcast.xml", "SUPublicEDKey": sampleKey]).isUsable)
+        #expect(!UpdaterConfiguration(info: ["SUFeedURL": "http://example.com/morrowisp-appcast.xml", "SUPublicEDKey": sampleKey]).isUsable)
+        #expect(!UpdaterConfiguration(info: ["SUFeedURL": "http://localhost.example.com/morrowisp-appcast.xml", "SUPublicEDKey": sampleKey]).isUsable)
+        #expect(UpdaterConfiguration(info: ["SUFeedURL": "http://localhost:18731/morrowisp-appcast.xml", "SUPublicEDKey": sampleKey]).isUsable)
+        #expect(UpdaterConfiguration(info: ["SUFeedURL": "http://127.0.0.1:18731/morrowisp-appcast.xml", "SUPublicEDKey": sampleKey]).isUsable)
     }
 
     @Test func 앞뒤_공백은_무시한다() {
@@ -255,7 +255,7 @@ struct UpdaterConfigurationTests {
     @Test func 앱_묶음에_업데이트_설정이_들어_있다() {
         // 테스트 호스트(앱)의 Info.plist — 프로젝트 설정이 실제로 묶음에 들어갔는지 봅니다.
         let info = Bundle.main.infoDictionary ?? [:]
-        #expect(info["SUFeedURL"] as? String == "https://github.com/JeongSeongWon1116/Pomodoro/releases/latest/download/appcast.xml")
+        #expect(info["SUFeedURL"] as? String == "https://github.com/JeongSeongWon1116/Morrowisp/releases/latest/download/morrowisp-appcast.xml")
         #expect(info["SUPublicEDKey"] is String)
         #expect(info["SUEnableInstallerLauncherService"] as? Bool == true)
         #expect(info["SUEnableAutomaticChecks"] as? Bool == true)
@@ -272,7 +272,7 @@ struct UpdateControllerTests {
 
     private var usable: UpdaterConfiguration {
         UpdaterConfiguration(info: [
-            "SUFeedURL": "https://example.com/appcast.xml",
+            "SUFeedURL": "https://example.com/morrowisp-appcast.xml",
             "SUPublicEDKey": Data((0..<32).map { UInt8($0) }).base64EncodedString()
         ])
     }

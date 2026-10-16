@@ -1,12 +1,12 @@
 //
-//  PomodoroTests.swift
-//  PomodoroTests
+//  MorrowispTests.swift
+//  MorrowispTests
 //
 //  Created by 정성원 on 8/1/25.
 //
 
 import Testing
-@testable import Pomodoro
+@testable import Morrowisp
 
 @MainActor
 struct ObsidianMarkdownTests {

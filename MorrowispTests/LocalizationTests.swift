@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Pomodoro
+@testable import Morrowisp
 
 struct LocalizationTests {
     private let english = Locale(identifier: "en")
@@ -97,7 +97,7 @@ struct LocalizationTests {
         // Read the source catalog, not generated .strings files, to catch missing translations.
         let catalogURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("Pomodoro/Localizable.xcstrings")
+            .appendingPathComponent("Morrowisp/Localizable.xcstrings")
         let catalog = try JSONDecoder().decode(Catalog.self, from: Data(contentsOf: catalogURL))
         #expect(catalog.sourceLanguage == "en")
         #expect(!catalog.strings.isEmpty)

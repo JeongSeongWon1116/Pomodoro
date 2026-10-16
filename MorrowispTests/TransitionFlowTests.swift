@@ -1,6 +1,6 @@
 //
 //  TransitionFlowTests.swift
-//  PomodoroTests
+//  MorrowispTests
 //
 //  집중이 끝났을 때의 선택(휴식 시작 / 10분 연장)과 할 일·보상·다음 시작점 기록을
 //  주입한 시계로 검증합니다. (사용자의 설정·기록·보관함을 건드리지 않습니다.)
@@ -9,7 +9,7 @@
 import Foundation
 import SwiftData
 import Testing
-@testable import Pomodoro
+@testable import Morrowisp
 
 @MainActor
 struct TransitionFlowTests {
@@ -418,7 +418,7 @@ struct TransitionFlowTests {
 
     @Test func 적어_둔_할_일과_보상과_다음_시작점은_저장소가_있으면_앱을_다시_켜도_남는다() throws {
         // 이름을 고정합니다: 돌릴 때마다 새 이름을 쓰면, 지운 뒤에도 빈 설정 파일이 앱의 컨테이너에 하나씩 남습니다.
-        let suite = "PomodoroTests-transition-notes"
+        let suite = "MorrowispTests-transition-notes"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
         defer { defaults.removePersistentDomain(forName: suite) }

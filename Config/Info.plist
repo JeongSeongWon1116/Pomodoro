@@ -7,9 +7,9 @@
 	<key>CFBundleDisplayName</key>
 	<string>Morrowisp</string>
 	<key>SUFeedURL</key>
-	<string>$(POMODORO_FEED_URL)</string>
+	<string>$(MORROWISP_FEED_URL)</string>
 	<key>SUPublicEDKey</key>
-	<string>$(POMODORO_ED_PUBLIC_KEY)</string>
+	<string>$(MORROWISP_ED_PUBLIC_KEY)</string>
 	<key>SUEnableInstallerLauncherService</key>
 	<true/>
 	<key>SUEnableAutomaticChecks</key>

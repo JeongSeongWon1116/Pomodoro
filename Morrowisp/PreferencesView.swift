@@ -207,7 +207,9 @@ struct GeneralSettingsTab: View {
             )
             Section("About") {
                 LabeledContent("Version", value: versionString)
-                Link("View on GitHub", destination: URL(string: "https://github.com/jeongseongwon1116/pomodoro")!)
+                Text("© 2026 SW Square")
+                    .foregroundStyle(.secondary)
+                Link("View on GitHub", destination: URL(string: "https://github.com/JeongSeongWon1116/Morrowisp")!)
             }
         }
         .formStyle(.grouped)

@@ -3,7 +3,7 @@
 #
 #   bash scripts/update-e2e.sh
 #
-# 시험용 번들 id(Jeong.Pomodoro.updatetest)와 그 자리에서 만든 일회용 서명 키로 세 버전(0.9.0, 0.9.1, 0.9.2)을
+# 시험용 번들 id(dev.swsquare.morrowisp.updatetest)와 그 자리에서 만든 일회용 서명 키로 세 버전(0.9.0, 0.9.1, 0.9.2)을
 # 빌드하고, localhost 에 업데이트 목록을 띄운 뒤 두 가지를 본다.
 #   1) 0.9.0 을 숨긴 채(창 없음)로 켠다 → 0.9.1 을 스스로 받는다. 받아 두기만 하고 스스로 설치하지 않는다
 #      (앱의 로그에 "holding update"가 찍힌 때부터, 예전에 스스로 설치하던 조건 — 창 없이 조용한 채로 1분 —
@@ -12,12 +12,12 @@
 #      단추를 실제로 누르지는 못하므로 시험용 실행 인자(-UpdateInstallHeldOnArrival YES)를 준다:
 #      받아 두자마자 단추와 같은 함수를 부른다. 평소의 앱에서는 이 인자가 없어 받아 두기만 한다(1에서 본다).
 # 업데이트 목록은 scripts/release.sh 와 같은 선택(전체 zip 만)으로 만든다.
-# 쓰고 있는 Pomodoro, /Applications 의 앱, 키체인, 실제 업데이트 주소는 건드리지 않는다.
+# 쓰고 있는 Morrowisp, /Applications 의 앱, 키체인, 실제 업데이트 주소는 건드리지 않는다.
 # 시험용 앱이 메뉴 바에 잠깐 뜨고, 처음이면 "집중 기록" 창과 알림 권한 물음이 한 번 뜰 수 있다.
-# 시험은 내장 디스크(~/Library/Developer/Pomodoro-build/update-e2e)에서 한다. 저장소가 외장 디스크에 있어도 그렇다 —
+# 시험은 내장 디스크(~/Library/Developer/Morrowisp-build/update-e2e)에서 한다. 저장소가 외장 디스크에 있어도 그렇다 —
 # 외장 디스크에 놓인 앱을 Sparkle 이 바꾸려 하면 macOS 가 "이동식 볼륨의 파일에 접근" 허락을 묻고, 답할 때까지 설치가 멈춘다
 # (임시 서명은 빌드마다 달라서 매번 다시 묻는다).
-# 남는 것: 위 폴더(다음 실행 때 옆으로 옮긴다), ~/Library/Containers/Jeong.Pomodoro.updatetest (시험용 앱의 자료).
+# 남는 것: 위 폴더(다음 실행 때 옆으로 옮긴다), ~/Library/Containers/dev.swsquare.morrowisp.updatetest (시험용 앱의 자료).
 # 필요한 것: Xcode, python3, ed25519 를 아는 openssl(Homebrew 의 openssl 3), 앱의 로그를 읽는 /usr/bin/log.
 # 어떻게 불렸든(bash scripts/…, sh …) macOS 의 /bin/bash 로 돈다. PATH 에 먼저 잡히는 Homebrew 의 bash(5.x)는
 # CoreFoundation 을 쓰는 gettext 에 물려 있어, 갈라져 나온 하위 셸이 로캘을 되돌리다가 드물게 죽는다
@@ -28,11 +28,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
-TEST_ID="Jeong.Pomodoro.updatetest"
+TEST_ID="dev.swsquare.morrowisp.updatetest"
 PORT="${UPDATE_E2E_PORT:-18731}"
 FEED="http://localhost:$PORT"
 HOLD=90    # 받아 둔 때부터 이만큼(초) 지켜본다. 그동안 스스로 설치하면 실패다 (1.2.1 까지는 받아 둔 뒤 조용한 채로 60초가 지나면, 10초마다 재서 설치했다)
-BUILD_HOME="${POMODORO_BUILD_HOME:-$HOME/Library/Developer/Pomodoro-build}"
+BUILD_HOME="${MORROWISP_BUILD_HOME:-$HOME/Library/Developer/Morrowisp-build}"
 WORK="$BUILD_HOME/update-e2e"
 BIN="$BUILD_HOME/dd/SourcePackages/artifacts/sparkle/Sparkle/bin"
 say() { printf '\n== %s\n' "$*"; }
@@ -43,12 +43,12 @@ OPENSSL="${OPENSSL:-}"
 # 받아 두었는지는 앱의 로그로 본다. 로그를 읽지 못하는 계정이면 "받아 두지 않음"으로 잘못 끝나므로 먼저 본다.
 /usr/bin/log show --last 1s > /dev/null 2>&1 || die "/usr/bin/log show 를 돌릴 수 없습니다 (로그를 읽을 수 있는 계정에서 돌립니다)"
 
-! pgrep -f "update-e2e.*/install/Pomodoro.app/Contents/MacOS/Pomodoro" > /dev/null || die "시험용 앱이 이미 떠 있습니다. 끈 뒤 다시 합니다"
+! pgrep -f "update-e2e.*/install/Morrowisp.app/Contents/MacOS/Morrowisp" > /dev/null || die "시험용 앱이 이미 떠 있습니다. 끈 뒤 다시 합니다"
 [ ! -e "$WORK" ] || mv "$WORK" "$WORK.$(date +%Y%m%d-%H%M%S).old"
 mkdir -p "$WORK/keys" "$WORK/feed" "$WORK/install"
 chmod 700 "$WORK/keys"
-APP="$WORK/install/Pomodoro.app"
-EXE="$APP/Contents/MacOS/Pomodoro"
+APP="$WORK/install/Morrowisp.app"
+EXE="$APP/Contents/MacOS/Morrowisp"
 SERVER_PID=""
 app_pids() { pgrep -f "$EXE" || true; }
 version() { /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist" 2>/dev/null || true; }
@@ -60,7 +60,7 @@ cleanup() {
 trap cleanup EXIT
 
 say "일회용 서명 키 (키체인을 쓰지 않는다)"
-[ -x "$BIN/generate_appcast" ] || xcodebuild -project Pomodoro.xcodeproj -scheme Pomodoro -derivedDataPath "$BUILD_HOME/dd" -resolvePackageDependencies > "$WORK/resolve.log" 2>&1 || die "패키지를 받지 못했습니다: $WORK/resolve.log"
+[ -x "$BIN/generate_appcast" ] || xcodebuild -project Morrowisp.xcodeproj -scheme Morrowisp -derivedDataPath "$BUILD_HOME/dd" -resolvePackageDependencies > "$WORK/resolve.log" 2>&1 || die "패키지를 받지 못했습니다: $WORK/resolve.log"
 "$OPENSSL" genpkey -algorithm ed25519 -outform DER -out "$WORK/keys/priv.der" 2>/dev/null || die "openssl 이 ed25519 키를 만들지 못했습니다 ($OPENSSL)"
 "$OPENSSL" pkey -inform DER -in "$WORK/keys/priv.der" -pubout -outform DER -out "$WORK/keys/pub.der" 2>/dev/null || die "공개 키를 꺼내지 못했습니다"
 # DER 의 마지막 32바이트가 각각 개인 키의 씨앗과 공개 키다.
@@ -74,16 +74,16 @@ cp Config/Info.plist "$WORK/Info-e2e.plist"
 /usr/libexec/PlistBuddy -c 'Add :NSAppTransportSecurity dict' -c 'Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true' "$WORK/Info-e2e.plist"
 
 build() { # build <버전> <빌드 번호>
-  xcodebuild -project Pomodoro.xcodeproj -scheme Pomodoro -configuration Release -derivedDataPath "$WORK/dd" build \
+  xcodebuild -project Morrowisp.xcodeproj -scheme Morrowisp -configuration Release -derivedDataPath "$WORK/dd" build \
     PRODUCT_BUNDLE_IDENTIFIER="$TEST_ID" MARKETING_VERSION="$1" CURRENT_PROJECT_VERSION="$2" \
-    POMODORO_ED_PUBLIC_KEY="$PUB" POMODORO_FEED_URL="$FEED/appcast.xml" INFOPLIST_FILE="$WORK/Info-e2e.plist" \
+    MORROWISP_ED_PUBLIC_KEY="$PUB" MORROWISP_FEED_URL="$FEED/morrowisp-appcast.xml" INFOPLIST_FILE="$WORK/Info-e2e.plist" \
     > "$WORK/build-$1.log" 2>&1 || die "$1 빌드 실패: $WORK/build-$1.log"
   echo "빌드 $1 ($2)"
 }
 publish() { # publish <버전> — 방금 빌드한 것을 업데이트 목록에 올린다 (release.sh 와 같은 선택)
-  ditto -c -k --sequesterRsrc --keepParent "$WORK/dd/Build/Products/Release/Pomodoro.app" "$WORK/feed/Pomodoro-$1.zip"
+  ditto -c -k --sequesterRsrc --keepParent "$WORK/dd/Build/Products/Release/Morrowisp.app" "$WORK/feed/Morrowisp-$1.zip"
   "$BIN/generate_appcast" --ed-key-file "$WORK/keys/seed.b64" --download-url-prefix "$FEED/" --maximum-deltas 0 \
-    -o "$WORK/feed/appcast.xml" "$WORK/feed" > "$WORK/appcast-$1.log" 2>&1 || die "appcast 생성 실패: $WORK/appcast-$1.log"
+    -o "$WORK/feed/morrowisp-appcast.xml" "$WORK/feed" > "$WORK/appcast-$1.log" 2>&1 || die "appcast 생성 실패: $WORK/appcast-$1.log"
 }
 wait_for() { # wait_for <초> <설명> <명령...> — 명령이 참이 될 때까지 기다린다. 안 되면 실패로 끝낸다
   local limit="$1" what="$2"; shift 2
@@ -120,18 +120,18 @@ ARGS=(--args -SULastCheckTime '<date>2020-01-01T00:00:00Z</date>')
 
 say "빌드: 0.9.0 을 설치 자리에, 0.9.1 을 업데이트 목록에"
 build 0.9.0 1
-ditto "$WORK/dd/Build/Products/Release/Pomodoro.app" "$APP"
+ditto "$WORK/dd/Build/Products/Release/Morrowisp.app" "$APP"
 build 0.9.1 2
 publish 0.9.1
 
 say "업데이트 목록 서버 ($FEED)"
 python3 -m http.server "$PORT" --bind 127.0.0.1 --directory "$WORK/feed" > "$WORK/http.log" 2>&1 &
 SERVER_PID=$!
-wait_for 10 "서버가 뜨지 않음" curl -fs -o /dev/null "$FEED/appcast.xml"
+wait_for 10 "서버가 뜨지 않음" curl -fs -o /dev/null "$FEED/morrowisp-appcast.xml"
 
 say "1) 0.9.0 을 숨긴 채로 켠다 → 0.9.1 을 스스로 받되 설치하지는 않는가"
 open -n -j "$APP" "${ARGS[@]}"
-wait_for 60 "0.9.0 이 0.9.1 을 내려받지 않음" downloaded "Pomodoro-0.9.1.zip"
+wait_for 60 "0.9.0 이 0.9.1 을 내려받지 않음" downloaded "Morrowisp-0.9.1.zip"
 echo "내려받음"
 # 받아 두었다고 앱이 적을 때까지 기다린다. 여기에 이르지 않으면(설치 동작을 맡지 않으면) 점도 단추도 생기지 않는다.
 wait_for 60 "0.9.0 이 0.9.1 을 받아 두지 않음 (로그에 holding update 가 없음)" holding 0.9.1
@@ -154,7 +154,7 @@ say "2) 0.9.1 을 켠다 → 0.9.2 를 받아, \"업데이트\"를 누른 것과
 build 0.9.2 3
 publish 0.9.2
 open -n -j "$APP" "${ARGS[@]}" -UpdateInstallHeldOnArrival YES
-wait_for 60 "0.9.1 이 0.9.2 를 내려받지 않음" downloaded "Pomodoro-0.9.2.zip"
+wait_for 60 "0.9.1 이 0.9.2 를 내려받지 않음" downloaded "Morrowisp-0.9.2.zip"
 wait_for 90 "받아 둔 0.9.2 를 설치하고 다시 켜지지 않음" running_as 0.9.2
 sleep 3
 running_as 0.9.2 || die "다시 켜진 앱이 곧 꺼졌다"

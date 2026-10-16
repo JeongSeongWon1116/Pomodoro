@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Pomodoro
+@testable import Morrowisp
 
 @MainActor
 struct RewardListTests {

@@ -1,6 +1,6 @@
 //
 //  ObsidianNoteFileTests.swift
-//  PomodoroTests
+//  MorrowispTests
 //
 //  데일리 노트 파일 읽기/쓰기와 섹션 경계 판정을 임시 폴더에서 검증합니다.
 //  (실제 Obsidian 보관함은 건드리지 않습니다.)
@@ -8,7 +8,7 @@
 
 import Foundation
 import Testing
-@testable import Pomodoro
+@testable import Morrowisp
 
 @MainActor
 struct ObsidianNoteFileTests {
@@ -20,7 +20,7 @@ struct ObsidianNoteFileTests {
     /// 테스트마다 따로 쓰는 임시 폴더를 만들고, 끝나면 지웁니다.
     private func withTempFolder(_ body: (URL) throws -> Void) throws {
         let folder = FileManager.default.temporaryDirectory
-            .appendingPathComponent("PomodoroTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("MorrowispTests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
         try body(folder)

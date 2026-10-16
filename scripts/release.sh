@@ -1,15 +1,15 @@
 #!/bin/bash
-# release.sh — Pomodoro 릴리스를 만든다.
+# release.sh — Morrowisp 릴리스를 만든다.
 #
 #   bash scripts/release.sh             테스트 → Release 빌드 → zip → 서명한 appcast. build/release/v<버전>/ 에 남기고 끝난다
 #                                       (아무것도 올리지 않고, 설치하지도 않는다)
 #   bash scripts/release.sh --publish   위 + GitHub 릴리스 v<버전> (태그는 origin/main 의 지금 커밋에 붙는다)
-#   bash scripts/release.sh --install   위 + 이 Mac 의 /Applications/Pomodoro.app 을 새 빌드로 바꾸고 다시 켠다
+#   bash scripts/release.sh --install   위 + 이 Mac 의 /Applications/Morrowisp.app 을 새 빌드로 바꾸고 다시 켠다
 #   (--publish 와 --install 은 함께 줄 수 있다. --allow-key-change 는 서명 키를 일부러 바꾼 릴리스에만 쓴다)
 #
 # 버전은 프로젝트의 MARKETING_VERSION 에서 읽는다. 올리기 전에 버전과 CHANGELOG.md 를 고쳐 main 에 넣어 둔다.
 # 업데이트 서명 키는 키체인에 있다(처음 한 번 docs/RELEASE.md 의 "서명 키"). 이 스크립트는 키 값을 읽거나 출력하지 않는다.
-# 빌드는 ~/Library/Developer/Pomodoro-build/dd 에 한다(POMODORO_BUILD_HOME 으로 바꿀 수 있다).
+# 빌드는 ~/Library/Developer/Morrowisp-build/dd 에 한다(MORROWISP_BUILD_HOME 으로 바꿀 수 있다).
 #   - Xcode 의 기본 DerivedData(Xcode 에서 실행 중인 앱이 쓰는 곳)를 건드리지 않는다.
 #   - 저장소가 외장 디스크에 있어도 빌드는 내장 디스크에 둔다. 외장 디스크에서 앱을 띄우면(단위 테스트의 호스트 앱)
 #     macOS 가 "이동식 볼륨의 파일에 접근" 허락을 묻고, 임시 서명은 빌드마다 달라서 매번 다시 묻는다.
@@ -22,9 +22,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
-REPO="JeongSeongWon1116/Pomodoro"
-BUNDLE_ID="Jeong.Pomodoro"
-BUILD_HOME="${POMODORO_BUILD_HOME:-$HOME/Library/Developer/Pomodoro-build}"
+REPO="JeongSeongWon1116/Morrowisp"
+BUNDLE_ID="dev.swsquare.morrowisp"
+BUILD_HOME="${MORROWISP_BUILD_HOME:-$HOME/Library/Developer/Morrowisp-build}"
 DD="$BUILD_HOME/dd"
 BIN="$DD/SourcePackages/artifacts/sparkle/Sparkle/bin"
 PUBLISH=0; INSTALL=0; ALLOW_KEY_CHANGE=0
@@ -38,7 +38,7 @@ for arg in "$@"; do
 done
 say() { printf '\n== %s\n' "$*"; }
 die() { printf 'release: %s\n' "$*" >&2; exit 1; }
-xcb() { xcodebuild -project Pomodoro.xcodeproj -scheme Pomodoro -derivedDataPath "$DD" "$@"; }
+xcb() { xcodebuild -project Morrowisp.xcodeproj -scheme Morrowisp -derivedDataPath "$DD" "$@"; }
 # project.pbxproj 글에서 빌드 설정 하나의 값을 모두 꺼낸다 (구성·타깃마다 한 줄. 따옴표가 있든 없든).
 pbx_values() { sed -n "s/^[[:space:]]*$1 = \"\{0,1\}\([^\";]*\)\"\{0,1\};\$/\1/p"; }
 
@@ -48,15 +48,15 @@ mkdir -p "$BUILD_HOME" "$ROOT/build"
 [ -x "$BIN/generate_appcast" ] && [ -x "$BIN/generate_keys" ] || die "Sparkle 도구가 없습니다: $BIN"
 SETTINGS="$(xcb -configuration Release -showBuildSettings 2>"$BUILD_HOME/release-settings.log")" || die "빌드 설정을 읽지 못했습니다: $BUILD_HOME/release-settings.log"
 setting() { printf '%s\n' "$SETTINGS" | awk -v k="$1" '$1 == k && $2 == "=" { sub(/^[^=]*= ?/, ""); print; exit }'; }
-VERSION="$(setting MARKETING_VERSION)"; BUILD="$(setting CURRENT_PROJECT_VERSION)"; PUBKEY="$(setting POMODORO_ED_PUBLIC_KEY)"
+VERSION="$(setting MARKETING_VERSION)"; BUILD="$(setting CURRENT_PROJECT_VERSION)"; PUBKEY="$(setting MORROWISP_ED_PUBLIC_KEY)"
 [ -n "$VERSION" ] && [ -n "$BUILD" ] || die "버전을 읽지 못했습니다"
 case "$BUILD" in (*[!0-9]*) die "빌드 번호가 숫자가 아닙니다: $BUILD" ;; esac
-[ -n "$PUBKEY" ] || die "프로젝트에 업데이트 공개 키(POMODORO_ED_PUBLIC_KEY)가 없습니다. docs/RELEASE.md 의 '서명 키'를 먼저 합니다"
+[ -n "$PUBKEY" ] || die "프로젝트에 업데이트 공개 키(MORROWISP_ED_PUBLIC_KEY)가 없습니다. docs/RELEASE.md 의 '서명 키'를 먼저 합니다"
 # 프로젝트의 공개 키와 키체인의 서명 키가 짝이 맞는지 본다. 어긋나면 이 릴리스는 어떤 앱에서도 설치되지 않는다.
 KEYCHAIN_PUB="$("$BIN/generate_keys" -p 2>/dev/null || true)"
 [ "$KEYCHAIN_PUB" = "$PUBKEY" ] || die "키체인의 서명 키와 프로젝트의 공개 키가 다릅니다(또는 키체인에 키가 없습니다)"
 grep -q -F -- "## [$VERSION]" CHANGELOG.md || die "CHANGELOG.md 에 [$VERSION] 절이 없습니다"
-echo "Pomodoro $VERSION ($BUILD)"
+echo "Morrowisp $VERSION ($BUILD)"
 
 say "지난 릴리스와 견주기"
 # 이미 설치된 앱은 지난 릴리스에 든 공개 키를 믿고, 빌드 번호가 더 커야만 업데이트로 본다.
@@ -67,10 +67,15 @@ while IFS= read -r tag; do
   if [ -n "$tag" ] && [ "$tag" != "v$VERSION" ]; then PREV_TAG="$tag"; break; fi
 done <<< "$TAGS"
 if [ -n "$PREV_TAG" ]; then
-  PREV_PBX="$(git show "$PREV_TAG:Pomodoro.xcodeproj/project.pbxproj")" || die "$PREV_TAG 의 프로젝트 파일을 읽지 못했습니다"
+  # 2.0.0 이전 태그에는 옛 프로젝트 경로와 공개 키 설정 이름이 남아 있다.
+  PREV_KEY_SETTING=MORROWISP_ED_PUBLIC_KEY
+  if ! PREV_PBX="$(git show "$PREV_TAG:Morrowisp.xcodeproj/project.pbxproj" 2>/dev/null)"; then
+    PREV_PBX="$(git show "$PREV_TAG:Pomodoro.xcodeproj/project.pbxproj" 2>/dev/null)" || die "$PREV_TAG 의 프로젝트 파일을 새 경로와 옛 경로 모두에서 읽지 못했습니다"
+    PREV_KEY_SETTING=POMODORO_ED_PUBLIC_KEY
+  fi
   # 구성마다 값이 다를 수 있으므로 빌드 번호는 가장 큰 것과 견주고, 공개 키는 하나로 모이는지 본다.
   PREV_BUILD="$(printf '%s\n' "$PREV_PBX" | pbx_values CURRENT_PROJECT_VERSION | sort -n | tail -1)"
-  PREV_KEYS="$(printf '%s\n' "$PREV_PBX" | pbx_values POMODORO_ED_PUBLIC_KEY | sed '/^$/d' | sort -u)"
+  PREV_KEYS="$(printf '%s\n' "$PREV_PBX" | pbx_values "$PREV_KEY_SETTING" | sed '/^$/d' | sort -u)"
   echo "지난 릴리스 $PREV_TAG (빌드 ${PREV_BUILD:-?})"
   case "${PREV_BUILD:-x}" in (*[!0-9]*) die "$PREV_TAG 의 빌드 번호를 읽지 못했습니다" ;; esac
   [ "$BUILD" -gt "$PREV_BUILD" ] || die "빌드 번호($BUILD)가 지난 릴리스($PREV_BUILD)보다 커야 합니다. 같거나 작으면 설치된 앱이 업데이트로 보지 않습니다"
@@ -94,7 +99,7 @@ if [ "$PUBLISH" = 1 ]; then
 fi
 
 say "단위 테스트"
-xcb -only-testing:PomodoroTests test > "$BUILD_HOME/release-test.log" 2>&1 || die "테스트 실패: $BUILD_HOME/release-test.log"
+xcb -only-testing:MorrowispTests test > "$BUILD_HOME/release-test.log" 2>&1 || die "테스트 실패: $BUILD_HOME/release-test.log"
 # 통과한 수는 알려 주려고 센다(통과 여부는 위 xcodebuild 의 종료 코드가 정한다). 결과 줄("Test case '…' passed …")의
 # 마지막 한 줄은 xcodebuild 의 글과 섞여 중간에서 잘리곤 하므로, 줄머리로 세고 실패 줄을 뺀다.
 # 셸의 로캘은 건드리지 않고 grep 에만 준다.
@@ -106,14 +111,14 @@ echo "$PASSED 건 통과"
 
 say "Release 빌드 (arm64 + x86_64)"
 xcb -configuration Release build ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO > "$BUILD_HOME/release-build.log" 2>&1 || die "빌드 실패: $BUILD_HOME/release-build.log"
-APP="$DD/Build/Products/Release/Pomodoro.app"
+APP="$DD/Build/Products/Release/Morrowisp.app"
 PLIST="$APP/Contents/Info.plist"
 read_plist() { /usr/libexec/PlistBuddy -c "Print :$1" "$PLIST"; }
 [ "$(read_plist CFBundleShortVersionString)" = "$VERSION" ] && [ "$(read_plist CFBundleVersion)" = "$BUILD" ] || die "빌드한 앱의 버전이 다릅니다"
 [ "$(read_plist CFBundleIdentifier)" = "$BUNDLE_ID" ] || die "빌드한 앱의 번들 id 가 다릅니다"
 [ "$(read_plist SUPublicEDKey)" = "$PUBKEY" ] || die "빌드한 앱에 공개 키가 들어가지 않았습니다"
 codesign --verify --deep --strict "$APP" || die "코드 서명 확인 실패"
-ARCHS_BUILT="$(lipo -archs "$APP/Contents/MacOS/Pomodoro")" || die "빌드한 앱의 아키텍처를 읽지 못했습니다"
+ARCHS_BUILT="$(lipo -archs "$APP/Contents/MacOS/Morrowisp")" || die "빌드한 앱의 아키텍처를 읽지 못했습니다"
 case " $ARCHS_BUILT " in (*" arm64 "*) ;; (*) die "arm64 가 빠졌습니다: $ARCHS_BUILT" ;; esac
 case " $ARCHS_BUILT " in (*" x86_64 "*) ;; (*) die "x86_64 가 빠졌습니다: $ARCHS_BUILT" ;; esac
 echo "$ARCHS_BUILT"
@@ -122,8 +127,8 @@ say "묶음과 appcast"
 OUT="$ROOT/build/release/v$VERSION"
 [ ! -e "$OUT" ] || mv "$OUT" "$OUT.$(date +%Y%m%d-%H%M%S).old"
 mkdir -p "$OUT"
-ZIP="$OUT/Pomodoro-$VERSION.zip"
-NOTES="$OUT/Pomodoro-$VERSION.md"
+ZIP="$OUT/Morrowisp-$VERSION.zip"
+NOTES="$OUT/Morrowisp-$VERSION.md"
 ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
 # 릴리스 노트: CHANGELOG.md 의 이 버전 절
 # (저장소 안의 파일을 가리키는 링크는 릴리스 쪽과 앱의 안내 창에서도 열리도록 그 버전의 전체 주소로 바꾼다)
@@ -131,19 +136,19 @@ awk -v h="## [$VERSION]" '/^## \[/ { on = (index($0, h) == 1); next } on' CHANGE
   | sed -E "s#\]\((docs/|Readme\.md|CHANGELOG\.md)#](https://github.com/$REPO/blob/v$VERSION/\1#g" > "$NOTES"
 [ -s "$NOTES" ] || die "릴리스 노트가 비었습니다"
 "$BIN/generate_appcast" --download-url-prefix "https://github.com/$REPO/releases/download/v$VERSION/" \
-  --embed-release-notes --maximum-deltas 0 --link "https://github.com/$REPO" -o "$OUT/appcast.xml" "$OUT" \
+  --embed-release-notes --maximum-deltas 0 --link "https://github.com/$REPO" -o "$OUT/morrowisp-appcast.xml" "$OUT" \
   || die "appcast 를 만들지 못했습니다"
-grep -q "sparkle:edSignature=" "$OUT/appcast.xml" || die "appcast 에 서명이 없습니다"
-grep -q "<sparkle:version>$BUILD</sparkle:version>" "$OUT/appcast.xml" || die "appcast 의 버전이 다릅니다"
-grep -q "<description" "$OUT/appcast.xml" || die "appcast 에 릴리스 노트가 들어가지 않았습니다"
+grep -q "sparkle:edSignature=" "$OUT/morrowisp-appcast.xml" || die "appcast 에 서명이 없습니다"
+grep -q "<sparkle:version>$BUILD</sparkle:version>" "$OUT/morrowisp-appcast.xml" || die "appcast 의 버전이 다릅니다"
+grep -q "<description" "$OUT/morrowisp-appcast.xml" || die "appcast 에 릴리스 노트가 들어가지 않았습니다"
 ls -la "$OUT"
 
 if [ "$PUBLISH" = 1 ]; then
   say "GitHub 릴리스 v$VERSION"
-  gh release create "v$VERSION" "$ZIP" "$OUT/appcast.xml" --repo "$REPO" --target "$(git rev-parse HEAD)" \
-    --title "Pomodoro $VERSION" --notes-file "$NOTES"
+  gh release create "v$VERSION" "$ZIP" "$OUT/morrowisp-appcast.xml" --repo "$REPO" --target "$(git rev-parse HEAD)" \
+    --title "Morrowisp $VERSION" --notes-file "$NOTES"
   # 앱이 보는 주소(최신 릴리스의 appcast)가 방금 올린 것을 돌려주는지 본다.
-  LIVE="$(curl -fsSL "https://github.com/$REPO/releases/latest/download/appcast.xml")" || die "올렸지만 최신 릴리스의 appcast 를 받지 못했습니다. 릴리스 쪽을 확인합니다"
+  LIVE="$(curl -fsSL "https://github.com/$REPO/releases/latest/download/morrowisp-appcast.xml")" || die "올렸지만 최신 릴리스의 appcast 를 받지 못했습니다. 릴리스 쪽을 확인합니다"
   printf '%s\n' "$LIVE" | grep -q "<sparkle:version>$BUILD</sparkle:version>" \
     || die "올렸지만 최신 릴리스의 appcast 가 이 버전이 아닙니다. 릴리스 쪽을 확인합니다"
   echo "올림: https://github.com/$REPO/releases/tag/v$VERSION"
@@ -151,11 +156,11 @@ fi
 
 if [ "$INSTALL" = 1 ]; then
   say "이 Mac 에 설치"
-  DEST="/Applications/Pomodoro.app"
+  DEST="/Applications/Morrowisp.app"
   # 넣을 자리에 쓸 수 없으면 앱을 끄기 전에 멈춘다(끈 뒤에 실패하면 쓰던 앱만 꺼진 채로 남는다).
   [ -w "$(dirname "$DEST")" ] || die "$(dirname "$DEST") 에 쓸 수 없습니다. 관리자 계정에서 돌리거나 앱을 손으로 옮깁니다"
   [ ! -e "$DEST" ] || [ -w "$DEST" ] || die "$DEST 를 바꿀 수 없습니다(다른 사용자가 넣은 앱). 손으로 옮긴 뒤 다시 합니다"
-  # 실행 중인 Pomodoro 를 정상 종료시킨다(진행 중인 세션은 앱이 끝내면서 기록한다). 강제로 죽이지 않는다.
+  # 실행 중인 Morrowisp 를 정상 종료시킨다(진행 중인 세션은 앱이 끝내면서 기록한다). 강제로 죽이지 않는다.
   # 번들 id 로 찾으므로 Xcode 에서 띄운 개발 빌드도 함께 끈다.
   PROC="$BUILD_HOME/running-app.swift"
   cat > "$PROC" <<'SWIFT'
@@ -172,10 +177,10 @@ let deadline = Date().addingTimeInterval(15)
 while Date() < deadline, apps.contains(where: { !$0.isTerminated }) { RunLoop.current.run(until: Date().addingTimeInterval(0.2)) }
 exit(apps.contains(where: { !$0.isTerminated }) ? 1 : 0)
 SWIFT
-  running_paths() { swift "$PROC" paths "$BUNDLE_ID" || die "떠 있는 Pomodoro 를 확인하지 못했습니다"; }
+  running_paths() { swift "$PROC" paths "$BUNDLE_ID" || die "떠 있는 Morrowisp 를 확인하지 못했습니다"; }
   # 끄는 순간, 앱이 받아 둔 업데이트가 있으면 Sparkle 의 설치 도우미(Autoupdate — 앱 묶음 안의 Sparkle.framework 에서 돈다)가
   # 앱을 바꾸기 시작한다. 그것이 끝나기를 기다린다 — 기다리지 않으면 반쯤 바뀐 앱을 옮기거나, 방금 넣은 빌드가 덮일 수 있다.
-  HELPERS='Pomodoro\.app/Contents/Frameworks/Sparkle\.framework'
+  HELPERS='Morrowisp\.app/Contents/Frameworks/Sparkle\.framework'
   helpers_alive() { # 시험용 앱(update-e2e)의 도우미는 세지 않는다
     local pid cmd
     for pid in $(pgrep -f "$HELPERS" || true); do
@@ -185,7 +190,7 @@ SWIFT
     return 1
   }
   quit_and_settle() {
-    swift "$PROC" quit "$BUNDLE_ID" || die "실행 중인 Pomodoro 가 끝나지 않았습니다. 직접 끈 뒤 다시 합니다"
+    swift "$PROC" quit "$BUNDLE_ID" || die "실행 중인 Morrowisp 가 끝나지 않았습니다. 직접 끈 뒤 다시 합니다"
     local waited=0
     while helpers_alive; do
       [ "$waited" -lt 90 ] || die "Sparkle 설치 도우미가 끝나지 않습니다. 끝난 뒤 다시 합니다"
@@ -197,16 +202,16 @@ SWIFT
   # 상태가 5초 이어질 때까지 지켜보고, 그 사이에 뜨면 다시 끈다.
   CALM=0; TRIES=0
   while [ "$CALM" -lt 5 ]; do
-    [ "$TRIES" -lt 60 ] || die "Pomodoro 가 계속 다시 켜집니다. 직접 끈 뒤 다시 합니다"
+    [ "$TRIES" -lt 60 ] || die "Morrowisp 가 계속 다시 켜집니다. 직접 끈 뒤 다시 합니다"
     TRIES=$((TRIES + 1))
     RUNNING="$(running_paths)"
     if [ -n "$RUNNING" ] || helpers_alive; then quit_and_settle; CALM=0; else CALM=$((CALM + 1)); sleep 1; fi
   done
   if [ -e "$DEST" ]; then
     OLD_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$DEST/Contents/Info.plist" 2>/dev/null || echo old)"
-    # 지우지 않고 옮겨 둔다. 이름 끝을 .app 이 아니게 해서, macOS 가 이것을 또 하나의 Pomodoro 로 보고
-    # (Spotlight, 로그인 항목 등에서) 예전 앱을 띄우는 일이 없게 한다. 되돌리려면 이름을 Pomodoro.app 으로 바꿔 /Applications 에 넣는다.
-    KEEP="$BUILD_HOME/replaced/Pomodoro-$OLD_VERSION-$(date +%Y%m%d-%H%M%S).app-replaced"
+    # 지우지 않고 옮겨 둔다. 이름 끝을 .app 이 아니게 해서, macOS 가 이것을 또 하나의 Morrowisp 로 보고
+    # (Spotlight, 로그인 항목 등에서) 예전 앱을 띄우는 일이 없게 한다. 되돌리려면 이름을 Morrowisp.app 으로 바꿔 /Applications 에 넣는다.
+    KEEP="$BUILD_HOME/replaced/Morrowisp-$OLD_VERSION-$(date +%Y%m%d-%H%M%S).app-replaced"
     mkdir -p "$(dirname "$KEEP")"
     mv "$DEST" "$KEEP"
     echo "예전 앱: $KEEP"
@@ -217,7 +222,7 @@ SWIFT
   codesign --verify --deep --strict "$DEST" || die "설치한 앱의 서명 확인 실패"
   [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$DEST/Contents/Info.plist")" = "$BUILD" ] || die "설치한 앱의 빌드 번호가 다릅니다"
   open "$DEST"
-  # 켠 것이 정말 방금 넣은 앱인지 본다(다른 곳의 Pomodoro 가 떠 있으면 새 앱은 중복 실행으로 곧 끝난다).
+  # 켠 것이 정말 방금 넣은 앱인지 본다(다른 곳의 Morrowisp 가 떠 있으면 새 앱은 중복 실행으로 곧 끝난다).
   STARTED=0; TRIES=0
   while [ "$TRIES" -lt 20 ]; do
     TRIES=$((TRIES + 1))

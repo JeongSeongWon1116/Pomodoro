@@ -54,7 +54,7 @@ final class UpdateController: NSObject, ObservableObject {
     // Sparkle 쪽에서 바뀐 값을 받아 적는 중인지 (받은 값을 Sparkle에 되쓰지 않기 위함)
     private var syncingFromUpdater = false
     // 업데이트를 언제 받아 두었고 언제 설치했는지를 나중에 볼 수 있게 남깁니다 (콘솔 앱에서 category "update").
-    private let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Pomodoro", category: "update")
+    private let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.swsquare.morrowisp", category: "update")
 
     private var updater: SPUUpdater? { controller?.updater }
 

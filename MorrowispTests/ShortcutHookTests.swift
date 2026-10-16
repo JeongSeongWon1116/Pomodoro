@@ -1,6 +1,6 @@
 //
 //  ShortcutHookTests.swift
-//  PomodoroTests
+//  MorrowispTests
 //
 //  집중이 시작하고 끝날 때 설정에 적어 둔 단축어를 실행하는지, 가짜 실행기로 검증합니다.
 //  (실제 단축어는 실행하지 않습니다.)
@@ -9,7 +9,7 @@
 import Foundation
 import SwiftData
 import Testing
-@testable import Pomodoro
+@testable import Morrowisp
 
 /// 실행해 달라고 받은 단축어 이름을 차례로 적어 두는 가짜 실행기
 @MainActor
@@ -307,7 +307,7 @@ struct ShortcutHookTests {
 
     @Test func 적어_둔_단축어_이름은_저장소가_있으면_앱을_다시_켜도_남는다() throws {
         // 이름을 고정합니다: 돌릴 때마다 새 이름을 쓰면, 지운 뒤에도 빈 설정 파일이 앱의 컨테이너에 하나씩 남습니다.
-        let suite = "PomodoroTests-shortcut-names"
+        let suite = "MorrowispTests-shortcut-names"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
         defer { defaults.removePersistentDomain(forName: suite) }

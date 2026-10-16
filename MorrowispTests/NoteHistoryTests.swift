@@ -1,6 +1,6 @@
 //
 //  NoteHistoryTests.swift
-//  PomodoroTests
+//  MorrowispTests
 //
 //  적어 둔 할 일·보상을 다시 보고(기록 창) 다시 고르는(팝오버) 기능을 검증합니다.
 //  (사용자의 설정·기록·보관함을 건드리지 않습니다.)
@@ -9,7 +9,7 @@
 import Foundation
 import SwiftData
 import Testing
-@testable import Pomodoro
+@testable import Morrowisp
 
 struct NoteSuggestionsTests {
     @Test func 최근_것부터_겹치지_않게_고른다() {

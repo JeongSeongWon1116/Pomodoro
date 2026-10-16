@@ -4,12 +4,19 @@ Older entries are in Korean.
 
 이 프로젝트는 [유의적 버전(Semantic Versioning)](https://semver.org/lang/ko/)을 따릅니다.
 
-## [Unreleased]
+## [2.0.0] - 2026-10-16
 
 ### Changed
-- Renamed the app to **Morrowisp**, keeping the installed `Pomodoro.app` name and existing update and data identifiers.
+- Launched **Morrowisp** by **SW Square** as a new app, version 2.0.0 (build 8), installed as `Morrowisp.app` with bundle identifier `dev.swsquare.morrowisp`.
+- Renamed the Xcode project, app and test targets, modules, and release artifacts to Morrowisp, and added a shared Morrowisp scheme.
+- Separated automatic updates with `morrowisp-appcast.xml` in the Morrowisp repository, retaining the existing EdDSA public key.
+- Added the copyright notice **© 2026 SW Square** to app metadata and Settings > General > About.
 - Added English and Korean app interfaces that follow the system language. Obsidian note output and shortcut names remain unchanged.
 - Adopted the **MIT License**.
+
+### Installation
+- Install Morrowisp manually. History and settings from Pomodoro do not carry over, and the old app does not update to Morrowisp.
+- You may quit and delete `Pomodoro.app`; its data remains in `~/Library/Containers/Jeong.Pomodoro`. See [installation and migration](Readme.md#install).
 
 ## [1.4.0] - 2026-10-16
 

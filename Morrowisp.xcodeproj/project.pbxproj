@@ -16,37 +16,37 @@
 			containerPortal = 4201F03D2E3CE64600E77419 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 4201F0442E3CE64600E77419;
-			remoteInfo = Pomodoro;
+			remoteInfo = Morrowisp;
 		};
 		4201F0602E3CE64800E77419 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 4201F03D2E3CE64600E77419 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 4201F0442E3CE64600E77419;
-			remoteInfo = Pomodoro;
+			remoteInfo = Morrowisp;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		4201F0452E3CE64600E77419 /* Pomodoro.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Pomodoro.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		4201F0552E3CE64800E77419 /* PomodoroTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PomodoroTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		4201F05F2E3CE64800E77419 /* PomodoroUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PomodoroUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		4201F0452E3CE64600E77419 /* Morrowisp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Morrowisp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4201F0552E3CE64800E77419 /* MorrowispTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MorrowispTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		4201F05F2E3CE64800E77419 /* MorrowispUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MorrowispUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		4201F0472E3CE64600E77419 /* Pomodoro */ = {
+		4201F0472E3CE64600E77419 /* Morrowisp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Pomodoro;
+			path = Morrowisp;
 			sourceTree = "<group>";
 		};
-		4201F0582E3CE64800E77419 /* PomodoroTests */ = {
+		4201F0582E3CE64800E77419 /* MorrowispTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = PomodoroTests;
+			path = MorrowispTests;
 			sourceTree = "<group>";
 		};
-		4201F0622E3CE64800E77419 /* PomodoroUITests */ = {
+		4201F0622E3CE64800E77419 /* MorrowispUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = PomodoroUITests;
+			path = MorrowispUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -80,9 +80,9 @@
 		4201F03C2E3CE64600E77419 = {
 			isa = PBXGroup;
 			children = (
-				4201F0472E3CE64600E77419 /* Pomodoro */,
-				4201F0582E3CE64800E77419 /* PomodoroTests */,
-				4201F0622E3CE64800E77419 /* PomodoroUITests */,
+				4201F0472E3CE64600E77419 /* Morrowisp */,
+				4201F0582E3CE64800E77419 /* MorrowispTests */,
+				4201F0622E3CE64800E77419 /* MorrowispUITests */,
 				4201F0462E3CE64600E77419 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -90,9 +90,9 @@
 		4201F0462E3CE64600E77419 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				4201F0452E3CE64600E77419 /* Pomodoro.app */,
-				4201F0552E3CE64800E77419 /* PomodoroTests.xctest */,
-				4201F05F2E3CE64800E77419 /* PomodoroUITests.xctest */,
+				4201F0452E3CE64600E77419 /* Morrowisp.app */,
+				4201F0552E3CE64800E77419 /* MorrowispTests.xctest */,
+				4201F05F2E3CE64800E77419 /* MorrowispUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -100,9 +100,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		4201F0442E3CE64600E77419 /* Pomodoro */ = {
+		4201F0442E3CE64600E77419 /* Morrowisp */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 4201F0692E3CE64800E77419 /* Build configuration list for PBXNativeTarget "Pomodoro" */;
+			buildConfigurationList = 4201F0692E3CE64800E77419 /* Build configuration list for PBXNativeTarget "Morrowisp" */;
 			buildPhases = (
 				4201F0412E3CE64600E77419 /* Sources */,
 				4201F0422E3CE64600E77419 /* Frameworks */,
@@ -113,19 +113,19 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				4201F0472E3CE64600E77419 /* Pomodoro */,
+				4201F0472E3CE64600E77419 /* Morrowisp */,
 			);
-			name = Pomodoro;
+			name = Morrowisp;
 			packageProductDependencies = (
 				42A7E0022EF8A00000A7E002 /* Sparkle */,
 			);
-			productName = Pomodoro;
-			productReference = 4201F0452E3CE64600E77419 /* Pomodoro.app */;
+			productName = Morrowisp;
+			productReference = 4201F0452E3CE64600E77419 /* Morrowisp.app */;
 			productType = "com.apple.product-type.application";
 		};
-		4201F0542E3CE64800E77419 /* PomodoroTests */ = {
+		4201F0542E3CE64800E77419 /* MorrowispTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 4201F06C2E3CE64800E77419 /* Build configuration list for PBXNativeTarget "PomodoroTests" */;
+			buildConfigurationList = 4201F06C2E3CE64800E77419 /* Build configuration list for PBXNativeTarget "MorrowispTests" */;
 			buildPhases = (
 				4201F0512E3CE64800E77419 /* Sources */,
 				4201F0522E3CE64800E77419 /* Frameworks */,
@@ -137,18 +137,18 @@
 				4201F0572E3CE64800E77419 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				4201F0582E3CE64800E77419 /* PomodoroTests */,
+				4201F0582E3CE64800E77419 /* MorrowispTests */,
 			);
-			name = PomodoroTests;
+			name = MorrowispTests;
 			packageProductDependencies = (
 			);
-			productName = PomodoroTests;
-			productReference = 4201F0552E3CE64800E77419 /* PomodoroTests.xctest */;
+			productName = MorrowispTests;
+			productReference = 4201F0552E3CE64800E77419 /* MorrowispTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		4201F05E2E3CE64800E77419 /* PomodoroUITests */ = {
+		4201F05E2E3CE64800E77419 /* MorrowispUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 4201F06F2E3CE64800E77419 /* Build configuration list for PBXNativeTarget "PomodoroUITests" */;
+			buildConfigurationList = 4201F06F2E3CE64800E77419 /* Build configuration list for PBXNativeTarget "MorrowispUITests" */;
 			buildPhases = (
 				4201F05B2E3CE64800E77419 /* Sources */,
 				4201F05C2E3CE64800E77419 /* Frameworks */,
@@ -160,13 +160,13 @@
 				4201F0612E3CE64800E77419 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				4201F0622E3CE64800E77419 /* PomodoroUITests */,
+				4201F0622E3CE64800E77419 /* MorrowispUITests */,
 			);
-			name = PomodoroUITests;
+			name = MorrowispUITests;
 			packageProductDependencies = (
 			);
-			productName = PomodoroUITests;
-			productReference = 4201F05F2E3CE64800E77419 /* PomodoroUITests.xctest */;
+			productName = MorrowispUITests;
+			productReference = 4201F05F2E3CE64800E77419 /* MorrowispUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -192,7 +192,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 4201F0402E3CE64600E77419 /* Build configuration list for PBXProject "Pomodoro" */;
+			buildConfigurationList = 4201F0402E3CE64600E77419 /* Build configuration list for PBXProject "Morrowisp" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -210,9 +210,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				4201F0442E3CE64600E77419 /* Pomodoro */,
-				4201F0542E3CE64800E77419 /* PomodoroTests */,
-				4201F05E2E3CE64800E77419 /* PomodoroUITests */,
+				4201F0442E3CE64600E77419 /* Morrowisp */,
+				4201F0542E3CE64800E77419 /* MorrowispTests */,
+				4201F05E2E3CE64800E77419 /* MorrowispUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -268,12 +268,12 @@
 /* Begin PBXTargetDependency section */
 		4201F0572E3CE64800E77419 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 4201F0442E3CE64600E77419 /* Pomodoro */;
+			target = 4201F0442E3CE64600E77419 /* Morrowisp */;
 			targetProxy = 4201F0562E3CE64800E77419 /* PBXContainerItemProxy */;
 		};
 		4201F0612E3CE64800E77419 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 4201F0442E3CE64600E77419 /* Pomodoro */;
+			target = 4201F0442E3CE64600E77419 /* Morrowisp */;
 			targetProxy = 4201F0602E3CE64800E77419 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -403,24 +403,24 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = Pomodoro/Pomodoro.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Morrowisp/Morrowisp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_LSUIElement = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 SW Square";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.4.0;
-				POMODORO_ED_PUBLIC_KEY = "lfB3QqVEK2oCVtxBcXoHB9O2MlCuC8HWIY6Ck2ML4qk=";
-				POMODORO_FEED_URL = "https://github.com/JeongSeongWon1116/Pomodoro/releases/latest/download/appcast.xml";
-				PRODUCT_BUNDLE_IDENTIFIER = Jeong.Pomodoro;
+				MARKETING_VERSION = 2.0.0;
+				MORROWISP_ED_PUBLIC_KEY = "lfB3QqVEK2oCVtxBcXoHB9O2MlCuC8HWIY6Ck2ML4qk=";
+				MORROWISP_FEED_URL = "https://github.com/JeongSeongWon1116/Morrowisp/releases/latest/download/morrowisp-appcast.xml";
+				PRODUCT_BUNDLE_IDENTIFIER = dev.swsquare.morrowisp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -434,24 +434,24 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = Pomodoro/Pomodoro.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Morrowisp/Morrowisp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_LSUIElement = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 SW Square";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.4.0;
-				POMODORO_ED_PUBLIC_KEY = "lfB3QqVEK2oCVtxBcXoHB9O2MlCuC8HWIY6Ck2ML4qk=";
-				POMODORO_FEED_URL = "https://github.com/JeongSeongWon1116/Pomodoro/releases/latest/download/appcast.xml";
-				PRODUCT_BUNDLE_IDENTIFIER = Jeong.Pomodoro;
+				MARKETING_VERSION = 2.0.0;
+				MORROWISP_ED_PUBLIC_KEY = "lfB3QqVEK2oCVtxBcXoHB9O2MlCuC8HWIY6Ck2ML4qk=";
+				MORROWISP_FEED_URL = "https://github.com/JeongSeongWon1116/Morrowisp/releases/latest/download/morrowisp-appcast.xml";
+				PRODUCT_BUNDLE_IDENTIFIER = dev.swsquare.morrowisp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -464,15 +464,15 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.4.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Jeong.PomodoroTests;
+				MARKETING_VERSION = 2.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.swsquare.morrowisp.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Pomodoro.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Pomodoro";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Morrowisp.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Morrowisp";
 			};
 			name = Debug;
 		};
@@ -481,15 +481,15 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.4.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Jeong.PomodoroTests;
+				MARKETING_VERSION = 2.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.swsquare.morrowisp.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Pomodoro.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Pomodoro";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Morrowisp.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Morrowisp";
 			};
 			name = Release;
 		};
@@ -497,14 +497,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.4.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Jeong.PomodoroUITests;
+				MARKETING_VERSION = 2.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.swsquare.morrowisp.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
-				TEST_TARGET_NAME = Pomodoro;
+				TEST_TARGET_NAME = Morrowisp;
 			};
 			name = Debug;
 		};
@@ -512,21 +512,21 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.4.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Jeong.PomodoroUITests;
+				MARKETING_VERSION = 2.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.swsquare.morrowisp.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
-				TEST_TARGET_NAME = Pomodoro;
+				TEST_TARGET_NAME = Morrowisp;
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		4201F0402E3CE64600E77419 /* Build configuration list for PBXProject "Pomodoro" */ = {
+		4201F0402E3CE64600E77419 /* Build configuration list for PBXProject "Morrowisp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				4201F0672E3CE64800E77419 /* Debug */,
@@ -535,7 +535,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		4201F0692E3CE64800E77419 /* Build configuration list for PBXNativeTarget "Pomodoro" */ = {
+		4201F0692E3CE64800E77419 /* Build configuration list for PBXNativeTarget "Morrowisp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				4201F06A2E3CE64800E77419 /* Debug */,
@@ -544,7 +544,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		4201F06C2E3CE64800E77419 /* Build configuration list for PBXNativeTarget "PomodoroTests" */ = {
+		4201F06C2E3CE64800E77419 /* Build configuration list for PBXNativeTarget "MorrowispTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				4201F06D2E3CE64800E77419 /* Debug */,
@@ -553,7 +553,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		4201F06F2E3CE64800E77419 /* Build configuration list for PBXNativeTarget "PomodoroUITests" */ = {
+		4201F06F2E3CE64800E77419 /* Build configuration list for PBXNativeTarget "MorrowispUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				4201F0702E3CE64800E77419 /* Debug */,

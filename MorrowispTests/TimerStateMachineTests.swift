@@ -1,6 +1,6 @@
 //
 //  TimerStateMachineTests.swift
-//  PomodoroTests
+//  MorrowispTests
 //
 //  PomodoroViewModel 의 타이머 상태 기계를 주입한 시계로 검증합니다.
 //  (실제 시간을 기다리지 않고, 사용자의 설정·기록·보관함을 건드리지 않습니다.)
@@ -9,7 +9,7 @@
 import Foundation
 import SwiftData
 import Testing
-@testable import Pomodoro
+@testable import Morrowisp
 
 /// 테스트가 마음대로 앞으로 돌릴 수 있는 시계
 @MainActor

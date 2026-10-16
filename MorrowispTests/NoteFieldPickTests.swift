@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import Testing
-@testable import Pomodoro
+@testable import Morrowisp
 
 /// 팝오버의 할 일·보상 칸 옆 메뉴에서 지난 글을 고르는 동작을, 실제 창에 올린 실제 뷰로 봅니다.
 /// 실행 루프를 돌리며 기다리므로(그 사이 다른 테스트가 끼어들 수 있습니다) 이 묶음의 테스트는 하나씩 차례로 돌립니다.

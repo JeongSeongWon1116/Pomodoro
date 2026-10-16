@@ -1,6 +1,6 @@
 //
 //  ReturnToFocusTests.swift
-//  PomodoroTests
+//  MorrowispTests
 //
 //  복귀(1.3): 휴식 중에 누르면 휴식을 지금까지로 기록하고, 다시 계획하지 않고 바로 집중을 시작합니다.
 //  휴식 추천: 휴식 중에만, 마친 집중 수에 따라 돌아가며 보여 줍니다.
@@ -9,7 +9,7 @@
 import Foundation
 import SwiftData
 import Testing
-@testable import Pomodoro
+@testable import Morrowisp
 
 @MainActor
 struct ReturnToFocusTests {

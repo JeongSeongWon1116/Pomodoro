@@ -1,13 +1,13 @@
 //
-//  PomodoroUITestsLaunchTests.swift
-//  PomodoroUITests
+//  MorrowispUITestsLaunchTests.swift
+//  MorrowispUITests
 //
 //  Created by 정성원 on 8/1/25.
 //
 
 import XCTest
 
-final class PomodoroUITestsLaunchTests: XCTestCase {
+final class MorrowispUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true

@@ -1,13 +1,13 @@
 //
 //  NotificationTextTests.swift
-//  PomodoroTests
+//  MorrowispTests
 //
 //  알림 문구(1.3): 다그치지 않고 다음 행동을 묻는 말, 휴식 추천과 다음 시작점 한 줄.
 //
 
 import Foundation
 import Testing
-@testable import Pomodoro
+@testable import Morrowisp
 
 struct NotificationTextTests {
     private let locale = Locale(identifier: "ko")
