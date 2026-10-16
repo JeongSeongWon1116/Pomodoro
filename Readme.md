@@ -1,83 +1,78 @@
-#  Pomodoro Timer
+English | [한국어](Readme.ko.md)
 
-macOS용으로 제작된 간단한 뽀모도로 타이머 애플리케이션입니다. 사용자가 집중 시간을 설정하고 생산성을 높일 수 있도록 돕습니다.
+# Pomodoro
 
-## ✨ 주요 기능
+A calm macOS menu bar Pomodoro timer for a steady daily rhythm of focus, rest, and returning to your work.
 
-- **뽀모도로 타이머**: 설정된 시간 동안 집중하고 쉴 수 있도록 도와주는 타이머 기능입니다.
-- **설정 창**: 집중/휴식 시간과 긴 휴식 간격, 알림음(시스템 사운드 14종 + 끄기), 세션 자동/수동 전환, 로그인 시 자동 실행 등을 설정할 수 있습니다.
-- **세션 자동/수동 전환**: 집중→휴식, 휴식→집중 전환을 자동으로 하거나, 직접 클릭해서 시작하도록 선택할 수 있습니다.
-- **전환 관리**: 집중 전에 할 일과 보상을 적고, 집중이 끝나면 휴식을 시작할지 10분 더 할지 직접 고릅니다. 그때 적어 둔 다음 시작점은 다음 집중에서 다시 보여 줍니다.
-- **복귀와 휴식 추천**: 휴식 중에 "복귀"를 누르면 휴식을 여기서 마치고, 적어 둔 할 일과 다음 시작점 그대로 바로 집중을 시작합니다. 휴식 화면에는 짧은 휴식 거리(물 한 잔, 스트레칭 등)를 한 줄 보여 줍니다. (전환 관리를 켰을 때)
-- **하루의 미션과 보상 목록**: 오늘의 메인 미션 한 가지를 적고 끝냄을 표시합니다. 작은 · 중간 · 큰 보상은 설정에서 관리하고 팝오버에서 고릅니다. (전환 관리를 켰을 때)
-- **오늘 요약과 주간 회고**: 오늘 마친 집중 수 · 실제 집중 분 · 연장 횟수와 주로 한 일을 보고, 기록 창에서 지난 7일의 미션과 집중 기록 · 이번 주에 도움이 된 것을 돌아봅니다. (전환 관리를 켰을 때)
-- **지난 기록 다시 쓰기**: 할 일·보상 칸 옆 단추로 지난 집중에 적었던 글을 골라 넣고, 기록 창에서는 줄마다 그때 적은 글을 봅니다.
-- **집중 로그**: 뽀모도로 세션이 완료될 때마다 자동으로 로그가 기록됩니다.
-- **로그 통계**: 기록된 로그를 차트로 시각화하여 일별 집중 시간을 한눈에 파악할 수 있습니다.
-- **메뉴바 연동**: 메뉴 바에서 남은 시간(또는 진행 바)과 긴 휴식까지의 사이클을 확인할 수 있습니다.
-- **알림 기능**: 집중 또는 휴식 시간이 끝나면 사용자에게 알려줍니다.
-- **Obsidian 연동**: 세션이 끝날 때마다 Obsidian 데일리 노트에 초 단위 기록과 하루 통계를 자동으로 남깁니다. ([가이드](docs/OBSIDIAN.md))
-- **단축어 연동**: 집중이 시작할 때와 끝날 때 단축어 앱의 단축어를 실행합니다(방해금지 켜고 끄기 등). ([가이드](docs/SHORTCUTS.md))
-- **업데이트**: 새 버전이 나오면 받아 두고 메뉴 막대 아이콘에 빨간 점으로 알립니다. 아이콘을 눌러 나오는 **업데이트**를 누르면 설치하고 다시 켭니다. 앱이 켜져 있는 동안 스스로 설치하지는 않으며, 누르지 않고 앱을 끄면 그때 설치됩니다. (설정 > 일반 > 업데이트)
+**Language: the app UI is in Korean for now.** Korean labels below help you find the corresponding controls.
 
-## 💻 사용 기술
+<!-- TODO: Add a screenshot of the menu bar popover when one is available. -->
 
-- **SwiftUI**: Apple의 최신 UI 프레임워크를 사용하여 앱의 전체 인터페이스를 구축했습니다.
-- **SwiftData**: 뽀모도로 세션 로그를 사용자의 기기에 안전하게 저장하고 관리합니다.
-- **Combine**: 비동기 이벤트를 처리하고 데이터 흐름을 관리하기 위해 사용되었습니다.
+<a id="설치"></a>
 
-## 🚀 시작하기
+## Install
 
-### 요구사항
+1. Download `Pomodoro-<version>.zip` from [GitHub Releases](https://github.com/JeongSeongWon1116/Pomodoro/releases/latest), unzip it, and move `Pomodoro.app` to **Applications**.
+2. Open the app. It is not notarized by Apple, so macOS may block it as an unidentified developer's app. In **System Settings > Privacy & Security**, choose **Open Anyway**, then open it again. The existing installation procedure also provides this Terminal command as an alternative before reopening:
 
-- macOS 14.0 이상
-- Xcode 16.0 이상 (소스에서 빌드할 때)
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/Pomodoro.app
+   ```
 
-### 설치
+3. Click the Pomodoro icon in the menu bar to open the timer. Use the gear button to adjust your focus and rest times.
 
-1. [릴리스](https://github.com/JeongSeongWon1116/Pomodoro/releases/latest)에서 `Pomodoro-<버전>.zip`을 받아 풀고, `Pomodoro.app`을 응용 프로그램 폴더로 옮깁니다.
-2. 처음 열 때 macOS가 "확인되지 않은 개발자"라며 막습니다(Apple 공증을 받지 않은 앱입니다). **시스템 설정 > 개인정보 보호 및 보안**에서 "그래도 열기"를 누르거나, 터미널에서 아래 한 줄을 실행한 뒤 다시 엽니다.
-    ```bash
-    xattr -dr com.apple.quarantine /Applications/Pomodoro.app
-    ```
-3. 그 뒤의 새 버전은 앱이 스스로 받아 두고 메뉴 막대 아이콘에 점으로 알립니다. **업데이트**를 누르면 설치됩니다(누르지 않고 앱을 끄면 그때 설치됩니다).
+Later versions are downloaded automatically and indicated by a red dot on the menu bar icon. Click **Update (업데이트)** in the popover to install and reopen the app. A downloaded update also installs when you quit. It does not install on its own while the app stays open. Update controls are under **Settings > General > Updates (설정 > 일반 > 업데이트)**.
 
-요구사항: macOS 14.0 이상.
+## Requirements
 
-### 소스에서 빌드
+- macOS **14.0 or later**, as specified by the app target's deployment settings.
+- Xcode **16.0 or later** to build from source, as documented in the original README.
 
-1.  이 저장소를 로컬 컴퓨터에 복제(clone)합니다.
-    ```bash
-    git clone https://github.com/jeongseongwon1116/pomodoro.git
-    ```
-2.  Xcode에서 `Pomodoro.xcodeproj` 파일을 엽니다.
-3.  빌드하고 실행합니다 (Cmd+R). Xcode에서 실행한 개발 빌드는 자동 업데이트를 확인하지 않습니다. 릴리스를 만드는 법은 [docs/RELEASE.md](docs/RELEASE.md)에 있습니다.
+## Features
 
-## 🔖 버전
+- **Focus and rest timer.** Set focus and break durations and the interval between long breaks.
+- **Settings.** Choose from 14 system notification sounds or silence, automatic or manual session transitions, and launch at login.
+- **Automatic or manual transitions.** Choose separately whether focus leads into a break automatically and whether a break leads into focus automatically.
+- **Transition support (전환 관리).** Write a task and an optional reward before focusing. When focus time ends, choose to start a break or continue for 10 minutes. Leave a next starting point to see when you return.
+- **Return and break suggestions.** During a break, **Return (복귀)** starts focus right away with your task and next starting point intact. A short suggestion, such as a glass of water or a stretch, accompanies each break.
+- **Daily main mission and reward lists (1.4).** Write one main mission for today and mark it done. Manage small, medium, and large rewards in settings and choose one from the popover.
+- **Today's summary and weekly reflection (1.4).** See completed focus sessions, actual focus minutes, extensions, and the task you wrote most often today. In the history window, review missions and focus records from the past seven days and note what helped this week.
+- **Reuse earlier notes.** Buttons beside the task and reward fields let you choose text from earlier sessions. History rows show the notes from each session.
+- **Focus history.** Completed sessions are logged automatically.
+- **Charts.** View daily focus time from your saved history.
+- **Menu bar display.** See remaining time or a progress bar and the cycle leading to the next long break.
+- **Notifications.** Receive a notification when focus or rest time ends.
+- **Obsidian integration.** Write session durations down to the second and daily totals to daily notes. See the [Obsidian guide](docs/OBSIDIAN.md).
+- **Shortcuts integration.** Run a shortcut when focus begins or ends, for example to turn Do Not Disturb on or off. See the [Shortcuts guide](docs/SHORTCUTS.md).
+- **Updates.** Download new versions and install them from the menu bar or when quitting, as described above.
 
-현재 버전: **1.3.0** — 변경 내역은 [CHANGELOG.md](CHANGELOG.md)를 참고하세요.
+Enable **Transition support (전환 관리)** under **Settings > Timer (설정 > 타이머)** for task and reward notes, end-of-focus choices, return controls, break suggestions, daily missions, reward lists, today's summary, and weekly reflection.
 
-## 📝 향후 개선 계획
+Today's completed-session count includes only finished focus sessions. Focus minutes also include actual time from sessions ended early. Sessions crossing midnight belong to their end date in the summary; an extended focus session counts once. Older records without a completion marker contribute time, but their completion status is not guessed.
 
-### 알려진 버그
+## Privacy
 
-- [x] log view window 여러개 뜨는 문제
-- [x] 하나의 세션 진행중 pause 후 일정 시간이 지난 이후 다시 재개를 했을 때 log view에 시작 시간과 종료시간이 정확하지 않는 문제
-- [x] 세션 종료와 세션 시작 배너가 동시에 나오는 문제
-- [x] 절전 모드 등으로 타이머가 실제 시간보다 늦게 가는 문제 (벽시계 기준 계산으로 수정)
-- [x] 오전 9시(KST) 이전 기록이 전날로 분류되는 문제 (UTC → 로컬 시간대 그룹핑으로 수정)
-- [x] 타이머 대기 중 집중 시간 설정을 바꿔도 표시 시간이 갱신되지 않는 문제
+Your history and notes are stored locally on this Mac, using SwiftData and local preferences. Pomodoro uses the network for update checks and downloads. Automatic update checks can be turned off in settings.
 
-### 기능 추가
+If you enable Obsidian integration, the app writes to the folder you select. Any syncing of that folder is handled by your own Obsidian or file-sync setup. Shortcuts run through the macOS Shortcuts app; what they do depends on the shortcuts you choose.
 
-- [x] Status bar UI 수정
-- [x] Obsidian과 연동 — Daily note에 세션 log·하루 통계 자동 기록 ([docs/OBSIDIAN.md](docs/OBSIDIAN.md))
-- [x] version 관리 기능 ([CHANGELOG.md](CHANGELOG.md))
-- [x] 소리 알림 커스텀 기능 (설정 창 > 알림)
-- [x] 설정 창 (타이머 / 알림 / Obsidian / 단축어 / 일반)
-- [x] 세션 자동/수동 전환 설정
-- [x] 긴 휴식 간격 설정 기능
-- [x] 로그인 시 자동 실행 옵션
-- [x] app으로 release 하기 — GitHub 릴리스(zip)와 자동 업데이트 ([docs/RELEASE.md](docs/RELEASE.md))
-- [ ] Apple 공증 (Developer ID가 있어야 합니다. 지금은 받은 앱을 처음 열 때 한 번 허용해야 합니다)
-- [x] 집중 세션에 방해금지 모드가 자동으로 실행되는 기능 — 단축어 연동으로 ([docs/SHORTCUTS.md](docs/SHORTCUTS.md))
+## Build from source
+
+The app uses SwiftUI, SwiftData, and Combine.
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/jeongseongwon1116/pomodoro.git
+   ```
+
+2. Open `Pomodoro.xcodeproj` in Xcode.
+3. Build and run with **Cmd+R**. Development builds run from Xcode do not check for updates.
+
+For packaging and distribution, see the [release guide](docs/RELEASE.md).
+
+Source version: **1.4.0**. See [CHANGELOG.md](CHANGELOG.md) for the history; older entries are in Korean.
+
+## License
+
+TBD — this repository does not contain a `LICENSE` file.

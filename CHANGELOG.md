@@ -1,5 +1,7 @@
 # Changelog
 
+Older entries are in Korean.
+
 이 프로젝트는 [유의적 버전(Semantic Versioning)](https://semver.org/lang/ko/)을 따릅니다.
 
 ## [1.4.0] - 2026-10-16
