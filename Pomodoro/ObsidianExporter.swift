@@ -92,14 +92,20 @@ final class ObsidianExporter: ObservableObject {
         defer { folder.stopAccessingSecurityScopedResource() }
 
         let noteURL = folder.appendingPathComponent(Self.noteFileName(for: entry.startTime))
-        let line = Self.markdownLines(for: entry, details: details)
         do {
             let settings = AppSettings.shared
             let mission = settings.transitionManagementEnabled ? settings.dailyMissions.mission(for: entry.startTime) : nil
-            try Self.appendLine(line, toNoteAt: noteURL, mission: mission)
+            try Self.appendSession(entry, details: details, toNoteAt: noteURL, mission: mission)
         } catch {
             print("Obsidian 데일리 노트 기록 실패: \(error)")
         }
+    }
+
+    /// 파일 처리를 분리해 검증하며, 빈 로컬 미션으로 노트에 있던 미션을 지우지 않습니다.
+    static func appendSession(_ entry: FocusLogEntry, details: TransitionDetails? = nil,
+                              toNoteAt noteURL: URL, mission: DailyMission? = nil) throws {
+        let sessionMission: DailyMission? = mission.flatMap { singleLine($0.text).isEmpty ? nil : $0 }
+        try appendLine(markdownLines(for: entry, details: details), toNoteAt: noteURL, mission: sessionMission)
     }
 
     private func syncTodayMission() {
@@ -131,7 +137,7 @@ final class ObsidianExporter: ObservableObject {
     }
 
     /// 데일리 노트 파일을 읽어 기록 줄을 넣고 다시 씁니다.
-    /// 노트가 없으면 새로 만듭니다. 노트가 있는데 읽지 못하면 빈 노트로 취급해 덮어쓰지 않고
+    /// 변경이 있을 때만 쓰며, 노트가 없으면 새로 만듭니다. 읽지 못하는 기존 노트는 덮어쓰지 않고
     /// 오류를 던집니다. (기록은 앱 안에 남아 있으므로 잃는 것이 없습니다.)
     static func appendLine(_ line: String?, toNoteAt noteURL: URL, mission: DailyMission? = nil) throws {
         let existing: String
@@ -150,6 +156,7 @@ final class ObsidianExporter: ObservableObject {
             existing = ""
         }
         let updated = insert(line: line, into: existing, mission: mission)
+        guard updated != existing else { return }
         try updated.write(to: noteURL, atomically: true, encoding: .utf8)
     }
 
@@ -210,7 +217,7 @@ final class ObsidianExporter: ObservableObject {
 
     /// 섹션에 새 기록 줄을 추가하고, 하루 통계 줄을 다시 계산하여 하나로 유지합니다.
     static func insert(line: String?, into content: String, mission: DailyMission? = nil) -> String {
-        let (prefix, body, suffix) = splitSection(in: content)
+        let (prefix, body, suffix, hasSection) = splitSection(in: content)
 
         // 기존 통계 줄은 버리고(중복 방지) 나머지 줄은 그대로 보존합니다.
         var lines = body
@@ -225,8 +232,10 @@ final class ObsidianExporter: ObservableObject {
         }
         if let line, !line.isEmpty { lines.append(line) }
 
+        guard hasSection || missionLine != nil || !lines.isEmpty else { return content }
         let missionHeader = missionLine.map { $0 + "\n" } ?? ""
-        let section = sectionHeading + "\n" + missionHeader + statsLine(for: lines) + "\n" + lines.joined(separator: "\n") + "\n"
+        let bodyLines = lines.isEmpty ? "" : lines.joined(separator: "\n") + "\n"
+        let section = sectionHeading + "\n" + missionHeader + statsLine(for: lines) + "\n" + bodyLines
         return prefix + section + suffix
     }
 
@@ -253,16 +262,16 @@ final class ObsidianExporter: ObservableObject {
         return seconds
     }
 
-    /// 노트를 (섹션 앞, 섹션 본문, 섹션 뒤)로 분리합니다. 섹션이 없으면 본문은 빈 문자열입니다.
+    /// 노트를 (섹션 앞, 섹션 본문, 섹션 뒤, 섹션 존재 여부)로 분리합니다. 섹션이 없으면 본문은 빈 문자열입니다.
     /// 섹션 헤딩은 줄 전체가 일치해야 하고, 섹션은 다음 마크다운 헤딩("#" 여러 개 + 공백)에서 끝납니다.
     /// ("#태그" 줄은 헤딩이 아니므로 섹션 안에 그대로 둡니다.)
-    private static func splitSection(in content: String) -> (prefix: String, body: String, suffix: String) {
+    private static func splitSection(in content: String) -> (prefix: String, body: String, suffix: String, hasSection: Bool) {
         let lines = content.components(separatedBy: "\n")
         guard let headingIndex = lines.firstIndex(where: { trimmedLineEnd($0) == sectionHeading }) else {
             var prefix = content
             if !prefix.isEmpty && !prefix.hasSuffix("\n") { prefix += "\n" }
             if !prefix.isEmpty { prefix += "\n" }
-            return (prefix, "", "")
+            return (prefix, "", "", false)
         }
 
         let endIndex = lines[(headingIndex + 1)...].firstIndex(where: isMarkdownHeading) ?? lines.count
@@ -270,7 +279,7 @@ final class ObsidianExporter: ObservableObject {
         let prefix = lines[..<headingIndex].map { $0 + "\n" }.joined()
         let body = lines[(headingIndex + 1)..<endIndex].joined(separator: "\n")
         let suffix = endIndex < lines.count ? "\n" + lines[endIndex...].joined(separator: "\n") : ""
-        return (prefix, body, suffix)
+        return (prefix, body, suffix, true)
     }
 
     /// 줄 끝의 공백과 CR(윈도우 줄바꿈)을 뗀 문자열

@@ -202,27 +202,25 @@ struct NoteField: View {
     @FocusState private var isEditing: Bool
 
     var body: some View {
+        let menu = NoteFieldMenu.make(rewards: rewards, suggestions: suggestions)
         HStack(spacing: 4) {
             TextField(title, text: $text)
                 .textFieldStyle(.roundedBorder)
                 .focused($isEditing)
-            if !suggestions.isEmpty || !rewards.isEmpty {
+            if menu.isVisible {
                 Menu {
-                    ForEach(RewardSize.allCases) { size in
-                        let items = rewards.filter { $0.size == size && !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }
-                        if !items.isEmpty {
-                            Section(size.title) {
-                                ForEach(items) { item in
-                                    Button(Self.menuTitle(item.name)) { pick(item.name) }
-                                }
+                    ForEach(menu.groups) { group in
+                        Section(group.size.title) {
+                            ForEach(group.items) { item in
+                                Button(Self.menuTitle(item.name)) { pick(item.name) }
                             }
                         }
                     }
-                    if !rewards.isEmpty && !suggestions.isEmpty {
+                    if menu.showsHistoryDivider {
                         Divider()
                         Text(RewardListText.history)
                     }
-                    ForEach(suggestions, id: \.self) { suggestion in
+                    ForEach(menu.suggestions, id: \.self) { suggestion in
                         Button(Self.menuTitle(suggestion)) { pick(suggestion) }
                     }
                 } label: {

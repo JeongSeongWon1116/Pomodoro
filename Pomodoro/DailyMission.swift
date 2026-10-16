@@ -68,8 +68,58 @@ final class DailyMissionStore: ObservableObject {
     }
 }
 
+/// 입력은 바로 로컬에 저장하고, 외부 쓰기는 편집을 마칠 때 날짜별 최종 변경만 전달합니다.
+@MainActor
+final class DailyMissionEditor: ObservableObject {
+    private struct Change {
+        let original: DailyMission
+        let latest: DailyMission
+        let date: Date
+    }
+
+    private var changes: [String: Change] = [:]
+    private let write: (DailyMission, Date) -> Void
+
+    init(write: @escaping (DailyMission, Date) -> Void) {
+        self.write = write
+    }
+
+    func setText(_ text: String, in store: DailyMissionStore, for date: Date) {
+        let previous = store.mission(for: date)
+        store.setText(text, for: date)
+        recordChange(from: previous, to: store.mission(for: date), for: date)
+    }
+
+    func toggleDone(in store: DailyMissionStore, for date: Date) {
+        let previous = store.mission(for: date)
+        store.toggleDone(for: date)
+        recordChange(from: previous, to: store.mission(for: date), for: date)
+    }
+
+    private func recordChange(from previous: DailyMission, to latest: DailyMission, for date: Date) {
+        guard previous != latest else { return }
+        let key = DailyMissionStore.dayKey(for: date)
+        let original = changes[key]?.original ?? previous
+        if latest == original {
+            changes.removeValue(forKey: key)
+        } else {
+            changes[key] = Change(original: original, latest: latest, date: date)
+        }
+    }
+
+    func flush() {
+        let pending = changes.sorted { $0.key < $1.key }.map(\.value)
+        changes.removeAll()
+        for change in pending { write(change.latest, change.date) }
+    }
+}
+
 struct DailyMissionView: View {
     @ObservedObject var store: DailyMissionStore
+    @StateObject private var editor = DailyMissionEditor { mission, date in
+        ObsidianExporter.shared.updateMission(mission, for: date)
+    }
+    @FocusState private var isEditing: Bool
 
     var body: some View {
         // 타이머가 쉬고 있어도, 열린 팝오버의 날짜와 편집 칸은 자정을 지나면 바뀝니다.
@@ -82,15 +132,16 @@ struct DailyMissionView: View {
                     TextField(DailyMissionText.placeholder, text: Binding(
                         get: { store.mission(for: day).text },
                         set: {
-                            store.setText($0, for: day)
-                            ObsidianExporter.shared.updateMission(store.mission(for: day), for: day)
+                            editor.setText($0, in: store, for: day)
                         }
                     ))
                     .textFieldStyle(.roundedBorder)
+                    .focused($isEditing)
+                    .onSubmit { editor.flush() }
                     .id(DailyMissionStore.dayKey(for: day))
                     Button {
-                        store.toggleDone(for: day)
-                        ObsidianExporter.shared.updateMission(store.mission(for: day), for: day)
+                        editor.toggleDone(in: store, for: day)
+                        editor.flush()
                     } label: {
                         if mission.done {
                             Image(systemName: "checkmark")
@@ -107,5 +158,9 @@ struct DailyMissionView: View {
                 }
             }
         }
+        .onChange(of: isEditing) { _, editing in
+            if !editing { editor.flush() }
+        }
+        .onDisappear { editor.flush() }
     }
 }

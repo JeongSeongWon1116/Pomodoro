@@ -105,7 +105,9 @@ struct DaySummaryFlowTests {
 
     private func summary() throws -> DaySummary {
         let logs = try container.mainContext.fetch(FetchDescriptor<FocusLogEntry>())
-        return DaySummary.make(entries: settings.focusCompletions.entries(from: logs), notes: [:], calendar: .current, now: clock.date)
+        return DaySummary.make(entries: settings.focusCompletions.entries(from: logs),
+                               notes: settings.focusCompletions.includingPendingNotes([:]),
+                               calendar: .current, now: clock.date)
     }
 
     @Test func 선택을_기다리는_집중도_보이며_휴식_선택_뒤_겹치지_않는다() throws {
@@ -125,6 +127,44 @@ struct DaySummaryFlowTests {
         #expect(try summary().focusMinutes == 2)
     }
 
+    private func passDeadlineWithoutTick(paused: Bool) {
+        viewModel.startFocusSession()
+        clock.advance(viewModel.timeRemaining + 5)
+        if paused { viewModel.pauseTimer() }
+    }
+
+    private func expectInterruptedFocus() throws {
+        let logs = try container.mainContext.fetch(FetchDescriptor<FocusLogEntry>())
+        #expect(logs.count == 1)
+        let log = try #require(logs.first)
+        #expect(log.duration == TimeInterval(settings.focusDurationInMinutes * 60))
+        #expect(settings.focusCompletions.records[log.id]?.completed == false)
+        #expect(try summary().focusCount == 0)
+        #expect(try summary().focusMinutes == settings.focusDurationInMinutes)
+        #expect(viewModel.completedFocusSessions == 0)
+    }
+
+    @Test(arguments: [false, true])
+    func 종료_틱_전_건너뛰기는_시간을_채워도_미완료다(paused: Bool) throws {
+        passDeadlineWithoutTick(paused: paused)
+        viewModel.skipToNextSession()
+        try expectInterruptedFocus()
+    }
+
+    @Test(arguments: [false, true])
+    func 종료_틱_전_초기화는_시간을_채워도_미완료다(paused: Bool) throws {
+        passDeadlineWithoutTick(paused: paused)
+        viewModel.resetToIdle()
+        try expectInterruptedFocus()
+    }
+
+    @Test(arguments: [false, true])
+    func 종료_틱_전_앱_종료는_시간을_채워도_미완료다(paused: Bool) throws {
+        passDeadlineWithoutTick(paused: paused)
+        viewModel.logInterruptedSession()
+        try expectInterruptedFocus()
+    }
+
     @Test func 연장_중에_초기화해도_원래_마친_집중은_센다() throws {
         viewModel.startFocusSession()
         clock.advance(viewModel.timeRemaining)
@@ -135,6 +175,35 @@ struct DaySummaryFlowTests {
         #expect(try summary().focusCount == 1)
         #expect(try summary().extensionCount == 1)
         #expect(try summary().focusMinutes == 26)
+    }
+
+    @Test func 연장할_때마다_대기_기록과_메모의_횟수가_함께_바뀐다() throws {
+        viewModel.startFocusSession()
+        for count in 1...2 {
+            clock.advance(viewModel.timeRemaining)
+            viewModel.tick()
+            viewModel.extendFocus()
+            #expect(settings.focusCompletions.pending?.extensionCount == count)
+            #expect(settings.focusCompletions.pendingDetails?.extensionCount == count)
+            #expect(try summary().extensionCount == count)
+        }
+        viewModel.resetToIdle()
+        #expect(settings.focusCompletions.pendingDetails == nil)
+    }
+
+    @Test func 연장_중_할_일을_고치면_대기_메모와_오늘_요약도_바뀐다() throws {
+        viewModel.focusTask = "초안"
+        viewModel.startFocusSession()
+        clock.advance(viewModel.timeRemaining)
+        viewModel.tick()
+        viewModel.extendFocus()
+        viewModel.focusTask = "교정"
+        #expect(settings.focusCompletions.pendingDetails?.task == "교정")
+        #expect(try summary().mainTask == "교정")
+        viewModel.focusTask = ""
+        #expect(settings.focusCompletions.pendingDetails?.task == "")
+        #expect(try summary().mainTask == nil)
+        viewModel.resetToIdle()
     }
 
     @Test func 전환_관리를_꺼도_완료_여부는_남는다() throws {

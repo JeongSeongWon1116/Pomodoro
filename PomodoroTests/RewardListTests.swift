@@ -37,7 +37,43 @@ struct RewardListTests {
     }
 
     @Test func 보상_메뉴는_크기_순서와_지난_기록을_구분한다() {
-        #expect(RewardSize.allCases.map(\.title) == ["작은", "중간", "큰"])
-        #expect(RewardListText.history == "지난 보상")
+        let large = RewardItem(name: "외식", size: .large)
+        let small = RewardItem(name: "차", size: .small)
+        let medium = RewardItem(name: "산책", size: .medium)
+        let anotherSmall = RewardItem(name: "음악", size: .small)
+        let menu = NoteFieldMenu.make(rewards: [large, small, medium, anotherSmall,
+                                                RewardItem(name: "  ", size: .large)],
+                                      suggestions: ["책 읽기", "커피"])
+        #expect(menu.isVisible)
+        #expect(menu.groups.map(\.size) == [.small, .medium, .large])
+        #expect(menu.groups.map(\.items) == [[small, anotherSmall], [medium], [large]])
+        #expect(menu.suggestions == ["책 읽기", "커피"])
+        #expect(menu.showsHistoryDivider)
+    }
+
+    @Test func 빈_이름의_보상만_있으면_메뉴를_보이지_않는다() {
+        let menu = NoteFieldMenu.make(rewards: [RewardItem(name: "", size: .small),
+                                                RewardItem(name: " \t\n ", size: .large)], suggestions: [])
+        #expect(!menu.isVisible)
+        #expect(menu.groups.isEmpty)
+        #expect(!menu.showsHistoryDivider)
+    }
+
+    @Test func 빈_보상과_지난_기록만_있으면_앞에_구분선을_넣지_않는다() {
+        let menu = NoteFieldMenu.make(rewards: [RewardItem(name: "  ", size: .medium)], suggestions: ["커피"])
+        #expect(menu.isVisible)
+        #expect(menu.groups.isEmpty)
+        #expect(menu.suggestions == ["커피"])
+        #expect(!menu.showsHistoryDivider)
+    }
+
+    @Test func 유효한_보상만_크기별로_남기고_빈_그룹은_빼낸다() {
+        let reward = RewardItem(name: "산책", size: .medium)
+        let menu = NoteFieldMenu.make(rewards: [RewardItem(name: "  ", size: .small), reward,
+                                                RewardItem(name: "", size: .medium)], suggestions: [])
+        #expect(menu.isVisible)
+        #expect(menu.groups.map(\.size) == [.medium])
+        #expect(menu.groups.map(\.items) == [[reward]])
+        #expect(!menu.showsHistoryDivider)
     }
 }

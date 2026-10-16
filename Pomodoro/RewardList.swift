@@ -30,6 +30,29 @@ enum RewardListText {
     static let newReward = "새 보상"
 }
 
+/// 메뉴 표시와 구분선도 실제로 남은 항목으로 결정하는 순수 구성 함수입니다.
+struct NoteFieldMenu {
+    struct Group: Identifiable {
+        let size: RewardSize
+        let items: [RewardItem]
+        var id: RewardSize { size }
+    }
+
+    let groups: [Group]
+    let suggestions: [String]
+    var isVisible: Bool { !groups.isEmpty || !suggestions.isEmpty }
+    var showsHistoryDivider: Bool { !groups.isEmpty && !suggestions.isEmpty }
+
+    static func make(rewards: [RewardItem], suggestions: [String]) -> NoteFieldMenu {
+        let validRewards = rewards.filter { !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        let groups: [Group] = RewardSize.allCases.compactMap { size in
+            let items = validRewards.filter { $0.size == size }
+            return items.isEmpty ? nil : Group(size: size, items: items)
+        }
+        return NoteFieldMenu(groups: groups, suggestions: suggestions)
+    }
+}
+
 @MainActor
 final class RewardListStore: ObservableObject {
     private static let key = "rewardList.v1"

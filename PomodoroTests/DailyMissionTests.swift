@@ -60,4 +60,71 @@ struct DailyMissionTests {
         #expect(DailyMissionText.encouragement == "이것만 끝내면 오늘은 충분해요")
         #expect(DailyMissionText.done == "끝냄")
     }
+
+    @Test func 미션_입력은_편집을_끝낼_때_최종값만_한번_내보낸다() {
+        let store = DailyMissionStore(defaults: nil)
+        var writes: [DailyMission] = []
+        let editor = DailyMissionEditor { mission, _ in writes.append(mission) }
+        for text in ["ㅊ", "초", "초아", "초안"] {
+            editor.setText(text, in: store, for: day)
+        }
+        #expect(store.mission(for: day).text == "초안")
+        #expect(writes.isEmpty)
+        editor.flush() // 제출
+        #expect(writes == [DailyMission(text: "초안")])
+        editor.flush() // 뒤따르는 포커스 해제와 닫기는 중복 기록하지 않습니다.
+        editor.flush()
+        #expect(writes.count == 1)
+        editor.setText("교정", in: store, for: day)
+        editor.flush()
+        #expect(writes.map(\.text) == ["초안", "교정"])
+    }
+
+    @Test func 같은_미션이나_원래대로_돌린_입력은_내보내지_않는다() {
+        let store = DailyMissionStore(defaults: nil)
+        var writes: [DailyMission] = []
+        let editor = DailyMissionEditor { mission, _ in writes.append(mission) }
+        editor.setText(" \t ", in: store, for: day)
+        editor.flush()
+        store.setText("초안 교정", for: day)
+        editor.setText("초안\n교정", in: store, for: day)
+        editor.flush()
+        editor.setText("다른 글", in: store, for: day)
+        editor.setText("초안 교정", in: store, for: day)
+        editor.flush()
+        #expect(writes.isEmpty)
+    }
+
+    @Test func 미션을_지우거나_끝냄을_바꾸면_변경값만_내보낸다() {
+        let store = DailyMissionStore(defaults: nil)
+        var writes: [DailyMission] = []
+        let editor = DailyMissionEditor { mission, _ in writes.append(mission) }
+        editor.setText("초안", in: store, for: day)
+        editor.toggleDone(in: store, for: day)
+        editor.flush()
+        #expect(writes.count == 1)
+        #expect(writes.first?.text == "초안")
+        #expect(writes.first?.done == true)
+        editor.setText("", in: store, for: day)
+        editor.flush()
+        #expect(writes.last == DailyMission())
+        editor.toggleDone(in: store, for: day) // 빈 미션의 토글은 값이 바뀌지 않습니다.
+        editor.flush()
+        #expect(writes.count == 2)
+    }
+
+    @Test func 자정을_넘긴_편집도_원래_날짜에_내보낸다() throws {
+        let store = DailyMissionStore(defaults: nil)
+        let tomorrow = try #require(Calendar.current.date(byAdding: .day, value: 1, to: day))
+        var writes: [String: DailyMission] = [:]
+        let editor = DailyMissionEditor { mission, date in
+            writes[DailyMissionStore.dayKey(for: date)] = mission
+        }
+        editor.setText("어제의 글", in: store, for: day)
+        editor.setText("오늘의 글", in: store, for: tomorrow)
+        editor.flush()
+        #expect(writes.count == 2)
+        #expect(writes[DailyMissionStore.dayKey(for: day)]?.text == "어제의 글")
+        #expect(writes[DailyMissionStore.dayKey(for: tomorrow)]?.text == "오늘의 글")
+    }
 }
