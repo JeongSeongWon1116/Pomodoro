@@ -1,23 +1,23 @@
-# Obsidian 연동 가이드
+[한국어](OBSIDIAN.ko.md)
 
-뽀모도로 앱은 별도의 Obsidian 플러그인 설치 없이 데일리 노트에 세션 기록을 자동으로 남길 수 있습니다.
-Obsidian은 보관함(Vault)을 일반 폴더의 마크다운 파일로 관리하기 때문에, 앱이 해당 폴더에 직접
-마크다운을 기록하면 Obsidian에서 즉시 반영됩니다.
+# Obsidian integration
 
-## 설정 방법
+Pomodoro can write session records to your daily notes without an Obsidian plugin. An Obsidian vault is a folder of Markdown files, so the app writes directly to the selected folder and Obsidian reflects those changes.
 
-1. 메뉴 바의 뽀모도로 아이콘을 클릭해 팝오버를 열고 ⚙️(설정) 버튼을 누릅니다.
-2. **Obsidian** 탭에서 **"세션이 끝나면 데일리 노트에 기록"** 토글을 켭니다.
-3. **폴더 선택** 버튼을 눌러 데일리 노트가 저장되는 폴더를 선택합니다.
-   - 데일리 노트를 보관함 루트에 저장한다면 보관함 폴더를 선택하세요.
-   - `Daily/` 같은 하위 폴더를 쓴다면 그 폴더를 선택하세요.
-   - 선택한 폴더는 보안 범위 북마크(security-scoped bookmark)로 저장되어 앱을 재시작해도 유지됩니다.
+The app UI and exported labels are currently in Korean. Examples below preserve the actual output, including the labels used by the Dataview query.
 
-## 동작 방식
+## Setup
 
-세션(집중/휴식)이 끝날 때마다 해당 날짜의 `yyyy-MM-dd.md` 파일에 아래와 같이 기록됩니다.
-파일이 없으면 새로 만들고, 이미 있으면 `## 🍅 뽀모도로` 섹션을 찾아 그 끝에 줄을 추가합니다.
-(섹션이 없으면 노트 맨 아래에 섹션을 새로 만듭니다. 노트의 다른 내용은 건드리지 않습니다.)
+1. Click the Pomodoro menu bar icon to open the popover, then click the gear (settings) button.
+2. In the **Obsidian** tab, enable **Write to daily notes when a session ends (세션이 끝나면 데일리 노트에 기록)**.
+3. Click **Choose folder (폴더 선택)** and select the folder containing your daily notes.
+   - If daily notes live at the vault root, select the vault folder.
+   - If you use a subfolder such as `Daily/`, select that folder.
+   - The app saves access as a security-scoped bookmark, so the selection persists across restarts.
+
+## How it works
+
+When a focus or break session ends, the app writes to a `yyyy-MM-dd.md` file. Session exports use the session's start date. It creates the file if needed. In an existing file, it appends the record to the `## 🍅 뽀모도로` section, or adds that section at the bottom if it is missing. Other note content is left intact.
 
 ```markdown
 ## 🍅 뽀모도로
@@ -28,15 +28,13 @@ Obsidian은 보관함(Vault)을 일반 폴더의 마크다운 파일로 관리�
 - 🍅 집중 12분 13초 (10:10–10:22)
 ```
 
-- 시간은 **초 단위**까지 기록됩니다. 세션을 중간에 초기화/건너뛰기해도 실제 집중한 시간이 그대로 남습니다.
-- 종료 시각에는 일시정지한 시간이 포함되며, 시간 숫자는 실제 집중(활동)한 시간입니다.
-- **하루 통계** 줄(집중 횟수와 총 집중 시간)은 세션이 끝날 때마다 다시 계산되어 **항상 한 줄만 유지**됩니다.
-  통계는 섹션 안의 집중(🍅) 기록 줄을 기준으로 계산하므로 휴식은 포함되지 않습니다.
+- Durations are recorded **down to the second**. Resetting or skipping a session partway through still preserves the actual time spent.
+- The end clock time includes pauses; the duration represents actual active time.
+- The **daily statistics (하루 통계)** line is recalculated after each session and kept as **a single line**. It counts focus (🍅) records in the section, excluding breaks.
 
-### 할 일·보상·다음 시작점
+### Task, reward, and next starting point
 
-집중에 할 일이나 보상, 다음 시작점을 적었거나 연장을 했으면, 기록 줄 아래에 탭으로 들여쓴 줄로 함께 남습니다.
-적은 것만 남고, 아무것도 적지 않았으면 기록 줄 하나만 남습니다.
+If you wrote a task, reward, or next starting point, or extended focus, those details appear as tab-indented lines beneath the session. Only supplied details are written; without them, only the session line remains.
 
 ```markdown
 - 🍅 집중 35분 (09:00–09:35)
@@ -46,14 +44,19 @@ Obsidian은 보관함(Vault)을 일반 폴더의 마크다운 파일로 관리�
 	- 연장: +10분
 ```
 
-- 기록 줄 자체의 형식은 그대로이고, 들여쓴 줄은 하루 통계에 들어가지 않습니다.
-- 적은 글에 줄바꿈이 있으면 한 줄로 펴서 적습니다. `%%`(Obsidian 주석 표시)는 뒤의 내용이 숨지 않도록 `% %`로 띄어 적습니다.
-- 다음 시작점은 집중이 끝났을 때의 선택 화면에서 적은 것만 남습니다.
+The example records a chapter draft as the task, coffee as the reward, a paragraph to return to, and a 10-minute extension.
 
-## Obsidian에서 통계 활용하기 (선택)
+- The session-line format is unchanged, and indented details do not count toward daily statistics.
+- Line breaks in your text are flattened to one line. `%%` (Obsidian's comment marker) becomes `% %` so that following content is not hidden.
+- Only a next starting point entered on the end-of-focus choice screen is exported.
 
-하루 통계는 노트 안에 자동으로 작성되지만, 여러 날에 걸친 집계가 필요하면
-[Dataview](https://blacksmithgu.github.io/obsidian-dataview/) 플러그인으로 모아볼 수 있습니다.
+### Daily mission (1.4)
+
+With integration enabled, writing or editing today's main mission updates one indented line at the top of that day's Pomodoro section. Marking it done also updates the line. Session records and existing daily statistics are preserved. Weekly reflection notes are not exported.
+
+## Use statistics in Obsidian (optional)
+
+Daily statistics are already written into each note. To collect them across days, you can use the [Dataview](https://blacksmithgu.github.io/obsidian-dataview/) plugin:
 
 ````markdown
 ```dataviewjs
@@ -66,14 +69,14 @@ for (const page of pages) {
 ```
 ````
 
-> `"Daily"` 부분은 데일리 노트 폴더 경로에 맞게 수정하세요.
+Replace `"Daily"` with your daily-note folder path. Keep the Korean matching text unchanged: it matches the app's exported labels.
 
-## 다른 연동 방식과의 비교
+## Comparison with other approaches
 
-| 방식 | 장점 | 단점 |
-|------|------|------|
-| **폴더 직접 기록 (현재 방식)** | Obsidian이 꺼져 있어도 동작, 플러그인 불필요 | 폴더를 한 번 선택해야 함 |
-| Obsidian URI (`obsidian://`) + Advanced URI 플러그인 | 설정이 간단 | 기록 시마다 Obsidian이 활성화됨, 플러그인 필요, 백그라운드 기록 불가 |
-| 전용 Obsidian 커뮤니티 플러그인 제작 | Obsidian 내부 UI 제공 가능 | 별도 프로젝트 유지보수 필요, 앱→플러그인 데이터 전달 경로가 결국 파일 기반 |
+| Approach | Advantages | Limitations |
+|---|---|---|
+| **Direct folder writes (current approach)** | Works while Obsidian is closed; no plugin needed | Requires selecting a folder once |
+| Obsidian URI (`obsidian://`) with Advanced URI | Simple setup | Activates Obsidian on each write; requires a plugin; cannot write in the background |
+| A dedicated Obsidian community plugin | Could provide UI within Obsidian | Requires a separate project; app-to-plugin data transfer would still use files |
 
-데일리 노트의 파일명 형식이 `yyyy-MM-dd`(Obsidian 기본값)가 아닌 경우 현재는 지원되지 않습니다.
+Daily-note filename formats other than `yyyy-MM-dd` (Obsidian's default) are not currently supported.
