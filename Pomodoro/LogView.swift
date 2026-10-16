@@ -57,7 +57,14 @@ struct LogView: View {
                 Text("이 동작은 되돌릴 수 없습니다.")
             }
         } detail: {
-            LogChartView(period: selectedPeriod, offset: periodOffset)
+            VStack(spacing: 0) {
+                if settings.transitionManagementEnabled {
+                    WeeklyReviewView(missions: settings.dailyMissions,
+                                     completions: settings.focusCompletions, review: settings.weeklyReview)
+                    Divider()
+                }
+                LogChartView(period: selectedPeriod, offset: periodOffset)
+            }
         }
     }
 

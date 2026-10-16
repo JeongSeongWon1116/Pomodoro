@@ -13,9 +13,13 @@ final class ObsidianExporter: ObservableObject {
     private static let bookmarkKey = "obsidianFolderBookmark"
     static let sectionHeading = "## 🍅 뽀모도로"
     static let statsPrefix = "**하루 통계:**"
+    static let missionPrefix = "\t- 오늘의 메인 미션: "
 
     @Published var isEnabled: Bool {
-        didSet { UserDefaults.standard.set(isEnabled, forKey: Self.enabledKey) }
+        didSet {
+            UserDefaults.standard.set(isEnabled, forKey: Self.enabledKey)
+            if isEnabled { syncTodayMission() }
+        }
     }
     @Published private(set) var folderName: String?
 
@@ -42,6 +46,7 @@ final class ObsidianExporter: ObservableObject {
         panel.message = "데일리 노트가 저장되는 Obsidian 폴더를 선택하세요"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         saveBookmark(for: url)
+        syncTodayMission()
     }
 
     private func saveBookmark(for url: URL) {
@@ -89,9 +94,32 @@ final class ObsidianExporter: ObservableObject {
         let noteURL = folder.appendingPathComponent(Self.noteFileName(for: entry.startTime))
         let line = Self.markdownLines(for: entry, details: details)
         do {
-            try Self.appendLine(line, toNoteAt: noteURL)
+            let settings = AppSettings.shared
+            let mission = settings.transitionManagementEnabled ? settings.dailyMissions.mission(for: entry.startTime) : nil
+            try Self.appendLine(line, toNoteAt: noteURL, mission: mission)
         } catch {
             print("Obsidian 데일리 노트 기록 실패: \(error)")
+        }
+    }
+
+    private func syncTodayMission() {
+        let today = Date()
+        updateMission(AppSettings.shared.dailyMissions.mission(for: today), for: today)
+    }
+
+    /// 미션만 적거나 고친 날에도 남깁니다. 기존 섹션과 파일 읽기 보호를 그대로 사용합니다.
+    func updateMission(_ mission: DailyMission, for date: Date) {
+        if DataController.isRunningTests { return }
+        guard isEnabled, AppSettings.shared.transitionManagementEnabled,
+              let folder = resolveFolderURL(), folder.startAccessingSecurityScopedResource() else { return }
+        defer { folder.stopAccessingSecurityScopedResource() }
+        let noteURL = folder.appendingPathComponent(Self.noteFileName(for: date))
+        // 빈 미션을 지우는 동작으로 새 빈 노트를 만들지는 않습니다.
+        guard !mission.text.isEmpty || FileManager.default.fileExists(atPath: noteURL.path) else { return }
+        do {
+            try Self.appendLine(nil, toNoteAt: noteURL, mission: mission)
+        } catch {
+            print("Obsidian 메인 미션을 기록하지 못했습니다: \(error)")
         }
     }
 
@@ -105,7 +133,7 @@ final class ObsidianExporter: ObservableObject {
     /// 데일리 노트 파일을 읽어 기록 줄을 넣고 다시 씁니다.
     /// 노트가 없으면 새로 만듭니다. 노트가 있는데 읽지 못하면 빈 노트로 취급해 덮어쓰지 않고
     /// 오류를 던집니다. (기록은 앱 안에 남아 있으므로 잃는 것이 없습니다.)
-    static func appendLine(_ line: String, toNoteAt noteURL: URL) throws {
+    static func appendLine(_ line: String?, toNoteAt noteURL: URL, mission: DailyMission? = nil) throws {
         let existing: String
         if FileManager.default.fileExists(atPath: noteURL.path) {
             do {
@@ -121,14 +149,12 @@ final class ObsidianExporter: ObservableObject {
             }
             existing = ""
         }
-        let updated = insert(line: line, into: existing)
+        let updated = insert(line: line, into: existing, mission: mission)
         try updated.write(to: noteURL, atomically: true, encoding: .utf8)
     }
 
     static func noteFileName(for date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: date) + ".md"
+        DailyMissionStore.dayKey(for: date) + ".md"
     }
 
     static func markdownLine(for entry: FocusLogEntry) -> String {
@@ -183,7 +209,7 @@ final class ObsidianExporter: ObservableObject {
     }
 
     /// 섹션에 새 기록 줄을 추가하고, 하루 통계 줄을 다시 계산하여 하나로 유지합니다.
-    static func insert(line: String, into content: String) -> String {
+    static func insert(line: String?, into content: String, mission: DailyMission? = nil) -> String {
         let (prefix, body, suffix) = splitSection(in: content)
 
         // 기존 통계 줄은 버리고(중복 방지) 나머지 줄은 그대로 보존합니다.
@@ -191,9 +217,16 @@ final class ObsidianExporter: ObservableObject {
             .split(separator: "\n", omittingEmptySubsequences: true)
             .map(String.init)
             .filter { !$0.hasPrefix(statsPrefix) }
-        lines.append(line)
+        var missionLine = lines.first { $0.hasPrefix(missionPrefix) }
+        lines.removeAll { $0.hasPrefix(missionPrefix) }
+        if let mission {
+            let text = singleLine(mission.text)
+            missionLine = text.isEmpty ? nil : missionPrefix + (mission.done ? "✓ " : "") + text
+        }
+        if let line, !line.isEmpty { lines.append(line) }
 
-        let section = sectionHeading + "\n" + statsLine(for: lines) + "\n" + lines.joined(separator: "\n") + "\n"
+        let missionHeader = missionLine.map { $0 + "\n" } ?? ""
+        let section = sectionHeading + "\n" + missionHeader + statsLine(for: lines) + "\n" + lines.joined(separator: "\n") + "\n"
         return prefix + section + suffix
     }
 

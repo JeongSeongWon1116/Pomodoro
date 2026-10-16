@@ -81,12 +81,16 @@ struct DailyMissionView: View {
                 HStack {
                     TextField(DailyMissionText.placeholder, text: Binding(
                         get: { store.mission(for: day).text },
-                        set: { store.setText($0, for: day) }
+                        set: {
+                            store.setText($0, for: day)
+                            ObsidianExporter.shared.updateMission(store.mission(for: day), for: day)
+                        }
                     ))
                     .textFieldStyle(.roundedBorder)
                     .id(DailyMissionStore.dayKey(for: day))
                     Button {
                         store.toggleDone(for: day)
+                        ObsidianExporter.shared.updateMission(store.mission(for: day), for: day)
                     } label: {
                         if mission.done {
                             Image(systemName: "checkmark")
