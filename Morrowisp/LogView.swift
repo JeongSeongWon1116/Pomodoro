@@ -5,8 +5,10 @@ import SwiftUI
 import SwiftData
 
 struct LogView: View {
-    @ObservedObject private var settings = AppSettings.shared
-    @State private var selectedPeriod: TimePeriod = .weekly
+    @Environment(\.locale) private var locale
+    var notesContext: ModelContext? = DataController.shared.transitionContainer?.mainContext
+    @ObservedObject var settings = AppSettings.shared
+    @State var selectedPeriod: TimePeriod = .weekly
     @State private var periodOffset: Int = 0
     @State private var showingDeleteAlert = false
     @Environment(\.modelContext) private var modelContext
@@ -26,21 +28,22 @@ struct LogView: View {
             VStack(spacing: 0) {
                 Picker("Choose period", selection: periodBinding) {
                     ForEach(TimePeriod.allCases) { period in
-                        Text(period.title).tag(period)
+                        Text(period.localizedTitle(locale: locale)).tag(period)
                     }
                 }
                 .pickerStyle(.segmented)
+                .labelsHidden()
                 .padding()
 
                 if selectedPeriod != .all {
                     PeriodNavigationBar(period: selectedPeriod, offset: $periodOffset)
-                    FilteredLogListView(period: selectedPeriod, offset: periodOffset)
+                    FilteredLogListView(period: selectedPeriod, offset: periodOffset, settings: settings, notesContext: notesContext)
                 } else {
                     AllRecordsSummaryView()
                 }
             }
             .navigationTitle("Focus history")
-            .frame(minWidth: 320)
+            .navigationSplitViewColumnWidth(min: 360, ideal: 380, max: 500)
             .toolbar {
                 ToolbarItem {
                     Button(role: .destructive) {
@@ -65,20 +68,23 @@ struct LogView: View {
                 }
                 LogChartView(period: selectedPeriod, offset: periodOffset)
             }
+            .frame(minWidth: 600)
         }
+        .frame(minWidth: 980, minHeight: 640)
     }
 
     private func deleteAllLogs() {
         try? modelContext.delete(model: FocusLogEntry.self)
         settings.focusCompletions.remove(nil)
         // 기록에 딸린 할 일·보상·다음 시작점 메모도 함께 지웁니다.
-        TransitionNote.delete(forSessions: nil, in: DataController.shared.transitionContainer?.mainContext)
+        TransitionNote.delete(forSessions: nil, in: notesContext)
     }
 }
 
 // MARK: - Period Navigation Bar
 
 struct PeriodNavigationBar: View {
+    @Environment(\.locale) private var locale
     let period: TimePeriod
     @Binding var offset: Int
 
@@ -94,9 +100,10 @@ struct PeriodNavigationBar: View {
 
             Spacer()
 
-            Text(period.dateRangeLabel(offset: offset))
+            Text(period.dateRangeLabel(offset: offset, locale: locale))
                 .font(.subheadline)
                 .fontWeight(.medium)
+                .lineLimit(1)
 
             Spacer()
 
@@ -117,6 +124,7 @@ struct PeriodNavigationBar: View {
 // MARK: - All Records Summary (전체 기록 탭 사이드바)
 
 struct AllRecordsSummaryView: View {
+    @Environment(\.locale) private var locale
     @Query private var logs: [FocusLogEntry]
 
     private var totalFocusSessions: Int {
@@ -153,32 +161,32 @@ struct AllRecordsSummaryView: View {
             VStack(spacing: 16) {
                 Spacer(minLength: 20)
                 StatCard(
-                    title: String(localized: "Total focus sessions"),
-                    value: String(localized: "Sessions: \(totalFocusSessions.formatted())"),
+                    title: String(localized: "Total focus sessions", bundle: AppLocalization.bundle(for: locale), locale: locale),
+                    value: String(localized: "Sessions: \(totalFocusSessions.formatted())", bundle: AppLocalization.bundle(for: locale), locale: locale),
                     systemImage: "timer",
                     color: .blue
                 )
                 StatCard(
-                    title: String(localized: "Total focus time"),
+                    title: String(localized: "Total focus time", bundle: AppLocalization.bundle(for: locale), locale: locale),
                     value: formatTime(totalFocusTime),
                     systemImage: "brain.head.profile",
                     color: .blue
                 )
                 StatCard(
-                    title: String(localized: "Total break time"),
+                    title: String(localized: "Total break time", bundle: AppLocalization.bundle(for: locale), locale: locale),
                     value: formatTime(totalBreakTime),
                     systemImage: "cup.and.saucer",
                     color: .green
                 )
                 StatCard(
-                    title: String(localized: "Average daily focus time"),
+                    title: String(localized: "Average daily focus time", bundle: AppLocalization.bundle(for: locale), locale: locale),
                     value: activeDayCount > 0 ? formatTime(dailyAverageFocusTime) : "-",
                     systemImage: "clock.arrow.circlepath",
                     color: .orange
                 )
                 StatCard(
-                    title: String(localized: "Average daily focus sessions"),
-                    value: activeDayCount > 0 ? String(localized: "Sessions: \(dailyAverageSessions.formatted(.number.precision(.fractionLength(1))))") : "-",
+                    title: String(localized: "Average daily focus sessions", bundle: AppLocalization.bundle(for: locale), locale: locale),
+                    value: activeDayCount > 0 ? String(localized: "Sessions: \(dailyAverageSessions.formatted(.number.precision(.fractionLength(1))))", bundle: AppLocalization.bundle(for: locale), locale: locale) : "-",
                     systemImage: "calendar.badge.clock",
                     color: .orange
                 )
@@ -193,9 +201,9 @@ struct AllRecordsSummaryView: View {
         let hours = Int(interval) / 3600
         let minutes = (Int(interval) % 3600) / 60
         if hours > 0 {
-            return String(localized: "\(hours.formatted()) hr \(minutes.formatted()) min")
+            return String(localized: "\(hours.formatted()) hr \(minutes.formatted()) min", bundle: AppLocalization.bundle(for: locale), locale: locale)
         } else {
-            return String(localized: "\(minutes.formatted()) min")
+            return String(localized: "\(minutes.formatted()) min", bundle: AppLocalization.bundle(for: locale), locale: locale)
         }
     }
 }
@@ -233,7 +241,7 @@ struct StatCard: View {
 struct FilteredLogListView: View {
     @Query private var logs: [FocusLogEntry]
     @Environment(\.modelContext) private var modelContext
-    @ObservedObject private var settings = AppSettings.shared
+    @ObservedObject var settings = AppSettings.shared
     /// 세션마다 적어 둔 할 일·보상·다음 시작점 (다른 저장소에 있어 따로 읽습니다)
     @State private var notes: [UUID: TransitionDetails] = [:]
 
@@ -247,7 +255,14 @@ struct FilteredLogListView: View {
         transitionManagementEnabled ? logs.filter { $0.type == .focus }.map(\.id) : []
     }
 
-    init(period: TimePeriod, offset: Int) {
+    private let notesContext: ModelContext?
+
+    @MainActor
+    init(period: TimePeriod, offset: Int, settings: AppSettings = .shared,
+         notesContext: ModelContext?? = nil) {
+        self.settings = settings
+        // 기본값은 앱의 글 저장소. 시험은 다른 컨텍스트(또는 nil)를 넘긴다
+        self.notesContext = notesContext ?? DataController.shared.transitionContainer?.mainContext
         _logs = Query(filter: period.predicate(offset: offset), sort: \.startTime, order: .reverse)
     }
 
@@ -273,7 +288,7 @@ struct FilteredLogListView: View {
                         guard let dayLogs = groupedLogs[day] else { return }
                         let deleted = indexSet.map { dayLogs[$0] }
                         settings.focusCompletions.remove(deleted.map(\.id))
-                        TransitionNote.delete(forSessions: deleted.map(\.id), in: DataController.shared.transitionContainer?.mainContext)
+                        TransitionNote.delete(forSessions: deleted.map(\.id), in: notesContext)
                         for log in deleted {
                             modelContext.delete(log)
                         }
@@ -287,7 +302,7 @@ struct FilteredLogListView: View {
         // 보이는 기록이 바뀔 때마다(새 세션, 기간 이동, 삭제), 그리고 전환 관리를 켜고 끌 때 딸린 글을 다시 읽습니다.
         .task(id: Self.sessionsToLookUp(logs.map { (id: $0.id, type: $0.sessionType) }, transitionManagementEnabled: settings.transitionManagementEnabled)) {
             let ids = Self.sessionsToLookUp(logs.map { (id: $0.id, type: $0.sessionType) }, transitionManagementEnabled: settings.transitionManagementEnabled)
-            notes = TransitionNote.details(forSessions: ids, in: DataController.shared.transitionContainer?.mainContext)
+            notes = TransitionNote.details(forSessions: ids, in: notesContext)
         }
     }
 }
@@ -295,23 +310,25 @@ struct FilteredLogListView: View {
 // MARK: - Log Entry Row
 
 struct LogEntryRow: View {
+    @Environment(\.locale) private var locale
     let log: FocusLogEntry
     /// 이 세션에 적어 둔 할 일·보상·다음 시작점 (없으면 nil)
     var details: TransitionDetails? = nil
 
-    private static let timeFormatter: DateFormatter = {
+    private var timeFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         formatter.dateStyle = .none
+        formatter.locale = locale
         return formatter
-    }()
+    }
 
     private var durationText: String {
         let minutes = Int(log.duration / 60)
         let seconds = Int(log.duration) % 60
-        var text = String(localized: "\(minutes.formatted()) min")
+        var text = String(localized: "\(minutes.formatted()) min", bundle: AppLocalization.bundle(for: locale), locale: locale)
         if seconds > 0 {
-            text += String(localized: " \(seconds.formatted()) sec")
+            text += String(localized: " \(seconds.formatted()) sec", bundle: AppLocalization.bundle(for: locale), locale: locale)
         }
         return text
     }
@@ -321,9 +338,9 @@ struct LogEntryRow: View {
         let minutes = Int(log.pausedDuration / 60)
         let seconds = Int(log.pausedDuration) % 60
         if minutes > 0 {
-            return String(localized: "Paused for \(minutes.formatted()) min")
+            return String(localized: "Paused for \(minutes.formatted()) min", bundle: AppLocalization.bundle(for: locale), locale: locale)
         } else {
-            return String(localized: "Paused for \(seconds.formatted()) sec")
+            return String(localized: "Paused for \(seconds.formatted()) sec", bundle: AppLocalization.bundle(for: locale), locale: locale)
         }
     }
 
@@ -337,24 +354,30 @@ struct LogEntryRow: View {
                 .font(.title3)
                 .foregroundStyle(log.sessionType.color)
                 .frame(width: 24)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(log.sessionType.description).fontWeight(.bold)
-                // 종료 시각은 활동 시간뿐 아니라 일시정지된 시간도 포함해야 합니다.
-                Text(verbatim: "\(LogEntryRow.timeFormatter.string(from: log.startTime)) - \(LogEntryRow.timeFormatter.string(from: log.startTime.addingTimeInterval(log.duration + log.pausedDuration)))")
-                    .font(.caption).foregroundStyle(.secondary)
-                ForEach(details?.labeledLines ?? [], id: \.label) { line in
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(log.sessionType.localizedDescription(locale: locale)).fontWeight(.bold)
+                        // 종료 시각은 활동 시간뿐 아니라 일시정지된 시간도 포함해야 합니다.
+                        Text(verbatim: "\(timeFormatter.string(from: log.startTime)) - \(timeFormatter.string(from: log.startTime.addingTimeInterval(log.duration + log.pausedDuration)))")
+                            .font(.caption).foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(durationText)
+                            .font(.system(.body, design: .monospaced)).foregroundStyle(.primary)
+                        if let paused = pausedText {
+                            Text(paused)
+                                .font(.caption2).foregroundStyle(.orange)
+                        }
+                    }
+                    .fixedSize(horizontal: true, vertical: false)
+                }
+                ForEach(details?.labeledLines(locale: locale) ?? [], id: \.label) { line in
                     // 긴 글은 두 줄까지 접어 보여 줍니다.
                     NoteLine(label: line.label, text: line.text)
                         .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(durationText)
-                    .font(.system(.body, design: .monospaced)).foregroundStyle(.primary)
-                if let paused = pausedText {
-                    Text(paused)
-                        .font(.caption2).foregroundStyle(.orange)
                 }
             }
         }
@@ -366,6 +389,7 @@ struct LogEntryRow: View {
 // MARK: - Log Section Header
 
 struct LogSectionHeader: View {
+    @Environment(\.locale) private var locale
     let day: Date
     let logs: [FocusLogEntry]
 
@@ -374,10 +398,11 @@ struct LogSectionHeader: View {
     }
 
     var body: some View {
-        HStack {
-            Text(day.formatted(.dateTime.year().month().day().weekday(.wide)))
-            Spacer()
+        VStack(alignment: .leading, spacing: 4) {
+            Text(day.formatted(.dateTime.locale(locale).year().month().day().weekday(.wide)))
+                .lineLimit(1)
             Text("Total focus: \(Int(totalFocusTime / 60).formatted()) min")
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
         .font(.headline)
@@ -391,11 +416,13 @@ struct LogSectionHeader: View {
 enum TimePeriod: String, CaseIterable, Identifiable {
     case weekly = "이번 주", monthly = "이번 달", all = "전체 기록"
     var id: Self { self }
-    var title: String {
+    var title: String { localizedTitle() }
+
+    func localizedTitle(locale: Locale = .current) -> String {
         switch self {
-        case .weekly: String(localized: "This week")
-        case .monthly: String(localized: "This month")
-        case .all: String(localized: "All records")
+        case .weekly: String(localized: "This week", bundle: AppLocalization.bundle(for: locale), locale: locale)
+        case .monthly: String(localized: "This month", bundle: AppLocalization.bundle(for: locale), locale: locale)
+        case .all: String(localized: "All records", bundle: AppLocalization.bundle(for: locale), locale: locale)
         }
     }
 
@@ -421,10 +448,11 @@ enum TimePeriod: String, CaseIterable, Identifiable {
         }
     }
 
-    func dateRangeLabel(offset: Int) -> String {
+    func dateRangeLabel(offset: Int, locale: Locale = .current) -> String {
         let calendar = Calendar.current
         let now = Date()
         let formatter = DateFormatter()
+        formatter.locale = locale
 
         switch self {
         case .weekly:
@@ -441,7 +469,7 @@ enum TimePeriod: String, CaseIterable, Identifiable {
             formatter.setLocalizedDateFormatFromTemplate("yyyyMMMM")
             return formatter.string(from: startDate)
         case .all:
-            return String(localized: "All records")
+            return String(localized: "All records", bundle: AppLocalization.bundle(for: locale), locale: locale)
         }
     }
 }

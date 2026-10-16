@@ -3,11 +3,14 @@
 // 타이머 제어에 집중하고, 상세 설정은 별도의 설정 창에서 합니다.
 
 import SwiftUI
+import SwiftData
 
 struct PopoverView: View {
+    @Environment(\.locale) private var locale
+    var notesContext: ModelContext? = DataController.shared.transitionContainer?.mainContext
     @EnvironmentObject var viewModel: PomodoroViewModel
-    @ObservedObject private var settings = AppSettings.shared
-    @ObservedObject private var updates = UpdateController.shared
+    @ObservedObject var settings = AppSettings.shared
+    @ObservedObject var updates = UpdateController.shared
     @Environment(\.openWindow) private var openWindow
 
     private var isAwaitingChoice: Bool { viewModel.timerState == .awaitingChoice }
@@ -20,7 +23,7 @@ struct PopoverView: View {
             HStack(spacing: 6) {
                 Image(systemName: isAwaitingChoice ? "bell.badge" : viewModel.currentState.symbolName)
                     .foregroundStyle(viewModel.currentState.color)
-                Text(isAwaitingChoice ? String(localized: "\(viewModel.currentState.description) ended") : viewModel.currentState.description)
+                Text(isAwaitingChoice ? String(localized: "\(viewModel.currentState.localizedDescription(locale: locale)) ended", bundle: AppLocalization.bundle(for: locale), locale: locale) : viewModel.currentState.localizedDescription(locale: locale))
                     .fontWeight(.semibold)
             }
             .font(.headline)
@@ -71,7 +74,8 @@ struct PopoverView: View {
             .padding(.horizontal, 4)
 
             if settings.transitionManagementEnabled {
-                DaySummaryView(completions: settings.focusCompletions)
+                DaySummaryView(notesContext: notesContext, completions: settings.focusCompletions,
+                               isFocusing: viewModel.currentState == .focus)
             }
 
             Divider()
@@ -120,21 +124,21 @@ struct PopoverView: View {
         let reward = viewModel.focusReward.trimmingCharacters(in: .whitespacesAndNewlines)
         VStack(alignment: .leading, spacing: 6) {
             if isAwaitingChoice {
-                if !reward.isEmpty { NoteLine(label: String(localized: "Reward"), text: reward) }
+                if !reward.isEmpty { NoteLine(label: String(localized: "Reward", bundle: AppLocalization.bundle(for: locale), locale: locale), text: reward) }
                 TextField("Where to pick up next time", text: $viewModel.nextStartingPoint)
                     .textFieldStyle(.roundedBorder)
             } else if viewModel.currentState == .idle || viewModel.currentState == .focus {
-                if !viewModel.resumeHint.isEmpty { NoteLine(label: String(localized: "Pick up from"), text: viewModel.resumeHint) }
-                NoteField(title: String(localized: "Task"), text: $viewModel.focusTask,
-                          suggestions: viewModel.taskSuggestions, help: String(localized: "Choose from past tasks"))
+                if !viewModel.resumeHint.isEmpty { NoteLine(label: String(localized: "Pick up from", bundle: AppLocalization.bundle(for: locale), locale: locale), text: viewModel.resumeHint) }
+                NoteField(title: String(localized: "Task", bundle: AppLocalization.bundle(for: locale), locale: locale), text: $viewModel.focusTask,
+                          suggestions: viewModel.taskSuggestions, help: String(localized: "Choose from past tasks", bundle: AppLocalization.bundle(for: locale), locale: locale))
                 RewardField(store: settings.rewardList, text: $viewModel.focusReward,
                             suggestions: viewModel.rewardSuggestions)
             } else {
-                if let suggestion = viewModel.breakSuggestion { NoteLine(label: String(localized: "Suggestion"), text: suggestion) }
-                if !reward.isEmpty { NoteLine(label: String(localized: "Reward"), text: reward) }
+                if let suggestion = viewModel.localizedBreakSuggestion(locale: locale) { NoteLine(label: String(localized: "Suggestion", bundle: AppLocalization.bundle(for: locale), locale: locale), text: suggestion) }
+                if !reward.isEmpty { NoteLine(label: String(localized: "Reward", bundle: AppLocalization.bundle(for: locale), locale: locale), text: reward) }
                 let task = viewModel.focusTask.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !task.isEmpty { NoteLine(label: String(localized: "Your task"), text: task) }
-                if !viewModel.resumeHint.isEmpty { NoteLine(label: String(localized: "Next starting point"), text: viewModel.resumeHint) }
+                if !task.isEmpty { NoteLine(label: String(localized: "Your task", bundle: AppLocalization.bundle(for: locale), locale: locale), text: task) }
+                if !viewModel.resumeHint.isEmpty { NoteLine(label: String(localized: "Next starting point", bundle: AppLocalization.bundle(for: locale), locale: locale), text: viewModel.resumeHint) }
             }
         }
     }
@@ -150,10 +154,10 @@ struct PopoverView: View {
 
     private var buttonTitle: String {
         switch viewModel.timerState {
-        case .running: String(localized: "Pause")
-        case .paused: String(localized: "Resume")
-        case .idle: viewModel.currentState == .idle ? String(localized: "Start") : String(localized: "Start \(viewModel.currentState.description)")
-        case .awaitingChoice: String(localized: "Start break")
+        case .running: String(localized: "Pause", bundle: AppLocalization.bundle(for: locale), locale: locale)
+        case .paused: String(localized: "Resume", bundle: AppLocalization.bundle(for: locale), locale: locale)
+        case .idle: viewModel.currentState == .idle ? String(localized: "Start", bundle: AppLocalization.bundle(for: locale), locale: locale) : String(localized: "Start \(viewModel.currentState.localizedDescription(locale: locale))", bundle: AppLocalization.bundle(for: locale), locale: locale)
+        case .awaitingChoice: String(localized: "Start break", bundle: AppLocalization.bundle(for: locale), locale: locale)
         }
     }
 
@@ -161,6 +165,7 @@ struct PopoverView: View {
 
 /// 팝오버 맨 아래의 "새 버전" 줄. 상태를 값으로 받아, 업데이터 없이도 그려 볼 수 있습니다.
 struct UpdateRow: View {
+    @Environment(\.locale) private var locale
     let version: String
     /// 받아 두었는지. 받아 두었으면 누르자마자 설치하고 앱이 다시 켜집니다. 아니면 Sparkle 의 안내 창이 뜹니다.
     let downloaded: Bool
@@ -174,11 +179,14 @@ struct UpdateRow: View {
             Text("New version \(version)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .help("New version \(version)")
             Spacer()
-            Button(Self.buttonTitle(installing: installing), action: update)
+            Button(Self.buttonTitle(installing: installing, locale: locale), action: update)
                 .controlSize(.small)
+                .fixedSize()
                 .disabled(installing)
-                .help(Self.help(downloaded: downloaded))
+                .help(Self.help(downloaded: downloaded, locale: locale))
         }
     }
 
@@ -194,6 +202,7 @@ struct UpdateRow: View {
 
 /// 글을 적는 칸. 지난 집중에 적었던 글이 있으면 칸 옆의 단추로 골라 넣을 수 있습니다.
 struct NoteField: View {
+    @Environment(\.locale) private var locale
     let title: String
     @Binding var text: String
     let suggestions: [String]
@@ -210,7 +219,7 @@ struct NoteField: View {
             if menu.isVisible {
                 Menu {
                     ForEach(menu.groups) { group in
-                        Section(group.size.title) {
+                        Section(group.size.localizedTitle(locale: locale)) {
                             ForEach(group.items) { item in
                                 Button(Self.menuTitle(item.name)) { pick(item.name) }
                             }
@@ -218,7 +227,7 @@ struct NoteField: View {
                     }
                     if menu.showsHistoryDivider {
                         Divider()
-                        Text(RewardListText().history)
+                        Text(RewardListText(locale: locale).history)
                     }
                     ForEach(menu.suggestions, id: \.self) { suggestion in
                         Button(Self.menuTitle(suggestion)) { pick(suggestion) }

@@ -87,6 +87,7 @@ class PomodoroViewModel: ObservableObject {
     private var accumulatedPausedTime: TimeInterval = 0 // 누적 정지 시간
     private var sessionDuration: TimeInterval = 0 // 현재 세션의 전체 길이
     private var awaitingSince: Date? // 집중 시간이 다 된 시각 (선택을 기다리는 동안에만 값이 있음)
+    private let exportSession: @MainActor (FocusLogEntry, TransitionDetails?) -> Void
     private var modelContext: ModelContext
     private let notesContext: ModelContext? // 할 일·보상·다음 시작점을 두는 별도 저장소. nil 이면 저장하지 않습니다.
     private let shortcuts: ShortcutRunning // 집중의 시작과 끝에 단축어를 실행하는 것
@@ -98,8 +99,10 @@ class PomodoroViewModel: ObservableObject {
         settings: AppSettings = .shared,
         notesContext: ModelContext? = nil,
         shortcuts: ShortcutRunning = URLShortcutRunner(),
+        exportSession: @escaping @MainActor (FocusLogEntry, TransitionDetails?) -> Void = { ObsidianExporter.shared.appendSession($0, details: $1) },
         now: @escaping () -> Date = Date.init
     ) {
+        self.exportSession = exportSession
         self.modelContext = modelContext
         self.notesContext = notesContext
         self.shortcuts = shortcuts
@@ -238,7 +241,13 @@ class PomodoroViewModel: ObservableObject {
     var breakSuggestion: String? {
         guard settings.transitionManagementEnabled,
               currentState == .shortBreak || currentState == .longBreak else { return nil }
-        return BreakSuggestion.pick(max(0, completedFocusSessions - 1))
+        return localizedBreakSuggestion()
+    }
+
+    func localizedBreakSuggestion(locale: Locale = .current) -> String? {
+        guard settings.transitionManagementEnabled,
+              currentState == .shortBreak || currentState == .longBreak else { return nil }
+        return BreakSuggestion.pick(max(0, completedFocusSessions - 1), locale: locale)
     }
 
     func resetToIdle() {
@@ -470,7 +479,7 @@ class PomodoroViewModel: ObservableObject {
                 refreshNoteSuggestions()
             }
         }
-        ObsidianExporter.shared.appendSession(newLog, details: details)
+        exportSession(newLog, details)
     }
 
     /// 끝난 집중에 붙일 할 일·보상·다음 시작점·연장 횟수를 모으고, 다음 시작점 초안을 정리합니다.

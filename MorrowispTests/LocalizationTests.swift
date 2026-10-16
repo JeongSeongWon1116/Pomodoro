@@ -58,6 +58,13 @@ struct LocalizationTests {
                 == "Focus sessions today: 2 · 80 min · Extensions: 3 · Mostly: Draft")
     }
 
+    @Test func englishDailySummaryOmitsZeroExtensions() {
+        let summary = DaySummary(focusCount: 2, focusMinutes: 50, extensionCount: 0,
+                                 mainTask: "Draft", hasFocus: true)
+        #expect(DaySummaryText.line(summary, locale: english)
+                == "Focus sessions today: 2 · 50 min · Mostly: Draft")
+    }
+
     @Test func englishEmptyDayInvitesAFirstSession() {
         let summary = DaySummary(focusCount: 0, focusMinutes: 0, extensionCount: 0,
                                  mainTask: nil, hasFocus: false)
@@ -77,7 +84,7 @@ struct LocalizationTests {
         let summary = DaySummary(focusCount: 1, focusMinutes: 1234, extensionCount: 0,
                                  mainTask: nil, hasFocus: true)
         let locale = Locale(identifier: "en_US")
-        #expect(DaySummaryText.line(summary, locale: locale).contains("1,234 min"))
+        #expect(DaySummaryText.line(summary, locale: locale) == "Focus sessions today: 1 · 1,234 min")
     }
 
     @MainActor

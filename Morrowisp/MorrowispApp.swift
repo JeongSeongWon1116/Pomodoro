@@ -20,6 +20,7 @@ struct MorrowispApp: App {
             LogView()
         }
         .modelContainer(container) // 전체 뷰 계층에 공유 ModelContainer를 주입합니다.
+        .defaultSize(width: 1000, height: 720)
 
         Window("Settings", id: "settings-window") {
             PreferencesView()

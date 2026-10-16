@@ -91,10 +91,10 @@ final class AppSettings: ObservableObject {
     let focusCompletions: FocusCompletionStore
     let weeklyReview: WeeklyReviewStore
 
-    init(defaults: UserDefaults? = .standard) {
+    init(defaults: UserDefaults? = .standard, locale: Locale = .current) {
         self.defaults = defaults
         self.dailyMissions = DailyMissionStore(defaults: defaults)
-        self.rewardList = RewardListStore(defaults: defaults)
+        self.rewardList = RewardListStore(defaults: defaults, locale: locale)
         self.focusCompletions = FocusCompletionStore(defaults: defaults)
         self.weeklyReview = WeeklyReviewStore(defaults: defaults)
         self.focusDurationInMinutes = (defaults?.object(forKey: "focusDuration") as? Int) ?? 25

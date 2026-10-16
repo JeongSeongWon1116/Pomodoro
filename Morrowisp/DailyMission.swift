@@ -118,6 +118,7 @@ final class DailyMissionEditor: ObservableObject {
 }
 
 struct DailyMissionView: View {
+    @Environment(\.locale) private var locale
     @ObservedObject var store: DailyMissionStore
     @StateObject private var editor = DailyMissionEditor { mission, date in
         ObsidianExporter.shared.updateMission(mission, for: date)
@@ -130,14 +131,15 @@ struct DailyMissionView: View {
             let day = context.date
             let mission = store.mission(for: day)
             VStack(alignment: .leading, spacing: 4) {
-                Text(DailyMissionText().title).font(.caption).foregroundStyle(.secondary)
+                Text(DailyMissionText(locale: locale).title).font(.caption).foregroundStyle(.secondary)
                 HStack {
-                    TextField(DailyMissionText().placeholder, text: Binding(
+                    TextField(DailyMissionText(locale: locale).placeholder, text: Binding(
                         get: { store.mission(for: day).text },
                         set: {
                             editor.setText($0, in: store, for: day)
                         }
-                    ))
+                    ), axis: .vertical)
+                    .lineLimit(1...3)
                     .textFieldStyle(.roundedBorder)
                     .focused($isEditing)
                     .onSubmit { editor.flush() }
@@ -149,14 +151,14 @@ struct DailyMissionView: View {
                         if mission.done {
                             Image(systemName: "checkmark")
                         } else {
-                            Text(DailyMissionText().done)
+                            Text(DailyMissionText(locale: locale).done)
                         }
                     }
-                    .accessibilityLabel(mission.done ? DailyMissionText().undo : DailyMissionText().done)
+                    .accessibilityLabel(mission.done ? DailyMissionText(locale: locale).undo : DailyMissionText(locale: locale).done)
                     .disabled(mission.text.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
                 if !mission.text.isEmpty {
-                    Text(DailyMissionText().encouragement)
+                    Text(DailyMissionText(locale: locale).encouragement)
                         .font(.caption2).foregroundStyle(.secondary)
                 }
             }

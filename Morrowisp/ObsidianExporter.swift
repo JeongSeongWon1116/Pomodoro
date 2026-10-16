@@ -17,14 +17,17 @@ final class ObsidianExporter: ObservableObject {
 
     @Published var isEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(isEnabled, forKey: Self.enabledKey)
+            defaults?.set(isEnabled, forKey: Self.enabledKey)
             if isEnabled { syncTodayMission() }
         }
     }
     @Published private(set) var folderName: String?
 
-    private init() {
-        self.isEnabled = UserDefaults.standard.bool(forKey: Self.enabledKey)
+    private let defaults: UserDefaults?
+
+    init(defaults: UserDefaults? = .standard) {
+        self.defaults = defaults
+        self.isEnabled = defaults?.bool(forKey: Self.enabledKey) ?? false
         self.folderName = nil
         if let url = resolveFolderURL() {
             self.folderName = url.lastPathComponent
@@ -32,7 +35,7 @@ final class ObsidianExporter: ObservableObject {
     }
 
     var isFolderSelected: Bool {
-        UserDefaults.standard.data(forKey: Self.bookmarkKey) != nil
+        defaults?.data(forKey: Self.bookmarkKey) != nil
     }
 
     /// 데일리 노트가 저장되는 보관함 폴더를 선택합니다.
@@ -56,7 +59,7 @@ final class ObsidianExporter: ObservableObject {
                 includingResourceValuesForKeys: nil,
                 relativeTo: nil
             )
-            UserDefaults.standard.set(data, forKey: Self.bookmarkKey)
+            defaults?.set(data, forKey: Self.bookmarkKey)
             folderName = url.lastPathComponent
         } catch {
             print("Obsidian 폴더 북마크 저장 실패: \(error)")
@@ -64,7 +67,7 @@ final class ObsidianExporter: ObservableObject {
     }
 
     private func resolveFolderURL() -> URL? {
-        guard let data = UserDefaults.standard.data(forKey: Self.bookmarkKey) else { return nil }
+        guard let data = defaults?.data(forKey: Self.bookmarkKey) else { return nil }
         var isStale = false
         guard let url = try? URL(
             resolvingBookmarkData: data,
