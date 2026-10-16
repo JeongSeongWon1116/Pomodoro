@@ -19,9 +19,7 @@ A calm macOS menu bar Pomodoro timer for a steady daily rhythm of focus, rest, a
    xattr -dr com.apple.quarantine /Applications/Pomodoro.app
    ```
 
-3. Click the Pomodoro icon in the menu bar to open the timer. Use the gear button to adjust your focus and rest times.
-
-Later versions are downloaded automatically and indicated by a red dot on the menu bar icon. Click **Update (업데이트)** in the popover to install and reopen the app. A downloaded update also installs when you quit. It does not install on its own while the app stays open. Update controls are under **Settings > General > Updates (설정 > 일반 > 업데이트)**.
+3. Later versions are downloaded automatically and indicated by a red dot on the menu bar icon. Click **Update (업데이트)** in the popover to install and reopen the app. A downloaded update also installs when you quit. It does not install on its own while the app stays open. Update controls are under **Settings > General > Updates (설정 > 일반 > 업데이트)**.
 
 ## Requirements
 
@@ -54,7 +52,7 @@ Today's completed-session count includes only finished focus sessions. Focus min
 
 Your history and notes are stored locally on this Mac, using SwiftData and local preferences. Pomodoro uses the network for update checks and downloads. Automatic update checks can be turned off in settings.
 
-If you enable Obsidian integration, the app writes to the folder you select. Any syncing of that folder is handled by your own Obsidian or file-sync setup. Shortcuts run through the macOS Shortcuts app; what they do depends on the shortcuts you choose.
+If you enable Obsidian integration, the app writes to the folder you select. Shortcuts run through the macOS Shortcuts app; what they do depends on the shortcuts you choose.
 
 ## Build from source
 
@@ -75,4 +73,4 @@ Source version: **1.4.0**. See [CHANGELOG.md](CHANGELOG.md) for the history; old
 
 ## License
 
-TBD — this repository does not contain a `LICENSE` file.
+No license has been chosen yet.
