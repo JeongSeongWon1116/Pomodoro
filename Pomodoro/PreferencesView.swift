@@ -48,6 +48,9 @@ struct TimerSettingsTab: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            if settings.transitionManagementEnabled {
+                RewardListSettings(store: settings.rewardList)
+            }
         }
         .formStyle(.grouped)
     }

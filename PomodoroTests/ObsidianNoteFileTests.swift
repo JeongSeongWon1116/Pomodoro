@@ -28,6 +28,63 @@ struct ObsidianNoteFileTests {
 
     // MARK: - 파일 읽기/쓰기
 
+    @Test func 빈_미션과_기록으로는_기존_노트를_바꾸지_않는다() {
+        for content in ["", "# 오늘\n메모", "# 오늘\n메모\n"] {
+            #expect(ObsidianExporter.insert(line: nil, into: content, mission: DailyMission()) == content)
+            #expect(ObsidianExporter.insert(line: "", into: content) == content)
+        }
+    }
+
+    @Test func 빈_미션과_기록으로는_파일을_만들지_않는다() throws {
+        try withTempFolder { folder in
+            let note = folder.appendingPathComponent("empty.md")
+            try ObsidianExporter.appendLine(nil, toNoteAt: note, mission: DailyMission())
+            #expect(!FileManager.default.fileExists(atPath: note.path))
+        }
+    }
+
+    @Test func 기록이_없는_미션_섹션에_빈_줄을_중복하지_않는다() {
+        let mission = DailyMission(text: "초안")
+        let section = "\(heading)\n\(ObsidianExporter.missionPrefix)초안\n\(stats) 🍅 0회 · 총 0초\n"
+        #expect(ObsidianExporter.insert(line: nil, into: "", mission: mission) == section)
+        let content = section + "\n## 메모\n남길 내용\n"
+        #expect(ObsidianExporter.insert(line: nil, into: content, mission: mission) == content)
+    }
+
+    @Test func 내용이_같으면_파일_수정_시각도_그대로다() throws {
+        try withTempFolder { folder in
+            let note = folder.appendingPathComponent("unchanged.md")
+            let original = "\(heading)\n\(stats) 🍅 1회 · 총 25분\n\(line)\n"
+            try original.write(to: note, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.modificationDate: Date(timeIntervalSince1970: 1_000_000)], ofItemAtPath: note.path)
+            let before = try FileManager.default.attributesOfItem(atPath: note.path)[.modificationDate] as? Date
+            try ObsidianExporter.appendLine(nil, toNoteAt: note)
+            let after = try FileManager.default.attributesOfItem(atPath: note.path)[.modificationDate] as? Date
+            #expect(before != nil)
+            #expect(after == before)
+            #expect(try String(contentsOf: note, encoding: .utf8) == original)
+        }
+    }
+
+    @Test func 세션_추가에서_빈_로컬_미션은_노트의_미션을_보존한다() throws {
+        try withTempFolder { folder in
+            let note = folder.appendingPathComponent("session.md")
+            let missionLine = ObsidianExporter.missionPrefix + "다른 기기의 미션"
+            let original = "\(heading)\n\(missionLine)\n\(stats) 🍅 0회 · 총 0초\n"
+            let start = Date(timeIntervalSince1970: 1_000_000)
+            let entry = FocusLogEntry(startTime: start, endTime: start.addingTimeInterval(1500),
+                                      duration: 1500, sessionType: .focus)
+            for mission in [DailyMission(), DailyMission(text: " \n\t ")] {
+                try original.write(to: note, atomically: true, encoding: .utf8)
+                try ObsidianExporter.appendSession(entry, toNoteAt: note, mission: mission)
+                let written = try String(contentsOf: note, encoding: .utf8)
+                #expect(written.contains(missionLine + "\n"))
+                #expect(written.contains(ObsidianExporter.markdownLine(for: entry)))
+                #expect(written.contains("🍅 1회 · 총 25분"))
+            }
+        }
+    }
+
     @Test func 노트가_없으면_새로_만든다() throws {
         try withTempFolder { folder in
             let note = folder.appendingPathComponent("2026-10-04.md")

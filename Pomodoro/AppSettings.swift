@@ -86,9 +86,17 @@ final class AppSettings: ObservableObject {
     // 저장소. nil 이면 기본값만 쓰고 아무것도 저장하지 않습니다(단위 테스트용).
     // ViewModel 도 적어 둔 할 일·보상을 여기에 둡니다.
     let defaults: UserDefaults?
+    let dailyMissions: DailyMissionStore
+    let rewardList: RewardListStore
+    let focusCompletions: FocusCompletionStore
+    let weeklyReview: WeeklyReviewStore
 
     init(defaults: UserDefaults? = .standard) {
         self.defaults = defaults
+        self.dailyMissions = DailyMissionStore(defaults: defaults)
+        self.rewardList = RewardListStore(defaults: defaults)
+        self.focusCompletions = FocusCompletionStore(defaults: defaults)
+        self.weeklyReview = WeeklyReviewStore(defaults: defaults)
         self.focusDurationInMinutes = (defaults?.object(forKey: "focusDuration") as? Int) ?? 25
         self.shortBreakDurationInMinutes = (defaults?.object(forKey: "shortBreakDuration") as? Int) ?? 5
         self.longBreakDurationInMinutes = (defaults?.object(forKey: "longBreakDuration") as? Int) ?? 15

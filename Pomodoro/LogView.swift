@@ -5,6 +5,7 @@ import SwiftUI
 import SwiftData
 
 struct LogView: View {
+    @ObservedObject private var settings = AppSettings.shared
     @State private var selectedPeriod: TimePeriod = .weekly
     @State private var periodOffset: Int = 0
     @State private var showingDeleteAlert = false
@@ -56,12 +57,20 @@ struct LogView: View {
                 Text("이 동작은 되돌릴 수 없습니다.")
             }
         } detail: {
-            LogChartView(period: selectedPeriod, offset: periodOffset)
+            VStack(spacing: 0) {
+                if settings.transitionManagementEnabled {
+                    WeeklyReviewView(missions: settings.dailyMissions,
+                                     completions: settings.focusCompletions, review: settings.weeklyReview)
+                    Divider()
+                }
+                LogChartView(period: selectedPeriod, offset: periodOffset)
+            }
         }
     }
 
     private func deleteAllLogs() {
         try? modelContext.delete(model: FocusLogEntry.self)
+        settings.focusCompletions.remove(nil)
         // 기록에 딸린 할 일·보상·다음 시작점 메모도 함께 지웁니다.
         TransitionNote.delete(forSessions: nil, in: DataController.shared.transitionContainer?.mainContext)
     }
@@ -263,6 +272,7 @@ struct FilteredLogListView: View {
                     .onDelete { indexSet in
                         guard let dayLogs = groupedLogs[day] else { return }
                         let deleted = indexSet.map { dayLogs[$0] }
+                        settings.focusCompletions.remove(deleted.map(\.id))
                         TransitionNote.delete(forSessions: deleted.map(\.id), in: DataController.shared.transitionContainer?.mainContext)
                         for log in deleted {
                             modelContext.delete(log)
