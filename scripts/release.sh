@@ -153,7 +153,13 @@ if [ "$PUBLISH" = 1 ]; then
   gh release create "v$VERSION" "$ZIP" "$OUT/morrowisp-appcast.xml" --repo "$REPO" --target "$(git rev-parse HEAD)" \
     --title "Morrowisp $VERSION" --notes-file "$NOTES"
   # 앱이 보는 주소(최신 릴리스의 appcast)가 방금 올린 것을 돌려주는지 본다.
-  LIVE="$(curl -fsSL "https://github.com/$REPO/releases/latest/download/morrowisp-appcast.xml")" || die "올렸지만 최신 릴리스의 appcast 를 받지 못했습니다. 릴리스 쪽을 확인합니다"
+  # 올린 직후 몇 초는 GitHub의 "최신 릴리스" 주소가 아직 넘겨주지 않는다(2.0.0에서 404) — 1분까지 다시 묻는다
+  LIVE=""
+  for _ in 1 2 3 4 5 6; do
+    LIVE="$(curl -fsSL "https://github.com/$REPO/releases/latest/download/morrowisp-appcast.xml" 2>/dev/null)" && break
+    sleep 10
+  done
+  [ -n "$LIVE" ] || die "올렸지만 최신 릴리스의 appcast 를 받지 못했습니다. 릴리스 쪽을 확인합니다"
   printf '%s\n' "$LIVE" | grep -q "<sparkle:version>$BUILD</sparkle:version>" \
     || die "올렸지만 최신 릴리스의 appcast 가 이 버전이 아닙니다. 릴리스 쪽을 확인합니다"
   echo "올림: https://github.com/$REPO/releases/tag/v$VERSION"
