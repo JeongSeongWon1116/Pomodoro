@@ -123,8 +123,8 @@ struct PopoverView: View {
                 if !viewModel.resumeHint.isEmpty { NoteLine(label: "이어서", text: viewModel.resumeHint) }
                 NoteField(title: "할 일", text: $viewModel.focusTask,
                           suggestions: viewModel.taskSuggestions, help: "지난 할 일에서 고르기")
-                NoteField(title: "끝나면 받을 보상", text: $viewModel.focusReward,
-                          suggestions: viewModel.rewardSuggestions, help: "지난 보상에서 고르기")
+                RewardField(store: settings.rewardList, text: $viewModel.focusReward,
+                            suggestions: viewModel.rewardSuggestions)
             } else {
                 if let suggestion = viewModel.breakSuggestion { NoteLine(label: "추천", text: suggestion) }
                 if !reward.isEmpty { NoteLine(label: "보상", text: reward) }
@@ -194,6 +194,7 @@ struct NoteField: View {
     @Binding var text: String
     let suggestions: [String]
     let help: String
+    var rewards: [RewardItem] = []
     @FocusState private var isEditing: Bool
 
     var body: some View {
@@ -201,8 +202,22 @@ struct NoteField: View {
             TextField(title, text: $text)
                 .textFieldStyle(.roundedBorder)
                 .focused($isEditing)
-            if !suggestions.isEmpty {
+            if !suggestions.isEmpty || !rewards.isEmpty {
                 Menu {
+                    ForEach(RewardSize.allCases) { size in
+                        let items = rewards.filter { $0.size == size && !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }
+                        if !items.isEmpty {
+                            Section(size.title) {
+                                ForEach(items) { item in
+                                    Button(Self.menuTitle(item.name)) { pick(item.name) }
+                                }
+                            }
+                        }
+                    }
+                    if !rewards.isEmpty && !suggestions.isEmpty {
+                        Divider()
+                        Text(RewardListText.history)
+                    }
                     ForEach(suggestions, id: \.self) { suggestion in
                         Button(Self.menuTitle(suggestion)) { pick(suggestion) }
                     }
