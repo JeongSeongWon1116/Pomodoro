@@ -1,14 +1,14 @@
 [한국어](OBSIDIAN.ko.md)
 
-# Obsidian integration
+# Morrowisp — Obsidian integration
 
-Pomodoro can write session records to your daily notes without an Obsidian plugin. An Obsidian vault is a folder of Markdown files, so the app writes directly to the selected folder and Obsidian reflects those changes.
+Morrowisp can write session records to your daily notes without an Obsidian plugin. An Obsidian vault is a folder of Markdown files, so the app writes directly to the selected folder and Obsidian reflects those changes.
 
-The app UI and exported labels are currently in Korean. Examples below preserve the actual output, including the labels used by the Dataview query.
+The app UI follows your system language (English or Korean). Exported labels remain in Korean. Examples below preserve the actual output, including the labels used by the Dataview query.
 
 ## Setup
 
-1. Click the Pomodoro menu bar icon to open the popover, then click the gear (settings) button.
+1. Click the Morrowisp menu bar icon to open the popover, then click the gear (settings) button.
 2. In the **Obsidian** tab, enable **Write to daily notes when a session ends (세션이 끝나면 데일리 노트에 기록)**.
 3. Click **Choose folder (폴더 선택)** and select the folder containing your daily notes.
    - If daily notes live at the vault root, select the vault folder.

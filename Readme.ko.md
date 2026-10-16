@@ -1,8 +1,10 @@
 [English](Readme.md) | 한국어
 
-#  Pomodoro Timer
+# Morrowisp — macOS를 위한 차분한 뽀모도로 타이머
 
 규칙적인 하루 리듬을 돕는 차분한 macOS 메뉴 막대 뽀모도로입니다. 집중하고, 쉬고, 하던 일로 돌아오는 흐름을 부드럽게 이어 줍니다.
+
+앱 화면은 시스템 언어에 따라 영어와 한국어를 지원합니다. 한국어 외의 언어에서는 영어로 표시합니다. 만든 사람은 **SW Square**입니다.
 
 ## ✨ 주요 기능
 
@@ -41,27 +43,38 @@
 
 ### 설치
 
-1. [릴리스](https://github.com/JeongSeongWon1116/Pomodoro/releases/latest)에서 `Pomodoro-<버전>.zip`을 받아 풀고, `Pomodoro.app`을 응용 프로그램 폴더로 옮깁니다.
+1. [릴리스](https://github.com/JeongSeongWon1116/Morrowisp/releases/latest)에서 `Morrowisp-<버전>.zip`을 받아 풀고, `Morrowisp.app`을 응용 프로그램 폴더로 옮깁니다.
 2. 처음 열 때 macOS가 "확인되지 않은 개발자"라며 막습니다(Apple 공증을 받지 않은 앱입니다). **시스템 설정 > 개인정보 보호 및 보안**에서 "그래도 열기"를 누르거나, 터미널에서 아래 한 줄을 실행한 뒤 다시 엽니다.
     ```bash
-    xattr -dr com.apple.quarantine /Applications/Pomodoro.app
+    xattr -dr com.apple.quarantine /Applications/Morrowisp.app
     ```
 3. 그 뒤의 새 버전은 앱이 스스로 받아 두고 메뉴 막대 아이콘에 점으로 알립니다. **업데이트**를 누르면 설치됩니다(누르지 않고 앱을 끄면 그때 설치됩니다).
 
 요구사항: macOS 14.0 이상.
 
+### Pomodoro(옛 이름)에서 옮겨 오기
+
+Morrowisp 2.0.0은 번들 식별자가 다른 새 앱입니다. `Morrowisp.app`을 직접 설치합니다. Pomodoro에서 자동 업데이트되지 않으며 기록과 설정은 이어지지 않습니다. 옛 `Pomodoro.app`은 종료한 뒤 지워도 됩니다. 앱을 지워도 옛 자료 폴더 `~/Library/Containers/Jeong.Pomodoro`는 남습니다.
+
 ### 소스에서 빌드
 
 1.  이 저장소를 로컬 컴퓨터에 복제(clone)합니다.
     ```bash
-    git clone https://github.com/jeongseongwon1116/pomodoro.git
+    git clone https://github.com/JeongSeongWon1116/Morrowisp.git
     ```
-2.  Xcode에서 `Pomodoro.xcodeproj` 파일을 엽니다.
+2.  Xcode에서 `Morrowisp.xcodeproj` 파일을 열고 **Morrowisp** 스킴을 선택합니다.
 3.  빌드하고 실행합니다 (Cmd+R). Xcode에서 실행한 개발 빌드는 자동 업데이트를 확인하지 않습니다. 릴리스를 만드는 법은 [docs/RELEASE.ko.md](docs/RELEASE.ko.md)에 있습니다.
+
+저장소 폴더에서 공유 스킴으로 빌드·시험하려면:
+
+```bash
+xcodebuild -project Morrowisp.xcodeproj -scheme Morrowisp -configuration Release -destination 'platform=macOS' -derivedDataPath ~/Library/Developer/Morrowisp-build/dd build
+xcodebuild -project Morrowisp.xcodeproj -scheme Morrowisp -destination 'platform=macOS' -derivedDataPath ~/Library/Developer/Morrowisp-build/dd test
+```
 
 ## 🔖 버전
 
-현재 버전: **1.4.0** — 변경 내역은 [CHANGELOG.md](CHANGELOG.md)를 참고하세요.
+현재 버전: **2.0.0** (빌드 **8**) — 변경 내역은 [CHANGELOG.md](CHANGELOG.md)를 참고하세요.
 
 ## 📝 향후 개선 계획
 
@@ -87,3 +100,7 @@
 - [x] app으로 release 하기 — GitHub 릴리스(zip)와 자동 업데이트 ([docs/RELEASE.ko.md](docs/RELEASE.ko.md))
 - [ ] Apple 공증 (Developer ID가 있어야 합니다. 지금은 받은 앱을 처음 열 때 한 번 허용해야 합니다)
 - [x] 집중 세션에 방해금지 모드가 자동으로 실행되는 기능 — 단축어 연동으로 ([docs/SHORTCUTS.ko.md](docs/SHORTCUTS.ko.md))
+
+## 라이선스
+
+[MIT](LICENSE) — © 2026 SW Square.

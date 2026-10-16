@@ -1,10 +1,10 @@
 English | [한국어](Readme.ko.md)
 
-# Pomodoro
+# Morrowisp — a calm Pomodoro timer for macOS
 
 A calm macOS menu bar Pomodoro timer for a steady daily rhythm of focus, rest, and returning to your work.
 
-**Language: the app UI is in Korean for now.** Korean labels below help you find the corresponding controls.
+The app supports English and Korean and follows your system language. Other languages use English. Korean labels below help you find the corresponding controls.
 
 <!-- TODO: Add a screenshot of the menu bar popover when one is available. -->
 
@@ -12,14 +12,18 @@ A calm macOS menu bar Pomodoro timer for a steady daily rhythm of focus, rest, a
 
 ## Install
 
-1. Download `Pomodoro-<version>.zip` from [GitHub Releases](https://github.com/JeongSeongWon1116/Pomodoro/releases/latest), unzip it, and move `Pomodoro.app` to **Applications**.
+1. Download `Morrowisp-<version>.zip` from [GitHub Releases](https://github.com/JeongSeongWon1116/Morrowisp/releases/latest), unzip it, and move `Morrowisp.app` to **Applications**.
 2. Open the app. It is not notarized by Apple, so macOS may block it as an unidentified developer's app. In **System Settings > Privacy & Security**, choose **Open Anyway**, then open it again. The existing installation procedure also provides this Terminal command as an alternative before reopening:
 
    ```bash
-   xattr -dr com.apple.quarantine /Applications/Pomodoro.app
+   xattr -dr com.apple.quarantine /Applications/Morrowisp.app
    ```
 
 3. Later versions are downloaded automatically and indicated by a red dot on the menu bar icon. Click **Update (업데이트)** in the popover to install and reopen the app. A downloaded update also installs when you quit. It does not install on its own while the app stays open. Update controls are under **Settings > General > Updates (설정 > 일반 > 업데이트)**.
+
+### Moving from Pomodoro (the former name)
+
+Morrowisp 2.0.0 by **SW Square** is a new app with a new bundle identifier. Install `Morrowisp.app` manually; Pomodoro does not update to it. History and settings do not carry over. You may quit and delete the old `Pomodoro.app`. Its data remains in `~/Library/Containers/Jeong.Pomodoro` after deleting the app.
 
 ## Requirements
 
@@ -50,7 +54,7 @@ Today's completed-session count includes only finished focus sessions. Focus min
 
 ## Privacy
 
-Your history and notes are stored locally on this Mac, using SwiftData and local preferences. Pomodoro uses the network for update checks and downloads. Automatic update checks can be turned off in settings.
+Your history and notes are stored locally on this Mac, using SwiftData and local preferences. Morrowisp uses the network for update checks and downloads. Automatic update checks can be turned off in settings.
 
 If you enable Obsidian integration, the app writes to the folder you select. Shortcuts run through the macOS Shortcuts app; what they do depends on the shortcuts you choose.
 
@@ -61,16 +65,23 @@ The app uses SwiftUI, SwiftData, and Combine.
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/jeongseongwon1116/pomodoro.git
+   git clone https://github.com/JeongSeongWon1116/Morrowisp.git
    ```
 
-2. Open `Pomodoro.xcodeproj` in Xcode.
+2. Open `Morrowisp.xcodeproj` in Xcode and select the **Morrowisp** scheme.
 3. Build and run with **Cmd+R**. Development builds run from Xcode do not check for updates.
+
+From the checkout directory, build and run tests with the shared scheme:
+
+```bash
+xcodebuild -project Morrowisp.xcodeproj -scheme Morrowisp -configuration Release -destination 'platform=macOS' -derivedDataPath ~/Library/Developer/Morrowisp-build/dd build
+xcodebuild -project Morrowisp.xcodeproj -scheme Morrowisp -destination 'platform=macOS' -derivedDataPath ~/Library/Developer/Morrowisp-build/dd test
+```
 
 For packaging and distribution, see the [release guide](docs/RELEASE.md).
 
-Source version: **1.4.0**. See [CHANGELOG.md](CHANGELOG.md) for the history; older entries are in Korean.
+Source version: **2.0.0** (build **8**). See [CHANGELOG.md](CHANGELOG.md) for the history; older entries are in Korean.
 
 ## License
 
-No license has been chosen yet.
+[MIT](LICENSE) — © 2026 SW Square.
