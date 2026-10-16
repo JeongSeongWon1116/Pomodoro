@@ -14,6 +14,7 @@ struct AggregatedLogData: Identifiable {
 }
 
 struct LogChartView: View {
+    @Environment(\.locale) private var locale
     let period: TimePeriod
     let offset: Int
     @Query private var logs: [FocusLogEntry]
@@ -78,8 +79,8 @@ struct LogChartView: View {
 
     private var chartTitle: String {
         switch period {
-        case .all: return String(localized: "All focus history (by month)")
-        default: return String(localized: "Focus time for \(period.dateRangeLabel(offset: offset))")
+        case .all: return String(localized: "All focus history (by month)", bundle: AppLocalization.bundle(for: locale), locale: locale)
+        default: return String(localized: "Focus time for \(period.dateRangeLabel(offset: offset, locale: locale))", bundle: AppLocalization.bundle(for: locale), locale: locale)
         }
     }
 
@@ -87,6 +88,8 @@ struct LogChartView: View {
         VStack {
             Text(chartTitle)
                 .font(.title2)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding()
 
             Text("Total focus time: \(formatTimeInterval(totalFocusTimeForPeriod))")
@@ -102,24 +105,24 @@ struct LogChartView: View {
 
                 Chart(chartData) { data in
                     BarMark(
-                        x: .value(String(localized: "Date"), data.date, unit: xUnit),
-                        y: .value(String(localized: "Minutes"), data.focusDuration / 60)
-                    ).foregroundStyle(by: .value(String(localized: "Type"), PomodoroState.focus.description))
+                        x: .value(String(localized: "Date", bundle: AppLocalization.bundle(for: locale), locale: locale), data.date, unit: xUnit),
+                        y: .value(String(localized: "Minutes", bundle: AppLocalization.bundle(for: locale), locale: locale), data.focusDuration / 60)
+                    ).foregroundStyle(by: .value(String(localized: "Type", bundle: AppLocalization.bundle(for: locale), locale: locale), PomodoroState.focus.localizedDescription(locale: locale)))
 
                     BarMark(
-                        x: .value(String(localized: "Date"), data.date, unit: xUnit),
-                        y: .value(String(localized: "Minutes"), data.shortBreakDuration / 60)
-                    ).foregroundStyle(by: .value(String(localized: "Type"), PomodoroState.shortBreak.description))
+                        x: .value(String(localized: "Date", bundle: AppLocalization.bundle(for: locale), locale: locale), data.date, unit: xUnit),
+                        y: .value(String(localized: "Minutes", bundle: AppLocalization.bundle(for: locale), locale: locale), data.shortBreakDuration / 60)
+                    ).foregroundStyle(by: .value(String(localized: "Type", bundle: AppLocalization.bundle(for: locale), locale: locale), PomodoroState.shortBreak.localizedDescription(locale: locale)))
 
                     BarMark(
-                        x: .value(String(localized: "Date"), data.date, unit: xUnit),
-                        y: .value(String(localized: "Minutes"), data.longBreakDuration / 60)
-                    ).foregroundStyle(by: .value(String(localized: "Type"), PomodoroState.longBreak.description))
+                        x: .value(String(localized: "Date", bundle: AppLocalization.bundle(for: locale), locale: locale), data.date, unit: xUnit),
+                        y: .value(String(localized: "Minutes", bundle: AppLocalization.bundle(for: locale), locale: locale), data.longBreakDuration / 60)
+                    ).foregroundStyle(by: .value(String(localized: "Type", bundle: AppLocalization.bundle(for: locale), locale: locale), PomodoroState.longBreak.localizedDescription(locale: locale)))
                 }
                 .chartForegroundStyleScale([
-                    PomodoroState.focus.description: PomodoroState.focus.color,
-                    PomodoroState.shortBreak.description: PomodoroState.shortBreak.color,
-                    PomodoroState.longBreak.description: PomodoroState.longBreak.color
+                    PomodoroState.focus.localizedDescription(locale: locale): PomodoroState.focus.color,
+                    PomodoroState.shortBreak.localizedDescription(locale: locale): PomodoroState.shortBreak.color,
+                    PomodoroState.longBreak.localizedDescription(locale: locale): PomodoroState.longBreak.color
                 ])
                 .chartYAxis {
                     AxisMarks { value in
@@ -135,9 +138,9 @@ struct LogChartView: View {
                         AxisTick()
                         if value.as(Date.self) != nil {
                             if period == .all {
-                                AxisValueLabel(format: .dateTime.month(.abbreviated).year(.twoDigits))
+                                AxisValueLabel(format: .dateTime.locale(locale).month(.abbreviated).year(.twoDigits))
                             } else {
-                                AxisValueLabel(format: .dateTime.month(.abbreviated).day(), centered: true)
+                                AxisValueLabel(format: .dateTime.locale(locale).month(.abbreviated).day(), centered: true)
                             }
                         }
                     }
@@ -152,9 +155,9 @@ struct LogChartView: View {
         let hours = Int(interval) / 3600
         let minutes = (Int(interval) % 3600) / 60
         if hours > 0 {
-            return String(localized: "\(hours.formatted()) hr \(minutes.formatted()) min")
+            return String(localized: "\(hours.formatted()) hr \(minutes.formatted()) min", bundle: AppLocalization.bundle(for: locale), locale: locale)
         } else {
-            return String(localized: "\(minutes.formatted()) min")
+            return String(localized: "\(minutes.formatted()) min", bundle: AppLocalization.bundle(for: locale), locale: locale)
         }
     }
 }

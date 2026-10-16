@@ -38,6 +38,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNUserNot
     }
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
+        if DataController.isRunningTests { return }
         guard let modelContext = modelContext else {
             fatalError("AppDelegate에 ModelContext가 제공되지 않았습니다.")
         }

@@ -53,7 +53,10 @@ enum DaySummaryText {
     }
     static func line(_ summary: DaySummary, locale: Locale = .current) -> String {
         guard summary.hasFocus else { return empty(locale: locale) }
-        var text = String(localized: "Focus sessions today: \(summary.focusCount.formatted(.number.locale(locale))) · \(summary.focusMinutes.formatted(.number.locale(locale))) min · Extensions: \(summary.extensionCount.formatted(.number.locale(locale)))", bundle: AppLocalization.bundle(for: locale), locale: locale)
+        var text = String(localized: "Focus sessions today: \(summary.focusCount.formatted(.number.locale(locale))) · \(summary.focusMinutes.formatted(.number.locale(locale))) min", bundle: AppLocalization.bundle(for: locale), locale: locale)
+        if summary.extensionCount > 0 {
+            text += String(localized: " · Extensions: \(summary.extensionCount.formatted(.number.locale(locale)))", bundle: AppLocalization.bundle(for: locale), locale: locale)
+        }
         if let task = summary.mainTask { text += String(localized: " · Mostly: \(task)", bundle: AppLocalization.bundle(for: locale), locale: locale) }
         return text
     }
@@ -118,7 +121,10 @@ final class FocusCompletionStore: ObservableObject {
 }
 
 struct DaySummaryView: View {
+    @Environment(\.locale) private var locale
+    var notesContext: ModelContext? = DataController.shared.transitionContainer?.mainContext
     @ObservedObject var completions: FocusCompletionStore
+    var isFocusing = false
     @Query private var logs: [FocusLogEntry]
     @State private var notes: [UUID: TransitionDetails] = [:]
 
@@ -127,14 +133,16 @@ struct DaySummaryView: View {
             let summary = DaySummary.make(entries: completions.entries(from: logs),
                                           notes: completions.includingPendingNotes(notes),
                                           calendar: .current, now: context.date)
-            Text(summary.text)
-                .font(.caption2).foregroundStyle(.secondary)
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .help(summary.text)
+            if !isFocusing || summary.focusCount > 0 {
+                Text(DaySummaryText.line(summary, locale: locale))
+                    .font(.caption2).foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .help(DaySummaryText.line(summary, locale: locale))
+            }
         }
         .task(id: logs.map(\.id)) {
-            notes = TransitionNote.details(forSessions: logs.map(\.id), in: DataController.shared.transitionContainer?.mainContext)
+            notes = TransitionNote.details(forSessions: logs.map(\.id), in: notesContext)
         }
     }
 }

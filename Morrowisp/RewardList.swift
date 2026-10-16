@@ -5,11 +5,13 @@ import SwiftUI
 enum RewardSize: String, Codable, CaseIterable, Identifiable {
     case small, medium, large
     var id: Self { self }
-    var title: String {
+    var title: String { localizedTitle() }
+
+    func localizedTitle(locale: Locale = .current) -> String {
         switch self {
-        case .small: String(localized: "Small")
-        case .medium: String(localized: "Medium")
-        case .large: String(localized: "Large")
+        case .small: String(localized: "Small", bundle: AppLocalization.bundle(for: locale), locale: locale)
+        case .medium: String(localized: "Medium", bundle: AppLocalization.bundle(for: locale), locale: locale)
+        case .large: String(localized: "Large", bundle: AppLocalization.bundle(for: locale), locale: locale)
         }
     }
 }
@@ -116,28 +118,43 @@ final class RewardListStore: ObservableObject {
 }
 
 struct RewardListSettings: View {
+    @Environment(\.locale) private var locale
     @ObservedObject var store: RewardListStore
 
     var body: some View {
-        Section(RewardListText().title) {
+        Section(RewardListText(locale: locale).title) {
             ForEach(RewardSize.allCases) { size in
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(size.title).font(.caption).foregroundStyle(.secondary)
+                    HStack {
+                        Text(size.localizedTitle(locale: locale)).font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button { store.add(RewardListText(locale: locale).newReward, size: size) } label: {
+                            Image(systemName: "plus")
+                        }
+                        .controlSize(.small)
+                        .buttonStyle(.borderless)
+                        .help(RewardListText(locale: locale).add)
+                        .accessibilityLabel(Text(verbatim: "\(size.localizedTitle(locale: locale)): \(RewardListText(locale: locale).add)"))
+                    }
                     ForEach(store.items(in: size)) { item in
                         HStack {
-                            TextField(RewardListText().name, text: Binding(
+                            TextField(RewardListText(locale: locale).name, text: Binding(
                                 get: { store.items.first(where: { $0.id == item.id })?.name ?? "" },
                                 set: { store.rename(item.id, to: $0) }
                             ))
+                            .labelsHidden()
                             .textFieldStyle(.roundedBorder)
+                            .multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             Button { store.remove(item.id) } label: { Image(systemName: "minus.circle") }
-                                .help(RewardListText().remove)
-                                .accessibilityLabel(RewardListText().remove)
+                                .buttonStyle(.borderless)
+                                .fixedSize()
+                                .help(RewardListText(locale: locale).remove)
+                                .accessibilityLabel(RewardListText(locale: locale).remove)
                         }
                     }
-                    Button(RewardListText().add) { store.add(RewardListText().newReward, size: size) }
-                        .controlSize(.small)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }
@@ -145,12 +162,13 @@ struct RewardListSettings: View {
 
 /// 설정에서 고친 목록을 열려 있는 팝오버에도 바로 반영합니다.
 struct RewardField: View {
+    @Environment(\.locale) private var locale
     @ObservedObject var store: RewardListStore
     @Binding var text: String
     let suggestions: [String]
 
     var body: some View {
-        NoteField(title: String(localized: "A reward for when you finish"), text: $text, suggestions: suggestions,
-                  help: RewardListText().choose, rewards: store.items)
+        NoteField(title: String(localized: "A reward for when you finish", bundle: AppLocalization.bundle(for: locale), locale: locale), text: $text, suggestions: suggestions,
+                  help: RewardListText(locale: locale).choose, rewards: store.items)
     }
 }

@@ -6,27 +6,33 @@ import AppKit
 import UserNotifications
 
 struct PreferencesView: View {
+    enum Tab: Hashable { case timer, notifications, obsidian, shortcuts, general }
+    @ObservedObject var settings = AppSettings.shared
+    @ObservedObject var obsidian = ObsidianExporter.shared
+    @ObservedObject var updates = UpdateController.shared
+    @State var selection: Tab = .timer
+
     var body: some View {
-        TabView {
-            TimerSettingsTab()
-                .tabItem { Label("Timer", systemImage: "timer") }
-            NotificationSettingsTab()
-                .tabItem { Label("Notifications", systemImage: "bell") }
-            ObsidianSettingsTab()
-                .tabItem { Label("Obsidian", systemImage: "doc.text") }
-            ShortcutSettingsTab()
-                .tabItem { Label("Shortcuts", systemImage: "square.2.layers.3d") }
-            GeneralSettingsTab()
-                .tabItem { Label("General", systemImage: "gearshape") }
+        TabView(selection: $selection) {
+            TimerSettingsTab(settings: settings)
+                .tabItem { Label("Timer", systemImage: "timer") }.tag(Tab.timer)
+            NotificationSettingsTab(settings: settings)
+                .tabItem { Label("Notifications", systemImage: "bell") }.tag(Tab.notifications)
+            ObsidianSettingsTab(obsidian: obsidian)
+                .tabItem { Label("Obsidian", systemImage: "doc.text") }.tag(Tab.obsidian)
+            ShortcutSettingsTab(settings: settings)
+                .tabItem { Label("Shortcuts", systemImage: "square.2.layers.3d") }.tag(Tab.shortcuts)
+            GeneralSettingsTab(settings: settings, updates: updates)
+                .tabItem { Label("General", systemImage: "gearshape") }.tag(Tab.general)
         }
-        .frame(width: 440, height: 340)
+        .frame(width: 540, height: 460)
     }
 }
 
 // MARK: - 타이머
 
 struct TimerSettingsTab: View {
-    @ObservedObject private var settings = AppSettings.shared
+    @ObservedObject var settings = AppSettings.shared
 
     var body: some View {
         Form {
@@ -41,10 +47,10 @@ struct TimerSettingsTab: View {
                         value: $settings.longBreakInterval, in: 2...10)
             }
             Section("Session transitions") {
-                Toggle("Transition support (task and reward notes, a choice after focus)", isOn: $settings.transitionManagementEnabled)
+                Toggle("Transition support", isOn: $settings.transitionManagementEnabled)
                 Toggle("Start breaks automatically after focus", isOn: $settings.autoStartBreaks)
                 Toggle("Start focus automatically after breaks", isOn: $settings.autoStartFocus)
-                Text("With transition support on, a completed focus session waits for you to choose a break or 10 more minutes in the menu bar. Automatic breaks apply only to skipped focus sessions. Turning it off hides task and reward fields and the choice screen. With automatic starts off, each session waits for you to start it from the menu bar.")
+                Text("When on, choose a break or 10 more minutes after focus ends. Task and reward fields, missions, and summaries are also shown.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -59,7 +65,7 @@ struct TimerSettingsTab: View {
 // MARK: - 알림
 
 struct NotificationSettingsTab: View {
-    @ObservedObject private var settings = AppSettings.shared
+    @ObservedObject var settings = AppSettings.shared
     @Environment(\.openURL) private var openURL
     @State private var hasNotificationPermission = true
 
@@ -85,12 +91,10 @@ struct NotificationSettingsTab: View {
             }
             if !hasNotificationPermission {
                 Section {
-                    HStack {
-                        Image(systemName: "bell.badge.fill")
-                            .foregroundStyle(.orange)
-                        Text("Allow notifications in System Settings to receive banners.")
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Allow notifications in System Settings to receive banners.", systemImage: "bell.badge.fill")
                             .font(.caption)
-                        Spacer()
+                            .fixedSize(horizontal: false, vertical: true)
                         Button("Open notification settings") {
                             if let url = URL(string: "x-apple.systempreferences:com.apple.preference.notifications") {
                                 openURL(url)
@@ -111,7 +115,8 @@ struct NotificationSettingsTab: View {
 // MARK: - Obsidian
 
 struct ObsidianSettingsTab: View {
-    @ObservedObject private var obsidian = ObsidianExporter.shared
+    @Environment(\.locale) private var locale
+    @ObservedObject var obsidian = ObsidianExporter.shared
 
     var body: some View {
         Form {
@@ -121,7 +126,7 @@ struct ObsidianSettingsTab: View {
                     HStack {
                         Image(systemName: obsidian.isFolderSelected ? "folder.fill" : "folder.badge.questionmark")
                             .foregroundStyle(obsidian.isFolderSelected ? Color.accentColor : .orange)
-                        Text(obsidian.folderName ?? String(localized: "No folder selected"))
+                        Text(obsidian.folderName ?? String(localized: "No folder selected", bundle: AppLocalization.bundle(for: locale), locale: locale))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                         Spacer()
@@ -142,13 +147,14 @@ struct ObsidianSettingsTab: View {
 // MARK: - 단축어
 
 struct ShortcutSettingsTab: View {
-    @ObservedObject private var settings = AppSettings.shared
+    @Environment(\.locale) private var locale
+    @ObservedObject var settings = AppSettings.shared
 
     var body: some View {
         Form {
             Section("Shortcuts for focus") {
-                shortcutRow(String(localized: "When focus starts"), name: $settings.focusStartShortcut)
-                shortcutRow(String(localized: "When focus ends"), name: $settings.focusEndShortcut)
+                shortcutRow(String(localized: "When focus starts", bundle: AppLocalization.bundle(for: locale), locale: locale), name: $settings.focusStartShortcut)
+                shortcutRow(String(localized: "When focus ends", bundle: AppLocalization.bundle(for: locale), locale: locale), name: $settings.focusEndShortcut)
             }
             Section {
                 Text("Enter the exact names from the Shortcuts app, such as shortcuts that turn Do Not Disturb on and off. Leave a field empty to skip it. Extending focus runs the start shortcut again. Skipping, resetting, or quitting focus also runs the end shortcut.")
@@ -160,13 +166,18 @@ struct ShortcutSettingsTab: View {
     }
 
     private func shortcutRow(_ title: String, name: Binding<String>) -> some View {
-        LabeledContent(title) {
-            TextField(title, text: name, prompt: Text("Shortcut name"))
-                .labelsHidden()
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 170)
-            Button("Try running") { URLShortcutRunner().run(named: name.wrappedValue) }
-                .disabled(name.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+            HStack {
+                TextField(title, text: name, prompt: Text("Shortcut name"))
+                    .labelsHidden()
+                    .textFieldStyle(.roundedBorder)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity)
+                Button("Try running") { URLShortcutRunner().run(named: name.wrappedValue) }
+                    .fixedSize()
+                    .disabled(name.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
         }
     }
 }
@@ -174,8 +185,9 @@ struct ShortcutSettingsTab: View {
 // MARK: - 일반
 
 struct GeneralSettingsTab: View {
-    @ObservedObject private var settings = AppSettings.shared
-    @ObservedObject private var updates = UpdateController.shared
+    @Environment(\.locale) private var locale
+    @ObservedObject var settings = AppSettings.shared
+    @ObservedObject var updates = UpdateController.shared
 
     private var versionString: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
@@ -184,7 +196,7 @@ struct GeneralSettingsTab: View {
     }
 
     private var lastCheckText: String {
-        updates.lastCheckDate?.formatted(date: .abbreviated, time: .shortened) ?? String(localized: "Not yet")
+        updates.lastCheckDate?.formatted(.dateTime.locale(locale).year().month().day().hour().minute()) ?? String(localized: "Not yet", bundle: AppLocalization.bundle(for: locale), locale: locale)
     }
 
     var body: some View {
@@ -194,7 +206,7 @@ struct GeneralSettingsTab: View {
                 Toggle("Show remaining time in the menu bar", isOn: $settings.showTimeInMenuBar)
             }
             UpdateSettingsSection(
-                disabledReason: updates.statusText,
+                disabledReason: updates.localizedStatusText(locale: locale),
                 automaticallyChecks: $updates.automaticallyChecks,
                 lastCheckText: lastCheckText,
                 availableVersion: updates.availableVersion,
@@ -218,6 +230,7 @@ struct GeneralSettingsTab: View {
 
 /// 설정 > 일반의 "업데이트" 묶음. 상태를 값으로 받아, 업데이터 없이도 그려 볼 수 있습니다.
 struct UpdateSettingsSection: View {
+    @Environment(\.locale) private var locale
     /// 업데이트를 쓰지 않는 빌드이면 그 이유, 쓰고 있으면 nil
     let disabledReason: String?
     @Binding var automaticallyChecks: Bool
@@ -244,7 +257,7 @@ struct UpdateSettingsSection: View {
                 LabeledContent("Last checked", value: lastCheckText)
                 if let pendingVersion {
                     LabeledContent("Downloaded version \(pendingVersion)") {
-                        Button(installing ? String(localized: "Installing…") : String(localized: "Install and reopen now"), action: installNow)
+                        Button(installing ? String(localized: "Installing…", bundle: AppLocalization.bundle(for: locale), locale: locale) : String(localized: "Install and reopen now", bundle: AppLocalization.bundle(for: locale), locale: locale), action: installNow)
                             .disabled(!canInstallNow)
                     }
                 } else {
@@ -254,7 +267,7 @@ struct UpdateSettingsSection: View {
                     Button("Check now", action: checkNow)
                         .disabled(!canCheckNow)
                 }
-                Text(Self.caption(hasPending: pendingVersion != nil, automaticallyChecks: automaticallyChecks, installing: installing))
+                Text(Self.caption(hasPending: pendingVersion != nil, automaticallyChecks: automaticallyChecks, installing: installing, locale: locale))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

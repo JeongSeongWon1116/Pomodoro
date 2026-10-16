@@ -35,6 +35,12 @@ struct DaySummaryTests {
         #expect(DaySummaryText.line(result, locale: Locale(identifier: "ko")) == "오늘 집중 2번 · 80분 · 연장 3번")
     }
 
+    @Test func 연장이_없으면_연장_문구를_생략한다() {
+        let result = DaySummary.make(entries: [entry()], notes: [:], calendar: calendar, now: now)
+        #expect(DaySummaryText.line(result, locale: Locale(identifier: "en")) == "Focus sessions today: 1 · 25 min")
+        #expect(DaySummaryText.line(result, locale: Locale(identifier: "ko")) == "오늘 집중 1번 · 25분")
+    }
+
     @Test func 로컬_자정은_포함하고_다음_자정은_제외한다() throws {
         let midnight = calendar.startOfDay(for: now)
         let next = try #require(calendar.date(byAdding: .day, value: 1, to: midnight))
@@ -48,7 +54,7 @@ struct DaySummaryTests {
         let notes = [a.id: TransitionDetails(task: " 초안 "), b.id: TransitionDetails(task: "초안"), c.id: TransitionDetails(task: "교정")]
         let result = DaySummary.make(entries: [a, b, c], notes: notes, calendar: calendar, now: now)
         #expect(result.mainTask == "초안")
-        #expect(DaySummaryText.line(result, locale: Locale(identifier: "ko")).hasSuffix("주로: 초안"))
+        #expect(DaySummaryText.line(result, locale: Locale(identifier: "ko")) == "오늘 집중 3번 · 75분 · 주로: 초안")
         #expect(DaySummary.make(entries: [a, c], notes: notes, calendar: calendar, now: now).mainTask == "교정")
         #expect(DaySummary.make(entries: [c, a], notes: notes, calendar: calendar, now: now).mainTask == "교정")
     }

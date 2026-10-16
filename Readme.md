@@ -1,5 +1,7 @@
 English | [한국어](Readme.ko.md)
 
+[Getting started guide](docs/GUIDE.md)
+
 # Morrowisp — a calm Pomodoro timer for macOS
 
 A calm macOS menu bar Pomodoro timer for a steady daily rhythm of focus, rest, and returning to your work.

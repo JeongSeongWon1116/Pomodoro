@@ -4,6 +4,17 @@ Older entries are in Korean.
 
 이 프로젝트는 [유의적 버전(Semantic Versioning)](https://semver.org/lang/ko/)을 따릅니다.
 
+## [2.0.1] - 2026-10-16
+
+### Changed
+- Wider Settings window (540×460) so every tab shows in English; shorter "Transition support" label and a two-sentence note.
+- Reward list: no repeated "Reward name" labels, left-aligned fields, a small + per size.
+- History window: no "Choose period" label, a wider session list, numbers only in the weekly table, a clearer weekly title.
+- Popover: the day summary is hidden during the first focus session and leaves out extensions when there are none; the main mission field wraps to three lines.
+
+### Added
+- A getting-started guide with screenshots: [docs/GUIDE.md](docs/GUIDE.md) and [docs/GUIDE.ko.md](docs/GUIDE.ko.md).
+
 ## [2.0.0] - 2026-10-16
 
 ### Changed

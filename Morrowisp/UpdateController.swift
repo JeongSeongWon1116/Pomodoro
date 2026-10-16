@@ -67,11 +67,13 @@ final class UpdateController: NSObject, ObservableObject {
     var canInstallPendingUpdate: Bool { pendingVersion != nil && held.isHolding && !installInProgress }
 
     /// 업데이트를 쓰지 않을 때 그 이유. 쓰고 있으면 nil.
-    var statusText: String? {
+    var statusText: String? { localizedStatusText() }
+
+    func localizedStatusText(locale: Locale = .current) -> String? {
         if isEnabled { return nil }
-        return Self.whyNotStarting(isRunningTests: isRunningTests, isDebugBuild: isDebugBuild, configuration: configuration)
+        return Self.whyNotStarting(isRunningTests: isRunningTests, isDebugBuild: isDebugBuild, configuration: configuration, locale: locale)
             ?? startError
-            ?? String(localized: "Updates have not started")
+            ?? String(localized: "Updates have not started", bundle: AppLocalization.bundle(for: locale), locale: locale)
     }
 
     /// 업데이터를 켜지 않는 이유. 켜도 되면 nil.

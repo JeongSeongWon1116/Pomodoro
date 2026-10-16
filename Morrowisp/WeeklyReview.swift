@@ -68,6 +68,7 @@ final class WeeklyReviewStore: ObservableObject {
 }
 
 struct WeeklyReviewView: View {
+    @Environment(\.locale) private var locale
     @ObservedObject var missions: DailyMissionStore
     @ObservedObject var completions: FocusCompletionStore
     @ObservedObject var review: WeeklyReviewStore
@@ -80,35 +81,44 @@ struct WeeklyReviewView: View {
                                          missions: missions.missions, calendar: .current, now: date)
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text(WeeklyReviewText().title).font(.headline)
-                    Text(WeeklyReviewText().period).font(.caption).foregroundStyle(.secondary)
+                    Text(WeeklyReviewText(locale: locale).title).font(.headline).foregroundStyle(.primary)
+                    Text(WeeklyReviewText(locale: locale).period).font(.caption).foregroundStyle(.secondary)
                 }
                 Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 6) {
                     GridRow {
-                        Text(WeeklyReviewText().date)
-                        Text(WeeklyReviewText().mission).frame(maxWidth: .infinity, alignment: .leading)
-                        Text(WeeklyReviewText().done)
-                        Text(WeeklyReviewText().count)
-                        Text(WeeklyReviewText().minutes)
+                        Text(WeeklyReviewText(locale: locale).date)
+                            .fixedSize()
+                        Text(WeeklyReviewText(locale: locale).mission).frame(maxWidth: .infinity, alignment: .leading)
+                        Text(WeeklyReviewText(locale: locale).done)
+                            .fixedSize()
+                        Text(WeeklyReviewText(locale: locale).count)
+                            .fixedSize()
+                        Text(WeeklyReviewText(locale: locale).minutes)
+                            .fixedSize()
                     }
-                    .foregroundStyle(.secondary)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.primary)
                     ForEach(rows) { row in
                         GridRow {
-                            Text(row.date.formatted(.dateTime.month().day()))
+                            Text(row.date.formatted(.dateTime.locale(locale).month().day()))
+                                .fixedSize()
                             Text(row.mission.text.isEmpty ? "—" : row.mission.text)
-                                .lineLimit(1).help(row.mission.text)
+                                .lineLimit(2).help(row.mission.text)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             if row.mission.done {
-                                Image(systemName: "checkmark").accessibilityLabel(WeeklyReviewText().done)
+                                Image(systemName: "checkmark").accessibilityLabel(WeeklyReviewText(locale: locale).done)
                             } else {
                                 Text(verbatim: "—")
                             }
-                            Text("Focus: \(row.summary.focusCount.formatted())").monospacedDigit()
-                            Text("\(row.summary.focusMinutes.formatted()) min").monospacedDigit()
+                            Text(row.summary.focusCount.formatted(.number.locale(locale))).monospacedDigit()
+                                .gridColumnAlignment(.trailing)
+                            Text(row.summary.focusMinutes.formatted(.number.locale(locale))).monospacedDigit()
+                                .gridColumnAlignment(.trailing)
                         }
                     }
                 }
                 .font(.caption)
-                TextField(WeeklyReviewText().memo, text: Binding(
+                TextField(WeeklyReviewText(locale: locale).memo, text: Binding(
                     get: { review.memo(for: date) },
                     set: { review.setMemo($0, for: date) }
                 ))

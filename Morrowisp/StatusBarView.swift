@@ -5,8 +5,8 @@ import SwiftUI
 
 struct StatusBarView: View {
     @EnvironmentObject var viewModel: PomodoroViewModel
-    @ObservedObject private var settings = AppSettings.shared
-    @ObservedObject private var updates = UpdateController.shared
+    @ObservedObject var settings = AppSettings.shared
+    @ObservedObject var updates = UpdateController.shared
 
     var body: some View {
         HStack(spacing: 4) {
