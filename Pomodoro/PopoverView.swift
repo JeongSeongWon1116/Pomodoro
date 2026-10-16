@@ -14,6 +14,9 @@ struct PopoverView: View {
 
     var body: some View {
         VStack(spacing: 14) {
+            if settings.transitionManagementEnabled {
+                DailyMissionView(store: settings.dailyMissions)
+            }
             HStack(spacing: 6) {
                 Image(systemName: isAwaitingChoice ? "bell.badge" : viewModel.currentState.symbolName)
                     .foregroundStyle(viewModel.currentState.color)
