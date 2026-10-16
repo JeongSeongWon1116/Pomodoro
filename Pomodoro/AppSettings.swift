@@ -88,11 +88,13 @@ final class AppSettings: ObservableObject {
     let defaults: UserDefaults?
     let dailyMissions: DailyMissionStore
     let rewardList: RewardListStore
+    let focusCompletions: FocusCompletionStore
 
     init(defaults: UserDefaults? = .standard) {
         self.defaults = defaults
         self.dailyMissions = DailyMissionStore(defaults: defaults)
         self.rewardList = RewardListStore(defaults: defaults)
+        self.focusCompletions = FocusCompletionStore(defaults: defaults)
         self.focusDurationInMinutes = (defaults?.object(forKey: "focusDuration") as? Int) ?? 25
         self.shortBreakDurationInMinutes = (defaults?.object(forKey: "shortBreakDuration") as? Int) ?? 5
         self.longBreakDurationInMinutes = (defaults?.object(forKey: "longBreakDuration") as? Int) ?? 15

@@ -68,6 +68,7 @@ class PomodoroViewModel: ObservableObject {
     private let sessionNotificationId = "pomodoro_session"
     private var lastResumeTime: Date?
     private var accumulatedActiveTime: TimeInterval = 0
+    private var sessionID = UUID()
     private var sessionStartTime: Date? // 세션의 실제 시작 시간
     private var lastPauseTime: Date? // 정지 시작 시간
     private var accumulatedPausedTime: TimeInterval = 0 // 누적 정지 시간
@@ -198,6 +199,7 @@ class PomodoroViewModel: ObservableObject {
         awaitingSince = nil
         sessionDuration += Self.focusExtension
         extensionCount += 1
+        settings.focusCompletions.pending?.extensionCount = extensionCount
         startTicking()
         runShortcut(settings.focusStartShortcut)
     }
@@ -293,6 +295,9 @@ class PomodoroViewModel: ObservableObject {
     }
 
     private func clearSessionTracking() {
+        sessionID = UUID()
+        settings.focusCompletions.pending = nil
+        settings.focusCompletions.pendingDetails = nil
         lastResumeTime = nil
         accumulatedActiveTime = 0
         sessionStartTime = nil
@@ -354,6 +359,11 @@ class PomodoroViewModel: ObservableObject {
         lastResumeTime = nil
         timeRemaining = 0
         timerState = .awaitingChoice
+        settings.focusCompletions.pending = DaySummary.Entry(
+            id: sessionID, endTime: awaitingSince ?? current, duration: sessionDuration,
+            sessionType: .focus, completed: true, extensionCount: extensionCount
+        )
+        settings.focusCompletions.pendingDetails = TransitionDetails(task: focusTask, extensionCount: extensionCount)
         runShortcut(settings.focusEndShortcut)
         playSound()
         showFocusEndedNotification()
@@ -418,6 +428,7 @@ class PomodoroViewModel: ObservableObject {
         guard finalDuration >= 1 else { return }
 
         let newLog = FocusLogEntry(
+            id: sessionID,
             startTime: startTime,
             endTime: endTime,
             duration: finalDuration,
@@ -430,6 +441,12 @@ class PomodoroViewModel: ObservableObject {
 
         var details: TransitionDetails?
         if currentState == .focus {
+            // 연장 중 그만두어도 원래 집중은 끝까지 마쳤습니다. 설정을 꺼도 사실은 남깁니다.
+            settings.focusCompletions.record(newLog.id,
+                completed: endedFromChoice || extensionCount > 0 || finalDuration >= sessionDuration,
+                extensionCount: extensionCount)
+            settings.focusCompletions.pending = nil
+            settings.focusCompletions.pendingDetails = nil
             details = collectTransitionDetails(endedFromChoice: endedFromChoice, choseBreak: choseBreak)
             // 메모 저장소를 열지 못했으면(notesContext 가 nil) 모델을 만들지 않고 Obsidian 에만 남깁니다.
             if let details, let notesContext {

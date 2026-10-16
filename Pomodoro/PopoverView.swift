@@ -70,6 +70,10 @@ struct PopoverView: View {
             }
             .padding(.horizontal, 4)
 
+            if settings.transitionManagementEnabled {
+                DaySummaryView(completions: settings.focusCompletions)
+            }
+
             Divider()
 
             HStack {
